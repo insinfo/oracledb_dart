@@ -1,0 +1,419 @@
+classDiagram 
+    direction LR
+
+    class OracleDb {
+        <<static>> +Future~OracleConnection~ connectAsync(OracleConnectParams params)
+        <<static>> +Future~OracleConnectionPool~ createPoolAsync(OraclePoolParams params)
+        <<static>> +Future~OracleClientInfo~ getClientInfo()
+        <<static>> +void initOracleClient(...)
+        <<static>> +bool isThinMode()
+        <<static>> +void enableThinMode()
+    }
+
+    class OracleConnectParams {
+        +String? user
+        +String? password
+        +String? connectString
+        +String? host
+        +int? port
+        +String? serviceName
+        +String? sid
+        +String? walletLocation
+        +String? walletPassword
+        +bool externalAuth
+        +int stmtCacheSize
+        +List~AppContextEntry~? appContext
+        +List~dynamic~? shardingKey
+        +List~dynamic~? superShardingKey
+        +bool sslServerDnMatch
+        +String? sslServerCertDn
+        +int tcpConnectTimeoutMs
+        +int expireTimeSecs
+        +AccessToken? accessToken
+        +Map~String, dynamic~? extraAuthParams
+        +OracleAuthMode mode
+    }
+    note for OracleConnectParams "Data class or Builder pattern"
+
+    class OraclePoolParams {
+      <<extends OracleConnectParams>>
+      +int minConnections
+      +int maxConnections
+      +int connectionIncrement
+      +Duration timeout
+      +Duration waitTimeout
+      +Duration maxLifetime
+      +PoolGetMode getMode
+      +bool homogeneous
+      +int pingIntervalSecs
+      +Duration pingTimeout
+      +Function(OracleConnection)? sessionCallback
+      +bool sodaMetadataCache
+    }
+    note for OraclePoolParams "Data class or Builder pattern"
+
+    class OracleConnectionPool {
+        +int minConnections
+        +int maxConnections
+        +int openedConnections
+        +int busyConnections
+        +String dsn
+        +String username
+        +PoolGetMode getMode
+        +Future~OracleConnection~ acquire()
+        +Future<void> release(OracleConnection connection)
+        +Future<void> drop(OracleConnection connection)
+        +Future<void> close([bool force=false])
+        +Future<void> reconfigure(...)
+    }
+
+    class OracleConnection {
+        +String dsn
+        +String? username
+        +String serverVersion
+        +bool autocommit
+        +Duration callTimeout
+        +bool isHealthy
+        +Future<OracleCursor> cursor([bool scrollable = false])
+        +Future<void> commit()
+        +Future<void> rollback()
+        +Future<void> close()
+        +Future<void> ping()
+        +Future<OracleLob> createLob(OracleDbType type, [Uint8List? data])
+        +Future<OracleDbObjectType> getType(String name)
+        +Future<OracleQueue> getQueue(String name, [OracleDbObjectType? payloadType])
+        +Future<OracleSodaDatabase> getSodaDatabase()
+        +Future<OracleSubscription> subscribe(...)
+        +Future<void> unsubscribe(OracleSubscription sub)
+        +Future<List~OraclePipelineResult~> runPipeline(OraclePipeline pipeline, [bool continueOnError = false])
+        +Future<void> tpcBegin(TpcXid xid, ...)
+        +Future<bool> tpcPrepare(...)
+        +Future<void> tpcCommit(...)
+        +Future<void> tpcRollback(...)
+        +TpcXid createTpcXid(...)
+    }
+    note for OracleConnection "+Properties like currentSchema, edition, action, module (setters)\n+msgproperties() helper likely exists"
+
+    class OracleCursor {
+        +OracleConnection connection
+        +int arraySize
+        +int prefetchRows
+        +List~FetchInfo~? description
+        +int rowCount
+        +String? lastRowId
+        +Function(List~dynamic~)? rowFactory
+        +Future<void> execute(String sql, [dynamic params])
+        +Future<void> executeMany(String sql, List~dynamic~ params, [bool batchErrors=false, bool dmlRowCounts=false])
+        +Future<Row?> fetchOne()
+        +Future<List~Row~> fetchMany([int? numRows])
+        +Future<List~Row~> fetchAll()
+        +Stream~Row~ rows()
+        +Future<List~OracleBatchError~> getBatchErrors()
+        +Future<List~int~> getDmlRowCounts()
+        +Future<List~OracleCursor~> getImplicitResults()
+        +Future<void> close()
+        +Future<OracleVar> createVar(OracleDbType type, ...)
+        +Future<void> callProcedure(String name, [List~dynamic~? params])
+        +Future~T~ callFunction~T~(String name, OracleDbType returnType, [List~dynamic~? params])
+        +Future<OracleDataFrame> fetchDataFrame()
+    }
+    note for OracleCursor "Row can be List<dynamic> or Map<String, dynamic>\nAsync methods return Future"
+
+    class OracleLob {
+        +OracleConnection connection
+        +OracleDbType type
+        +Future<int> getSize()
+        +Future<int> getChunkSize()
+        +Future<bool> isOpen()
+        +Future<bool> fileExists()
+        +Future<String> getDirectoryAlias()
+        +Future<String> getFileName()
+        +Future<void> setFileName(String dirAlias, String name)
+        +Future<void> open()
+        +Future<void> close()
+        +Future<Uint8List> read([int offset=1, int? amount])
+        +Future<int> write(Uint8List data, [int offset=1])
+        +Future<void> trim([int newSize=0])
+    }
+    note for OracleLob "read() returns String for CLOB/NCLOB\nwrite() accepts String for CLOB/NCLOB"
+
+    class OracleDbObjectType {
+        +String name
+        +String schema
+        +String? packageName
+        +bool isCollection
+        +OracleDbType elementType
+        +List~OracleDbObjectAttr~ attributes
+        +Future<OracleDbObject> createObject([List~dynamic~? initialElements])
+    }
+
+    class OracleDbObjectAttr {
+      +String name
+      +OracleDbType type
+      +OracleDbObjectType? objectType
+      +int? precision
+      +int? scale
+      +int? maxSize
+    }
+
+    class OracleDbObject {
+        +OracleDbObjectType type
+        +Future<dynamic> getAttribute(String name)
+        +Future<void> setAttribute(String name, dynamic value)
+        +Future<dynamic> getElement(int index)
+        +Future<void> setElement(int index, dynamic value)
+        +Future<void> append(dynamic value)
+        +Future<void> delete(int index)
+        +Future<bool> exists(int index)
+        +Future<int> getSize()
+        +Future<void> trim(int num)
+        +Future<OracleDbObject> copy()
+    }
+
+    class OracleQueue {
+      +String name
+      +EnqOptions enqOptions
+      +DeqOptions deqOptions
+      +Future<void> enqueueOne(MessageProperties message)
+      +Future<void> enqueueMany(List~MessageProperties~ messages)
+      +Future<MessageProperties?> dequeueOne()
+      +Future<List~MessageProperties~> dequeueMany(int maxMessages)
+    }
+
+    class MessageProperties {
+      +dynamic payload
+      +String? correlation
+      +int? delaySecs
+      +int? expirationSecs
+      +String? exceptionQueue
+      +int priority
+      +List~String~? recipients
+      +int attempts
+      +int deliveryMode
+      +DateTime enqueueTime
+      +Uint8List? messageId
+      +int state
+    }
+
+    class EnqOptions {
+      +Visibility visibility
+      +DeliveryMode deliveryMode
+      +String? transformation
+    }
+
+    class DeqOptions {
+      +Visibility visibility
+      +DeliveryMode deliveryMode
+      +String? transformation
+      +DequeueMode mode
+      +Navigation navigation
+      +Duration wait
+      +String? condition
+      +String? consumerName
+      +String? correlation
+      +Uint8List? messageId
+    }
+
+    class OracleSodaDatabase {
+      +Future<OracleSodaCollection> createCollection(String name, [String? metadata])
+      +Future<OracleSodaCollection?> openCollection(String name)
+      +Future<List~String~> getCollectionNames()
+      +OracleSodaDocument createDocument(dynamic content, [String? key, String? mediaType])
+    }
+
+    class OracleSodaCollection {
+      +String name
+      +Map~String, dynamic~ metadata
+      +OracleSodaOperation find()
+      +Future<void> insertOne(dynamic doc)
+      +Future<OracleSodaDocument> insertOneAndGet(dynamic doc)
+      +Future<void> insertMany(List~dynamic~ docs)
+      +Future<List~OracleSodaDocument~> insertManyAndGet(List~dynamic~ docs)
+      +Future<void> save(dynamic doc)
+      +Future<OracleSodaDocument> saveAndGet(dynamic doc)
+      +Future<bool> drop()
+      +Future<void> createIndex(String spec)
+      +Future<bool> dropIndex(String name, [bool force=false])
+      +Future<OracleSodaDocument?> getDataGuide()
+      +Future<void> truncate()
+    }
+
+    class OracleSodaOperation {
+      +OracleSodaOperation filter(String filter)
+      +OracleSodaOperation key(String key)
+      +OracleSodaOperation keys(List~String~ keys)
+      +OracleSodaOperation version(String version)
+      +OracleSodaOperation limit(int n)
+      +OracleSodaOperation skip(int n)
+      +Future<OracleSodaDocument?> getOne()
+      +Future<List~OracleSodaDocument~> getDocuments()
+      +Future<OracleSodaDocCursor> getCursor()
+      +Future<int> count()
+      +Future<int> remove()
+      +Future<bool> replaceOne(dynamic doc)
+      +Future<OracleSodaDocument?> replaceOneAndGet(dynamic doc)
+    }
+
+    class OracleSodaDocument {
+      +String? key
+      +String? version
+      +String? createdOn
+      +String? lastModified
+      +String mediaType
+      +Future<dynamic> getContent()
+      +Future<Uint8List?> getContentAsBytes()
+      +Future<String?> getContentAsString()
+    }
+
+    class OracleSodaDocCursor {
+       +Stream~OracleSodaDocument~ documents()
+       +Future<void> close()
+    }
+
+    class OraclePipeline {
+      +List~OraclePipelineOp~ operations
+      +OraclePipelineOp addExecute(String sql, [dynamic params])
+      +OraclePipelineOp addFetchOne(String sql, [dynamic params, Function? rowFactory])
+      +OraclePipelineOp addFetchMany(String sql, [dynamic params, int? numRows, Function? rowFactory])
+      +OraclePipelineOp addFetchAll(String sql, [dynamic params, int? arraySize, Function? rowFactory])
+      +OraclePipelineOp addCallProcedure(String name, [List~dynamic~? params])
+      +OraclePipelineOp addCallFunction(...)
+      +OraclePipelineOp addCommit()
+    }
+
+    class OraclePipelineOp {
+      +PipelineOpType opType
+    }
+
+    class OraclePipelineResult {
+       +OraclePipelineOp operation
+       +List~dynamic~? rows
+       +dynamic returnValue
+       +List~FetchInfo~? columns
+       +OracleException? error
+       +OracleWarning? warning
+    }
+
+    class FetchInfo {
+      +String name
+      +OracleDbType typeCode
+      +OracleDbObjectType? objectType
+      +int? displaySize
+      +int? internalSize
+      +int? precision
+      +int? scale
+      +bool isNullable
+    }
+
+    class OracleVar {
+       +OracleDbType type
+       +int numElements
+       +int actualElements
+       +int bufferSize
+       +List~dynamic~ values
+       +dynamic getValue([int pos=0])
+       +void setValue(int pos, dynamic value)
+    }
+
+    class OracleException {
+       +int code
+       +String message
+       +bool isRecoverable
+    }
+    class OracleDatabaseException {
+      <<extends OracleException>>
+    }
+    class OracleInterfaceException {
+      <<extends OracleException>>
+    }
+    class OracleInternalException {
+      <<extends OracleException>>
+    }
+
+    class OracleDataFrame {
+      +Future~DataFrame~ __dataframe__(...)
+      +int numColumns()
+      +int? numRows()
+      +List~String~ columnNames()
+      +Future<OracleColumn> getColumn(int i)
+      +Future<OracleColumn> getColumnByName(String name)
+      +Future<List~OracleColumn~> getColumns()
+    }
+
+    class OracleColumn {
+       +int size()
+       +Dtype dtype()
+       +Future<ColumnBuffers> getBuffers()
+    }
+
+    class OracleColumnBuffer {
+       +int bufsize()
+       +int ptr()
+    }
+
+    %% Entry Point Relationships
+    OracleDb ..> OracleConnectParams : uses >
+    OracleDb ..> OraclePoolParams : uses >
+    OracleDb --> OracleConnection : creates >
+    OracleDb --> OracleConnectionPool : creates >
+
+    %% Pool / Connection Relationship
+    OracleConnectionPool o-- "*" OracleConnection : contains / manages >
+
+    %% Connection Creates/Uses
+    OracleConnection --> OracleCursor : creates >
+    OracleConnection --> OracleLob : creates >
+    OracleConnection --> OracleDbObjectType : creates >
+    OracleConnection --> OracleQueue : creates >
+    OracleConnection --> OracleSodaDatabase : creates >
+    OracleConnection --> OracleSubscription : creates >
+    OracleConnection --> OraclePipeline : uses >
+    OracleConnection --> OracleException : throws >
+    OracleConnection ..> OracleConnectParams : configured by >
+
+    %% Cursor Uses/Produces
+    OracleCursor --> FetchInfo : uses >
+    OracleCursor --> OracleVar : creates >
+    OracleCursor --> OracleDataFrame : creates >
+    OracleCursor ..> OracleException : throws >
+
+    %% LOB
+    OracleLob ..> OracleException : throws >
+
+    %% DbObject
+    OracleDbObjectType --> "*" OracleDbObjectAttr : contains >
+    OracleDbObjectType --> OracleDbObject : creates >
+    OracleDbObject --> OracleDbObjectType : has a >
+    OracleDbObject --> OracleDbObjectAttr : uses >
+    OracleDbObject ..> OracleException : throws >
+
+    %% AQ
+    OracleQueue --> MessageProperties : uses >
+    OracleQueue --> EnqOptions : has a >
+    OracleQueue --> DeqOptions : has a >
+    MessageProperties ..> OracleDbObject : payload can be >
+    MessageProperties ..> Uint8List : payload can be >
+
+    %% SODA
+    OracleSodaDatabase --> OracleSodaCollection : creates / opens >
+    OracleSodaDatabase --> OracleSodaDocument : creates >
+    OracleSodaCollection --> OracleSodaOperation : creates >
+    OracleSodaCollection --> OracleSodaDocCursor : creates >
+    OracleSodaOperation ..> OracleSodaDocument : acts on / returns >
+    OracleSodaDocCursor --> OracleSodaDocument : yields >
+
+    %% Pipeline
+    OraclePipeline o-- "*" OraclePipelineOp : contains >
+    OraclePipelineResult --> OraclePipelineOp : references >
+    OraclePipelineResult --> FetchInfo : uses >
+    OraclePipelineResult ..> OracleException : may contain >
+
+    %% DataFrame Interchange
+    OracleDataFrame --> "*" OracleColumn : contains >
+    OracleColumn --> ColumnBuffers : uses >
+    ColumnBuffers --> OracleColumnBuffer : contains >
+
+    %% Exception Hierarchy
+    OracleException <|-- OracleDatabaseException
+    OracleException <|-- OracleInterfaceException
+    OracleException <|-- OracleInternalException

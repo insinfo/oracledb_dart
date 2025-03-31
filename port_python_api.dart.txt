@@ -1,0 +1,1736 @@
+// ========================================
+// Source file: C:\MyProjectsDart\oracledb_dart\python-oracledb\src\oracledb\aq.py
+// ========================================
+
+import 'dart:typed_data'; // For Uint8List
+import 'dart:async'; // For Future
+
+// Assuming DbObject, DbObjectType, Connection, MessageProperties, DeqOptions, EnqOptions
+// are defined elsewhere or mapped to appropriate Dart types/interfaces.
+// For simplicity, using placeholder types like `dynamic` or Object where
+// specific Dart equivalents aren't immediately obvious or defined.
+
+abstract class BaseQueue {
+  // @classmethod _from_impl - Static methods don't translate directly to abstract methods
+  // void _verify_message(MessageProperties message); // Internal helper
+
+  // Properties mapped to getters
+  dynamic /* Connection */ get connection;
+  dynamic /* DeqOptions */ get deqoptions;
+  dynamic /* DeqOptions */ get deqOptions; // Deprecated mapping
+  dynamic /* EnqOptions */ get enqoptions;
+  dynamic /* EnqOptions */ get enqOptions; // Deprecated mapping
+  String get name;
+  dynamic /* DbObjectType? | String? */ get payload_type;
+  dynamic /* DbObjectType? | String? */ get payloadType; // Deprecated mapping
+}
+
+abstract class Queue extends BaseQueue {
+  List<dynamic /* MessageProperties */ > deqmany(int max_num_messages);
+  List<dynamic /* MessageProperties */ > deqMany(int max_num_messages); // Deprecated mapping
+  dynamic /* MessageProperties? */ deqone();
+  dynamic /* MessageProperties? */ deqOne(); // Deprecated mapping
+  void enqmany(List<dynamic /* MessageProperties */ > messages);
+  void enqMany(List<dynamic /* MessageProperties */ > messages); // Deprecated mapping
+  void enqone(dynamic /* MessageProperties */ message);
+  void enqOne(dynamic /* MessageProperties */ message); // Deprecated mapping
+}
+
+abstract class AsyncQueue extends BaseQueue {
+  Future<List<dynamic /* MessageProperties */ >> deqmany(int max_num_messages);
+  Future<dynamic /* MessageProperties? */ > deqone();
+  Future<void> enqmany(List<dynamic /* MessageProperties */ > messages);
+  Future<void> enqone(dynamic /* MessageProperties */ message);
+}
+
+abstract class DeqOptions {
+  // @classmethod _from_impl - Static methods don't translate directly to abstract methods
+
+  String get condition;
+  set condition(String value);
+
+  String get consumername;
+  set consumername(String value);
+
+  String get correlation;
+  set correlation(String value);
+
+  // deliverymode is write-only in Python
+  set deliverymode(int value);
+
+  int get mode;
+  set mode(int value);
+
+  Uint8List get msgid; // bytes mapped to Uint8List
+  set msgid(Uint8List value);
+
+  int get navigation;
+  set navigation(int value);
+
+  String get transformation;
+  set transformation(String value);
+
+  int get visibility;
+  set visibility(int value);
+
+  int get wait;
+  set wait(int value);
+}
+
+abstract class EnqOptions {
+  // @classmethod _from_impl - Static methods don't translate directly to abstract methods
+
+  // deliverymode is write-only in Python
+  set deliverymode(int value);
+
+  String get transformation;
+  set transformation(String value);
+
+  int get visibility;
+  set visibility(int value);
+}
+
+abstract class MessageProperties {
+  // @classmethod _from_impl - Static methods don't translate directly to abstract methods
+
+  int get attempts;
+
+  String get correlation;
+  set correlation(String value);
+
+  int get delay;
+  set delay(int value);
+
+  int get deliverymode; // Read-only in Python class, assuming getter only
+
+  DateTime get enqtime; // Python datetime -> Dart DateTime
+
+  String get exceptionq;
+  set exceptionq(String value);
+
+  int get expiration;
+  set expiration(int value);
+
+  Uint8List? get msgid; // bytes? mapped to Uint8List?
+
+  dynamic /* bytes | DbObject | dict | list */ get payload;
+  set payload(dynamic /* Any */ value); // Any includes bytes, DbObject, dict, list, str
+
+  int get priority;
+  set priority(int value);
+
+  List<dynamic> get recipients;
+  set recipients(List<dynamic> value);
+
+  int get state; // Read-only in Python class, assuming getter only
+}
+
+
+// ========================================
+// Source file: C:\MyProjectsDart\oracledb_dart\python-oracledb\src\oracledb\base_impl.pyx
+// ========================================
+
+// Cython implementation details are skipped as requested (signatures only).
+// Definitions like DbType, Constants, etc., are assumed available if needed by signatures.
+
+
+// ========================================
+// Source file: C:\MyProjectsDart\oracledb_dart\python-oracledb\src\oracledb\builtin_hooks.py
+// ========================================
+
+// Hooks are functions, not class methods, skipping based on request.
+
+
+// ========================================
+// Source file: C:\MyProjectsDart\oracledb_dart\python-oracledb\src\oracledb\connection.py
+// ========================================
+
+// Placeholder for Xid type (collections.namedtuple)
+typedef Xid = ({int format_id, dynamic global_transaction_id, dynamic branch_qualifier});
+
+abstract class BaseConnection {
+  // __init__ skipped (constructor)
+  // __repr__ skipped (toString equivalent)
+  // _verify_connected skipped (internal helper)
+  // _verify_xid skipped (internal helper)
+
+  // action is write-only
+  set action(String? value); // String or null
+
+  bool get autocommit;
+  set autocommit(bool value);
+
+  int get call_timeout;
+  set call_timeout(int value);
+
+  void cancel();
+
+  // client_identifier is write-only
+  set client_identifier(String? value); // String or null
+
+  // clientinfo is write-only
+  set clientinfo(String? value); // String or null
+
+  String? get current_schema;
+  set current_schema(String? value); // String or null
+
+  // dbop is write-only
+  set dbop(String? value); // String or null
+
+  String get dsn;
+
+  // econtext_id is write-only
+  set econtext_id(String? value); // String or null
+
+  String? get db_domain;
+  String? get db_name;
+  int? get session_id;
+  int? get serial_num;
+  String? get edition;
+
+  String? get external_name;
+  set external_name(String? value);
+
+  Function? get inputtypehandler; // Map Python Callable to Dart Function?
+  set inputtypehandler(Function? value);
+
+  String? get instance_name;
+
+  String? get internal_name;
+  set internal_name(String? value);
+
+  bool is_healthy();
+
+  Uint8List? get ltxid; // bytes? mapped to Uint8List?
+  int? get max_identifier_length;
+  int? get max_open_cursors;
+
+  // module is write-only
+  set module(String? value); // String or null
+
+  dynamic /* MessageProperties */ msgproperties({
+    dynamic /* bytes | String | DbObject? */ payload,
+    String? correlation,
+    int? delay,
+    String? exceptionq,
+    int? expiration,
+    int? priority,
+    List<dynamic>? recipients,
+  });
+
+  dynamic /* Queue */ queue(
+    String name, {
+    dynamic /* DbObjectType? | String? */ payload_type,
+    dynamic /* DbObjectType? */ payloadType, // Deprecated param
+  });
+
+  Function? get outputtypehandler; // Map Python Callable to Dart Function?
+  set outputtypehandler(Function? value);
+
+  int? get sdu;
+  String? get service_name;
+
+  int get stmtcachesize;
+  set stmtcachesize(int value);
+
+  bool get thin;
+  bool get transaction_in_progress;
+  String? get username;
+  String? get version;
+  dynamic /* _Error? */ get warning;
+
+  Xid xid(
+    int format_id,
+    dynamic /* bytes | String */ global_transaction_id,
+    dynamic /* bytes | String */ branch_qualifier,
+  );
+}
+
+abstract class Connection extends BaseConnection {
+  // __init__ skipped (constructor)
+  // __del__ skipped (destructor equivalent)
+  // __enter__, __exit__ skipped (context manager equivalent)
+  // _create_queue skipped (internal helper)
+  // _get_oci_attr skipped (internal/thick mode specific)
+  // _set_oci_attr skipped (internal/thick mode specific)
+
+  void begin({
+    int format_id = -1,
+    String transaction_id = "",
+    String branch_id = "",
+  }); // Deprecated mapping
+
+  int get callTimeout; // Deprecated mapping
+  set callTimeout(int value); // Deprecated mapping
+
+  void changepassword(String old_password, String new_password);
+  void close();
+  void commit();
+
+  dynamic /* LOB */ createlob(
+    dynamic /* DbType */ lob_type, [
+    dynamic /* String | Uint8List? */ data, // String | bytes? -> String | Uint8List?
+  ]);
+
+  dynamic /* Cursor */ cursor({bool scrollable = false});
+
+  dynamic /* Object */ decode_oson(Uint8List data); // bytes -> Uint8List
+  Uint8List encode_oson(dynamic /* Object */ value); // returns bytes -> Uint8List
+
+  dynamic /* OracleDataFrame */ fetch_df_all(
+    String statement, [
+    dynamic /* List | Tuple | Dict? */ parameters,
+    int? arraysize,
+  ]);
+
+  // Generator function in Python -> Stream in Dart
+  Stream<dynamic /* OracleDataFrame */ > fetch_df_batches(
+    String statement, [
+    dynamic /* List | Tuple | Dict? */ parameters,
+    int? size,
+  ]);
+
+  dynamic /* SodaDatabase */ getSodaDatabase();
+
+  dynamic /* DbObjectType */ gettype(String name);
+
+  int? get handle; // Thick mode specific, nullable int
+
+  int get maxBytesPerCharacter; // Deprecated mapping (constant 4)
+
+  void ping();
+  bool prepare(); // Deprecated mapping (use tpc_prepare)
+
+  String? get proxy_user;
+  void rollback();
+  void shutdown({int mode = 0});
+  void startup({
+    bool force = false,
+    bool restrict = false,
+    String? pfile,
+  });
+
+  dynamic /* Subscription */ subscribe({
+    int namespace = /* constants.SUBSCR_NAMESPACE_DBCHANGE */ dynamic,
+    int protocol = /* constants.SUBSCR_PROTO_CALLBACK */ dynamic,
+    Function? callback,
+    int timeout = 0,
+    int operations = /* constants.OPCODE_ALLOPS */ dynamic,
+    int port = 0,
+    int qos = /* constants.SUBSCR_QOS_DEFAULT */ dynamic,
+    String? ip_address,
+    int grouping_class = /* constants.SUBSCR_GROUPING_CLASS_NONE */ dynamic,
+    int grouping_value = 0,
+    int grouping_type = /* constants.SUBSCR_GROUPING_TYPE_SUMMARY */ dynamic,
+    String? name,
+    bool client_initiated = false,
+    String? ipAddress, // Deprecated param
+    int? groupingClass, // Deprecated param
+    int? groupingValue, // Deprecated param
+    int? groupingType, // Deprecated param
+    bool? clientInitiated, // Deprecated param
+  });
+
+  String? get tag;
+  set tag(String? value);
+
+  void tpc_begin(
+    Xid xid, {
+    int flags = /* constants.TPC_BEGIN_NEW */ dynamic,
+    int timeout = 0,
+  });
+
+  void tpc_commit({Xid? xid, bool one_phase = false});
+
+  void tpc_end({
+    Xid? xid,
+    int flags = /* constants.TPC_END_NORMAL */ dynamic,
+  });
+
+  void tpc_forget(Xid xid);
+  Future<bool> tpc_prepare({Xid? xid}); // async in Dart due to potential I/O
+  Future<List<Xid>> tpc_recover(); // async in Dart due to potential I/O
+  void tpc_rollback({Xid? xid});
+  void unsubscribe(dynamic /* Subscription */ subscr);
+}
+
+// Top-level connect function
+// Note: Dart doesn't have top-level functions with this many optional named
+// parameters quite as elegantly. We'll represent the *signature* possibility.
+// A builder pattern might be better in actual Dart implementation.
+/*
+Connection connect({
+  String? dsn,
+  ConnectionPool? pool,
+  String? pool_alias,
+  Type conn_class = Connection, // Dart uses Type for classes
+  ConnectParams? params,
+  String? user,
+  String? proxy_user,
+  String? password,
+  String? newpassword,
+  String? wallet_password,
+  dynamic // String | Tuple | Callable
+      access_token,
+  String? host,
+  int? port,
+  String? protocol,
+  String? https_proxy,
+  int? https_proxy_port,
+  String? service_name,
+  String? instance_name,
+  String? sid,
+  String? server_type,
+  String? cclass,
+  oracledb.Purity? purity,
+  int? expire_time,
+  int? retry_count,
+  int? retry_delay,
+  double? tcp_connect_timeout,
+  bool? ssl_server_dn_match,
+  String? ssl_server_cert_dn,
+  String? wallet_location,
+  bool? events,
+  bool? externalauth,
+  oracledb.AuthMode? mode,
+  bool? disable_oob,
+  int? stmtcachesize,
+  String? edition,
+  String? tag,
+  bool? matchanytag,
+  String? config_dir,
+  List? appcontext,
+  List? shardingkey,
+  List? supershardingkey,
+  String? debug_jdwp,
+  String? connection_id_prefix,
+  dynamic // ssl.SSLContext?
+      ssl_context,
+  int? sdu,
+  String? pool_boundary,
+  bool? use_tcp_fast_open,
+  dynamic // ssl.TLSVersion?
+      ssl_version,
+  String? program,
+  String? machine,
+  String? terminal,
+  String? osuser,
+  String? driver_name,
+  bool? use_sni,
+  bool? thick_mode_dsn_passthrough,
+  Map? extra_auth_params,
+  int? handle,
+});
+*/
+
+abstract class AsyncConnection extends BaseConnection {
+  // __init__ skipped (constructor)
+  // __await__ skipped (internal await mechanism)
+  // __aenter__, __aexit__ skipped (async context manager equivalent)
+  // _connect skipped (internal helper)
+  // _create_queue skipped (internal helper)
+  // _verify_can_execute skipped (internal helper)
+
+  Future<dynamic> callfunc(
+    String name,
+    dynamic return_type, [
+    dynamic /* List | Tuple? */ parameters,
+    Map<String, dynamic>? keyword_parameters,
+  ]);
+
+  Future<List<dynamic>> callproc(
+    String name, [
+    dynamic /* List | Tuple? */ parameters,
+    Map<String, dynamic>? keyword_parameters,
+  ]);
+
+  Future<void> changepassword(String old_password, String new_password);
+  Future<void> close();
+  Future<void> commit();
+
+  Future<dynamic /* AsyncLOB */ > createlob(
+    dynamic /* DbType */ lob_type, [
+    dynamic /* String | Uint8List? */ data,
+  ]);
+
+  dynamic /* AsyncCursor */ cursor({bool scrollable = false});
+
+  Future<void> execute(
+    String statement, [
+    dynamic /* List | Tuple | Dict? */ parameters,
+  ]);
+
+  Future<void> executemany(
+    String? statement,
+    dynamic /* List | int */ parameters,
+  );
+
+  Future<List<dynamic>> fetchall(
+    String statement, [
+    dynamic /* List | Tuple | Dict? */ parameters,
+    int? arraysize,
+    Function? rowfactory,
+  ]);
+
+  Future<dynamic /* OracleDataFrame */ > fetch_df_all(
+    String statement, [
+    dynamic /* List | Tuple | Dict? */ parameters,
+    int? arraysize,
+  ]);
+
+  Stream<dynamic /* OracleDataFrame */ > fetch_df_batches(
+    String statement, [
+    dynamic /* List | Tuple | Dict? */ parameters,
+    int? size,
+  ]);
+
+  Future<List<dynamic>> fetchmany(
+    String statement, [
+    dynamic /* List | Tuple | Dict? */ parameters,
+    int? num_rows,
+    Function? rowfactory,
+  ]);
+
+  Future<dynamic> fetchone(
+    String statement, [
+    dynamic /* List | Tuple | Dict? */ parameters,
+    Function? rowfactory,
+  ]);
+
+  Future<dynamic /* DbObjectType */ > gettype(String name);
+  Future<void> ping();
+  Future<void> rollback();
+
+  Future<List<dynamic>> run_pipeline(
+    dynamic /* Pipeline */ pipeline, {
+    bool continue_on_error = false,
+  });
+
+  Future<void> tpc_begin(
+    Xid xid, {
+    int flags = /* constants.TPC_BEGIN_NEW */ dynamic,
+    int timeout = 0,
+  });
+
+  Future<void> tpc_commit({Xid? xid, bool one_phase = false});
+
+  Future<void> tpc_end({
+    Xid? xid,
+    int flags = /* constants.TPC_END_NORMAL */ dynamic,
+  });
+
+  Future<void> tpc_forget(Xid xid);
+  Future<bool> tpc_prepare({Xid? xid});
+  Future<List<Xid>> tpc_recover();
+  Future<void> tpc_rollback({Xid? xid});
+}
+
+// Top-level connect_async function
+/*
+Future<AsyncConnection> connect_async({
+  String? dsn,
+  AsyncConnectionPool? pool,
+  String? pool_alias,
+  Type conn_class = AsyncConnection,
+  ConnectParams? params,
+  // ... other parameters same as connect() ...
+});
+*/
+
+// ========================================
+// Source file: C:\MyProjectsDart\oracledb_dart\python-oracledb\src\oracledb\connect_params.py
+// ========================================
+
+abstract class ConnectParams {
+  // __init__ skipped (constructor)
+  // __repr__ skipped (toString equivalent)
+  // _flatten_value skipped (internal helper decorator)
+
+  List<dynamic> get appcontext;
+  dynamic /* List | String */ get cclass; // Union type
+  String? get config_dir;
+  dynamic /* List | String */ get connection_id_prefix; // Union type
+  String? get debug_jdwp;
+  bool get disable_oob;
+  String? get driver_name;
+  String? get edition;
+  bool get events;
+  dynamic /* List | int */ get expire_time; // Union type
+  bool get externalauth;
+  Map? get extra_auth_params;
+  dynamic /* List | String */ get host; // Union type
+  dynamic /* List | String */ get https_proxy; // Union type
+  dynamic /* List | int */ get https_proxy_port; // Union type
+  dynamic /* List | String */ get instance_name; // Union type
+  String? get machine;
+  bool get matchanytag;
+  dynamic /* oracledb.AuthMode */ get mode;
+  String? get osuser;
+  dynamic /* List | String */ get pool_boundary; // Union type
+  dynamic /* List | int */ get port; // Union type
+  String? get program;
+  dynamic /* List | String */ get protocol; // Union type
+  String? get proxy_user;
+  dynamic /* List | oracledb.Purity */ get purity; // Union type
+  dynamic /* List | int */ get retry_count; // Union type
+  dynamic /* List | int */ get retry_delay; // Union type
+  dynamic /* List | int */ get sdu; // Union type
+  dynamic /* List | String */ get server_type; // Union type
+  dynamic /* List | String */ get service_name; // Union type
+  List<dynamic> get shardingkey;
+  dynamic /* List | String */ get sid; // Union type
+  dynamic /* ssl.SSLContext? */ get ssl_context;
+  dynamic /* List | String */ get ssl_server_cert_dn; // Union type
+  dynamic /* List | bool */ get ssl_server_dn_match; // Union type
+  dynamic /* List | ssl.TLSVersion? */ get ssl_version; // Union type
+  int? get stmtcachesize;
+  List<dynamic> get supershardingkey;
+  String? get tag;
+  dynamic /* List | double */ get tcp_connect_timeout; // Union type
+  String? get terminal;
+  bool get thick_mode_dsn_passthrough;
+  String? get user;
+  dynamic /* List | bool */ get use_sni; // Union type
+  dynamic /* List | bool */ get use_tcp_fast_open; // Union type
+  dynamic /* List | String */ get wallet_location; // Union type
+
+  ConnectParams copy();
+  String get_connect_string();
+  Future<List<String>> get_network_service_names(); // async due to potential file I/O
+  void parse_connect_string(String connect_string);
+  (String?, String?, String?) parse_dsn_with_credentials(String dsn); // Tuple return
+
+  // set method signature similar to __init__ but returns void
+  void set({
+    String? user,
+    String? proxy_user,
+    String? password,
+    String? newpassword,
+    String? wallet_password,
+    dynamic /* String | Tuple | Callable? */ access_token,
+    String? host,
+    int? port,
+    String? protocol,
+    String? https_proxy,
+    int? https_proxy_port,
+    String? service_name,
+    String? instance_name,
+    String? sid,
+    String? server_type,
+    String? cclass,
+    dynamic /* oracledb.Purity? */ purity,
+    int? expire_time,
+    int? retry_count,
+    int? retry_delay,
+    double? tcp_connect_timeout,
+    bool? ssl_server_dn_match,
+    String? ssl_server_cert_dn,
+    String? wallet_location,
+    bool? events,
+    bool? externalauth,
+    dynamic /* oracledb.AuthMode? */ mode,
+    bool? disable_oob,
+    int? stmtcachesize,
+    String? edition,
+    String? tag,
+    bool? matchanytag,
+    String? config_dir,
+    List? appcontext,
+    List? shardingkey,
+    List? supershardingkey,
+    String? debug_jdwp,
+    String? connection_id_prefix,
+    dynamic /* ssl.SSLContext? */ ssl_context,
+    int? sdu,
+    String? pool_boundary,
+    bool? use_tcp_fast_open,
+    dynamic /* ssl.TLSVersion? */ ssl_version,
+    String? program,
+    String? machine,
+    String? terminal,
+    String? osuser,
+    String? driver_name,
+    bool? use_sni,
+    bool? thick_mode_dsn_passthrough,
+    Map? extra_auth_params,
+    int? handle,
+  });
+
+  void set_from_config(Map<String, dynamic> config);
+}
+
+// ========================================
+// Source file: C:\MyProjectsDart\oracledb_dart\python-oracledb\src\oracledb\constants.py
+// ========================================
+// Constants are typically defined as top-level `const` variables in Dart, skipping translation.
+
+// ========================================
+// Source file: C:\MyProjectsDart\oracledb_dart\python-oracledb\src\oracledb\constructors.py
+// ========================================
+// These are top-level functions, skipping translation.
+
+// ========================================
+// Source file: C:\MyProjectsDart\oracledb_dart\python-oracledb\src\oracledb\cursor.py
+// ========================================
+
+abstract class BaseCursor {
+  // __init__ skipped (constructor)
+  // __del__ skipped (destructor equivalent)
+  // __enter__, __exit__ skipped (context manager equivalent)
+  // __repr__ skipped (toString equivalent)
+  // _call skipped (internal helper)
+  // _call_get_execute_args skipped (internal helper)
+  // _prepare skipped (internal helper)
+  // _prepare_for_execute skipped (internal helper)
+  // _verify_fetch skipped (internal helper)
+  // _verify_open skipped (internal helper)
+
+  int get arraysize;
+  set arraysize(int value);
+
+  dynamic /* Var */ arrayvar(
+    dynamic /* DbType | DbObjectType | Type */ typ,
+    dynamic /* List | int */ value, [
+    int size = 0,
+  ]);
+
+  Future<List<String>> bindnames(); // async due to potential I/O
+  dynamic /* List | Dict */ get bindvars; // Union type
+
+  void close();
+
+  List<dynamic /* FetchInfo */ >? get description;
+
+  List<dynamic /* Var */ > get fetchvars;
+
+  Future<List<int>> getarraydmlrowcounts(); // async due to potential I/O
+  Future<List<dynamic /* _Error */ >> getbatcherrors(); // async due to potential I/O
+  Future<List<dynamic /* Cursor */ >> getimplicitresults(); // async due to potential I/O
+
+  Function? get inputtypehandler;
+  set inputtypehandler(Function? value);
+
+  String? get lastrowid;
+
+  Function? get outputtypehandler;
+  set outputtypehandler(Function? value);
+
+  int get prefetchrows;
+  set prefetchrows(int value);
+
+  void prepare(
+    String statement, {
+    String? tag,
+    bool cache_statement = true,
+  });
+
+  int get rowcount;
+
+  Function? get rowfactory;
+  set rowfactory(Function? value);
+
+  bool get scrollable;
+  set scrollable(bool value);
+
+  dynamic /* List | Dict */ setinputsizes({ // Cannot directly map *args, **kwargs
+    List? positionalArgs,
+    Map<String, dynamic>? keywordArgs,
+  });
+
+  void setoutputsize(int size, [int column = 0]);
+
+  String? get statement;
+
+  dynamic /* Var */ Var(
+    dynamic /* DbType | DbObjectType | Type */ typ, {
+    int size = 0,
+    int arraysize = 1,
+    Function? inconverter,
+    Function? outconverter,
+    String? typename,
+    String? encoding_errors,
+    bool bypass_decode = false,
+    bool convert_nulls = false,
+    String? encodingErrors, // Deprecated param
+  });
+
+  dynamic /* _Error? */ get warning;
+}
+
+abstract class Cursor extends BaseCursor implements Iterator<dynamic> {
+  // __iter__, __next__ map roughly to Dart's Iterator, but signature isn't abstract
+  // _get_oci_attr skipped (internal/thick mode specific)
+  // _set_oci_attr skipped (internal/thick mode specific)
+
+  dynamic callfunc(
+    String name,
+    dynamic return_type, [
+    dynamic /* List | Tuple? */ parameters,
+    Map<String, dynamic>? keyword_parameters,
+    Map<String, dynamic>? keywordParameters, // Deprecated param
+  ]);
+
+  List<dynamic> callproc(
+    String name, [
+    dynamic /* List | Tuple? */ parameters,
+    Map<String, dynamic>? keyword_parameters,
+    Map<String, dynamic>? keywordParameters, // Deprecated param
+  ]);
+
+  dynamic /* Cursor? */ execute( // Returns self if query, null otherwise
+    String? statement, [
+    dynamic /* List | Tuple | Dict? */ parameters,
+    // Cannot directly map **keyword_parameters in signature
+    Map<String, dynamic>? keyword_parameters,
+  ]);
+
+  void executemany(
+    String? statement,
+    dynamic /* List | int */ parameters, {
+    bool batcherrors = false,
+    bool arraydmlrowcounts = false,
+  });
+
+  List<dynamic> fetchall();
+
+  List<dynamic> fetchmany({
+    int? size,
+    int? numRows, // Deprecated param
+  });
+
+  dynamic fetchone();
+  void parse(String statement);
+  void scroll({int value = 0, String mode = "relative"});
+}
+
+abstract class AsyncCursor extends BaseCursor implements StreamIterator<dynamic> {
+  // __aenter__, __aexit__ skipped (async context manager equivalent)
+  // __aiter__, __anext__ map roughly to Dart's Stream/StreamIterator, signature not abstract
+
+  Future<dynamic> callfunc(
+    String name,
+    dynamic return_type, [
+    dynamic /* List | Tuple? */ parameters,
+    Map<String, dynamic>? keyword_parameters,
+  ]);
+
+  Future<List<dynamic>> callproc(
+    String name, [
+    dynamic /* List | Tuple? */ parameters,
+    Map<String, dynamic>? keyword_parameters,
+  ]);
+
+  Future<void> execute(
+    String? statement, [
+    dynamic /* List | Tuple | Dict? */ parameters,
+    // Cannot directly map **keyword_parameters in signature
+    Map<String, dynamic>? keyword_parameters,
+  ]);
+
+  Future<void> executemany(
+    String? statement,
+    dynamic /* List | int */ parameters, {
+    bool batcherrors = false,
+    bool arraydmlrowcounts = false,
+  });
+
+  Future<List<dynamic>> fetchall();
+
+  Future<List<dynamic>> fetchmany({int? size});
+
+  Future<dynamic> fetchone();
+  Future<void> parse(String statement);
+  Future<void> scroll({int value = 0, String mode = "relative"});
+}
+
+
+// ========================================
+// Source file: C:\MyProjectsDart\oracledb_dart\python-oracledb\src\oracledb\dbobject.py
+// ========================================
+
+abstract class DbObject implements Iterable<dynamic> {
+  // __getattr__, __setattr__ (dynamic access, map roughly to noSuchMethod in Dart, not in signature)
+  // __iter__ (Iterable interface)
+  // __repr__ (toString equivalent)
+
+  // _ensure_is_collection skipped (internal helper)
+  // @classmethod _from_impl skipped (static)
+
+  void append(dynamic element);
+  Map<dynamic, dynamic> asdict();
+  List<dynamic> aslist();
+  DbObject copy();
+  void delete(int index);
+  bool exists(int index);
+  void extend(List<dynamic> seq);
+  int? first();
+  dynamic getelement(int index);
+  int? last();
+  int? next(int index);
+  int? prev(int index);
+  void setelement(int index, dynamic value);
+  int size();
+  void trim(int num);
+
+  dynamic /* DbObjectType */ get type;
+}
+
+abstract class DbObjectAttr {
+  // __repr__ (toString equivalent)
+  // @classmethod _from_impl skipped (static)
+
+  int? get max_size;
+  String get name;
+  int? get precision;
+  int? get scale;
+  dynamic /* DbObjectType | DbType */ get type; // Union type
+}
+
+abstract class DbObjectType {
+  // __call__ (maps to call() method)
+  // __eq__ (maps to operator ==)
+  // __repr__ (toString equivalent)
+  // @classmethod _from_impl skipped (static)
+  // _get_full_name skipped (internal helper)
+
+  DbObject call([dynamic value]); // From __call__
+
+  bool operator ==(Object other); // From __eq__
+
+  List<dynamic /* DbObjectAttr */ > get attributes;
+  bool get iscollection;
+  String get name;
+  dynamic /* DbObjectType | DbType */ get element_type; // Union type
+  DbObject newobject([List<dynamic>? value]);
+  String? get package_name;
+  String get schema;
+}
+
+
+// ========================================
+// Source file: C:\MyProjectsDart\oracledb_dart\python-oracledb\src\oracledb\defaults.py
+// ========================================
+
+abstract class Defaults {
+  // __init__ skipped (constructor)
+
+  int get arraysize;
+  set arraysize(int value);
+
+  String? get config_dir;
+  set config_dir(String? value);
+
+  bool get fetch_decimals;
+  set fetch_decimals(bool value);
+
+  bool get fetch_lobs;
+  set fetch_lobs(bool value);
+
+  int get prefetchrows;
+  set prefetchrows(int value);
+
+  int get stmtcachesize;
+  set stmtcachesize(int value);
+
+  String? get program;
+  set program(String? value);
+
+  String? get machine;
+  set machine(String? value);
+
+  String? get terminal;
+  set terminal(String? value);
+
+  String? get osuser;
+  set osuser(String? value);
+
+  String? get driver_name;
+  set driver_name(String? value);
+
+  bool get thick_mode_dsn_passthrough;
+  set thick_mode_dsn_passthrough(bool value);
+}
+
+// Global instance 'defaults' skipped.
+
+// ========================================
+// Source file: C:\MyProjectsDart\oracledb_dart\python-oracledb\src\oracledb\driver_mode.py
+// ========================================
+// Internal implementation details and global state, skipping translation.
+// Top-level functions `get_manager` and `is_thin_mode` skipped.
+
+// ========================================
+// Source file: C:\MyProjectsDart\oracledb_dart\python-oracledb\src\oracledb\dsn.py
+// ========================================
+// Top-level function `makedsn` skipped.
+
+// ========================================
+// Source file: C:\MyProjectsDart\oracledb_dart\python-oracledb\src\oracledb\enums.py
+// ========================================
+// Enums are usually defined directly in Dart, skipping translation of class wrappers.
+
+// ========================================
+// Source file: C:\MyProjectsDart\oracledb_dart\python-oracledb\src\oracledb\errors.py
+// ========================================
+// Internal error handling implementation, skipping translation.
+// Top-level functions like `_get_error_text`, `_create_err`, etc., skipped.
+
+// ========================================
+// Source file: C:\MyProjectsDart\oracledb_dart\python-oracledb\src\oracledb\exceptions.py
+// ========================================
+// Exception class definitions skipped.
+
+// ========================================
+// Source file: C:\MyProjectsDart\oracledb_dart\python-oracledb\src\oracledb\fetch_info.py
+// ========================================
+
+abstract class FetchInfo {
+  // __eq__, __getitem__, __len__, __repr__, __str__ skipped (operator overloads, etc.)
+  // @classmethod _from_impl skipped (static)
+
+  Map<String, dynamic>? get annotations;
+  int? get display_size;
+  String? get domain_name;
+  String? get domain_schema;
+  int? get internal_size;
+  bool get is_json;
+  bool get is_oson;
+  String get name;
+  bool get null_ok;
+  int? get precision;
+  int? get scale;
+  dynamic /* DbType | DbObjectType */ get type; // Union type
+  dynamic /* DbType */ get type_code;
+  int? get vector_dimensions;
+  dynamic /* oracledb.VectorFormat? */ get vector_format;
+  bool? get vector_is_sparse;
+}
+
+// ========================================
+// Source file: C:\MyProjectsDart\oracledb_dart\python-oracledb\src\oracledb\future.py
+// ========================================
+// Internal feature flag mechanism, skipping translation.
+
+// ========================================
+// Source file: C:\MyProjectsDart\oracledb_dart\python-oracledb\src\oracledb\impl\*.pyx
+// ========================================
+// These contain internal Cython implementation details and are skipped as requested.
+
+// ========================================
+// Source file: C:\MyProjectsDart\oracledb_dart\python-oracledb\src\oracledb\interchange\buffer.py
+// ========================================
+
+abstract class OracleColumnBuffer implements Buffer {
+  // __init__ skipped (constructor)
+  // __dlpack__ skipped (specific protocol implementation)
+  // __dlpack_device__ skipped (specific protocol implementation)
+  // __repr__ skipped (toString equivalent)
+
+  @override
+  int get bufsize;
+
+  @override
+  int get ptr;
+
+  // Inherited abstract methods from Buffer need implementation or this needs to be abstract
+  // Assuming Buffer itself is abstract with these methods:
+  // dynamic __dlpack__(); // Not directly translatable signature
+  // (DlpackDeviceType, int?) __dlpack_device__(); // Not directly translatable signature
+}
+
+// ========================================
+// Source file: C:\MyProjectsDart\oracledb_dart\python-oracledb\src\oracledb\interchange\column.py
+// ========================================
+
+abstract class OracleColumn implements Column {
+  // __init__ skipped (constructor)
+  // __arrow_c_array__ skipped (specific protocol implementation)
+  // _data_buffer skipped (internal helper)
+  // _offsets_buffer skipped (internal helper)
+  // _validity_buffer skipped (internal helper)
+
+  @override
+  dynamic /* CategoricalDescription */ describe_categorical();
+
+  @override
+  (dynamic /* ColumnNullType */, dynamic /* int? */) get describe_null; // Tuple return
+
+  @override
+  dynamic /* Dtype */ get dtype;
+
+  @override
+  dynamic /* ColumnBuffers */ get_buffers();
+
+  @override
+  Iterable<Column> get_chunks({int? n_chunks});
+
+  @override
+  Map<String, dynamic> get metadata;
+
+  @override
+  int? get null_count;
+
+  @override
+  int num_chunks();
+
+  @override
+  int get offset;
+
+  @override
+  int size();
+
+  // Inherited abstract methods from Column need implementation or this needs to be abstract
+}
+
+// ========================================
+// Source file: C:\MyProjectsDart\oracledb_dart\python-oracledb\src\oracledb\interchange\dataframe.py
+// ========================================
+
+abstract class OracleDataFrame implements DataFrame {
+  // __init__ skipped (constructor)
+
+  @override
+  DataFrame __dataframe__({bool nan_as_null = false, bool allow_copy = true});
+
+  @override
+  Iterable<DataFrame> get_chunks({int? n_chunks});
+
+  List<dynamic> column_arrays(); // Specific to this implementation
+
+  @override
+  List<String> column_names();
+
+  @override
+  dynamic /* OracleColumn */ get_column(int i);
+
+  @override
+  dynamic /* OracleColumn */ get_column_by_name(String name);
+
+  @override
+  List<dynamic /* OracleColumn */ > get_columns();
+
+  @override
+  Map<String, dynamic> get metadata;
+
+  @override
+  int num_chunks();
+
+  @override
+  int num_columns();
+
+  @override
+  int? num_rows();
+
+  @override
+  DataFrame select_columns(List<int> indices);
+
+  @override
+  DataFrame select_columns_by_name(List<String> names);
+}
+
+// ========================================
+// Source file: C:\MyProjectsDart\oracledb_dart\python-oracledb\src\oracledb\interchange\nanoarrow_bridge.pyx
+// ========================================
+// Cython implementation details skipped.
+
+// ========================================
+// Source file: C:\MyProjectsDart\oracledb_dart\python-oracledb\src\oracledb\interchange\protocol.py
+// ========================================
+// Abstract base classes defining the protocol, skipped as they are interfaces.
+
+// ========================================
+// Source file: C:\MyProjectsDart\oracledb_dart\python-oracledb\src\oracledb\lob.py
+// ========================================
+
+abstract class BaseLOB {
+  // __del__ skipped (destructor equivalent)
+  // _check_is_bfile skipped (internal helper)
+  // _check_not_bfile skipped (internal helper)
+  // _check_value_to_write skipped (internal helper)
+  // @classmethod _from_impl skipped (static)
+
+  (String?, String?) getfilename(); // Tuple return
+  void setfilename(String dir_alias, String name);
+  dynamic /* DbType */ get type;
+}
+
+abstract class LOB extends BaseLOB {
+  // __reduce__ skipped (Python specific serialization)
+  // __str__ skipped (toString equivalent)
+
+  void close();
+  bool fileexists();
+  int getchunksize();
+  bool isopen();
+  void open();
+  dynamic /* String | Uint8List */ read({int offset = 1, int? amount});
+  int size();
+  void trim({int new_size = 0, int? newSize}); // Deprecated param
+  void write(dynamic /* String | Uint8List */ data, [int offset = 1]);
+}
+
+abstract class AsyncLOB extends BaseLOB {
+  Future<void> close();
+  Future<bool> fileexists();
+  Future<int> getchunksize();
+  Future<bool> isopen();
+  Future<void> open();
+  Future<dynamic /* String | Uint8List */ > read({int offset = 1, int? amount});
+  Future<int> size();
+  Future<void> trim({int new_size = 0, int? newSize}); // Deprecated param
+  Future<void> write(dynamic /* String | Uint8List */ data, [int offset = 1]);
+}
+
+
+// ========================================
+// Source file: C:\MyProjectsDart\oracledb_dart\python-oracledb\src\oracledb\pipeline.py
+// ========================================
+
+abstract class PipelineOp {
+  // __repr__ skipped (toString equivalent)
+  // _create_result skipped (internal helper)
+
+  int get arraysize;
+  dynamic get keyword_parameters;
+  String? get name;
+  int get num_rows;
+  dynamic /* PipelineOpType */ get op_type;
+  dynamic get parameters;
+  dynamic get return_type;
+  Function? get rowfactory;
+  String? get statement;
+}
+
+abstract class PipelineOpResult {
+  // __repr__ skipped (toString equivalent)
+
+  List<dynamic /* FetchInfo */ >? get columns;
+  dynamic /* _Error? */ get error;
+  PipelineOp get operation;
+  dynamic get return_value;
+  List<dynamic>? get rows;
+  dynamic /* _Error? */ get warning;
+}
+
+abstract class Pipeline {
+  // __repr__ skipped (toString equivalent)
+  // _add_op skipped (internal helper)
+
+  PipelineOp add_callfunc(
+    String name,
+    dynamic return_type, [
+    dynamic /* List | Tuple? */ parameters,
+    Map<String, dynamic>? keyword_parameters,
+  ]);
+
+  PipelineOp add_callproc(
+    String name, [
+    dynamic /* List | Tuple? */ parameters,
+    Map<String, dynamic>? keyword_parameters,
+  ]);
+
+  PipelineOp add_commit();
+
+  PipelineOp add_execute(
+    String statement, [
+    dynamic /* List | Tuple | Dict? */ parameters,
+  ]);
+
+  PipelineOp add_executemany(
+    String? statement,
+    dynamic /* List | int */ parameters,
+  );
+
+  PipelineOp add_fetchall(
+    String statement, [
+    dynamic /* List | Tuple | Dict? */ parameters,
+    int? arraysize,
+    Function? rowfactory,
+  ]);
+
+  PipelineOp add_fetchmany(
+    String statement, [
+    dynamic /* List | Tuple | Dict? */ parameters,
+    int? num_rows,
+    Function? rowfactory,
+  ]);
+
+  PipelineOp add_fetchone(
+    String statement, [
+    dynamic /* List | Tuple | Dict? */ parameters,
+    Function? rowfactory,
+  ]);
+
+  List<PipelineOp> get operations;
+}
+
+// Top-level function create_pipeline
+/*
+Pipeline create_pipeline();
+*/
+
+// ========================================
+// Source file: C:\MyProjectsDart\oracledb_dart\python-oracledb\src\oracledb\plugins\*.py
+// ========================================
+// Plugin implementations skipped.
+
+// ========================================
+// Source file: C:\MyProjectsDart\oracledb_dart\python-oracledb\src\oracledb\pool.py
+// ========================================
+
+abstract class BaseConnectionPool {
+  // __init__ skipped (constructor)
+  // _verify_open skipped (internal helper)
+
+  int get busy;
+  String get dsn;
+
+  dynamic /* oracledb.PoolGetMode */ get getmode;
+  set getmode(dynamic /* oracledb.PoolGetMode */ value);
+
+  bool get homogeneous;
+  int get increment;
+  int get max;
+
+  int get max_lifetime_session;
+  set max_lifetime_session(int value);
+
+  int get max_sessions_per_shard;
+  set max_sessions_per_shard(int value);
+
+  int get min;
+  String? get name; // Nullable as it's thick-mode specific
+  int get opened;
+
+  int get ping_interval;
+  set ping_interval(int value);
+
+  bool get soda_metadata_cache;
+  set soda_metadata_cache(bool value);
+
+  int get stmtcachesize;
+  set stmtcachesize(int value);
+
+  bool get thin;
+
+  int get timeout;
+  set timeout(int value);
+
+  String get tnsentry; // Deprecated mapping
+
+  String? get username;
+
+  int get wait_timeout;
+  set wait_timeout(int value);
+}
+
+abstract class ConnectionPool extends BaseConnectionPool {
+  // __del__ skipped (destructor equivalent)
+  // _set_connection_type skipped (internal helper)
+
+  dynamic /* Connection */ acquire({
+    String? user,
+    String? password,
+    String? cclass,
+    int purity = /* oracledb.PURITY_DEFAULT */ dynamic,
+    String? tag,
+    bool matchanytag = false,
+    List? shardingkey,
+    List? supershardingkey,
+  });
+
+  void close({bool force = false});
+  void drop(dynamic /* Connection */ connection);
+  void release(dynamic /* Connection */ connection, {String? tag});
+
+  void reconfigure({
+    int? min,
+    int? max,
+    int? increment,
+    int? getmode,
+    int? timeout,
+    int? wait_timeout,
+    int? max_lifetime_session,
+    int? max_sessions_per_shard,
+    bool? soda_metadata_cache,
+    int? stmtcachesize,
+    int? ping_interval,
+  });
+}
+
+// Top-level function create_pool
+/*
+ConnectionPool create_pool({
+  String? dsn,
+  Type pool_class = ConnectionPool,
+  String? pool_alias,
+  PoolParams? params,
+  // ... other PoolParams and ConnectParams args ...
+});
+*/
+
+abstract class AsyncConnectionPool extends BaseConnectionPool {
+  // _set_connection_type skipped (internal helper)
+
+  Future<dynamic /* AsyncConnection */ > acquire({
+    String? user,
+    String? password,
+    String? cclass,
+    int purity = /* oracledb.PURITY_DEFAULT */ dynamic,
+    String? tag,
+    bool matchanytag = false,
+    List? shardingkey,
+    List? supershardingkey,
+  });
+
+  Future<void> close({bool force = false});
+  Future<void> drop(dynamic /* AsyncConnection */ connection);
+  Future<void> release(dynamic /* AsyncConnection */ connection, {String? tag});
+
+  // reconfigure is likely synchronous in Python, mapped to Future<void>
+  // for consistency as it might involve async operations internally in Dart.
+  Future<void> reconfigure({
+    int? min,
+    int? max,
+    int? increment,
+    int? getmode,
+    int? timeout,
+    int? wait_timeout,
+    int? max_lifetime_session,
+    int? max_sessions_per_shard,
+    bool? soda_metadata_cache,
+    int? stmtcachesize,
+    int? ping_interval,
+  });
+}
+
+// Top-level function create_pool_async
+/*
+Future<AsyncConnectionPool> create_pool_async({
+  String? dsn,
+  Type pool_class = AsyncConnectionPool,
+  String? pool_alias,
+  PoolParams? params,
+  // ... other PoolParams and ConnectParams args ...
+});
+*/
+
+// NamedPools class and instance skipped (global state management).
+// Top-level function get_pool skipped.
+
+// ========================================
+// Source file: C:\MyProjectsDart\oracledb_dart\python-oracledb\src\oracledb\pool_params.py
+// ========================================
+
+abstract class PoolParams extends ConnectParams {
+  // __init__ skipped (constructor)
+  // __repr__ skipped (toString equivalent)
+
+  dynamic /* Type<oracledb.Connection> */ get connectiontype;
+  dynamic /* oracledb.PoolGetMode */ get getmode;
+  bool get homogeneous;
+  int get increment;
+  int get max;
+  int get max_lifetime_session;
+  int get max_sessions_per_shard;
+  int get min;
+  int get ping_interval;
+  int get ping_timeout;
+  Function? get session_callback;
+  bool get soda_metadata_cache;
+  int get timeout;
+  int get wait_timeout;
+
+  @override
+  PoolParams copy();
+
+  // set method signature similar to __init__ but returns void
+  @override
+  void set({
+    int? min,
+    int? max,
+    int? increment,
+    Type? connectiontype, // Dart Type
+    dynamic /* oracledb.PoolGetMode? */ getmode,
+    bool? homogeneous,
+    int? timeout,
+    int? wait_timeout,
+    int? max_lifetime_session,
+    Function? session_callback,
+    int? max_sessions_per_shard,
+    bool? soda_metadata_cache,
+    int? ping_interval,
+    int? ping_timeout,
+    // ... other ConnectParams args ...
+    String? user,
+    String? proxy_user,
+    String? password,
+    String? newpassword,
+    String? wallet_password,
+    dynamic /* String | Tuple | Callable? */ access_token,
+    String? host,
+    int? port,
+    String? protocol,
+    String? https_proxy,
+    int? https_proxy_port,
+    String? service_name,
+    String? instance_name,
+    String? sid,
+    String? server_type,
+    String? cclass,
+    dynamic /* oracledb.Purity? */ purity,
+    int? expire_time,
+    int? retry_count,
+    int? retry_delay,
+    double? tcp_connect_timeout,
+    bool? ssl_server_dn_match,
+    String? ssl_server_cert_dn,
+    String? wallet_location,
+    bool? events,
+    bool? externalauth,
+    dynamic /* oracledb.AuthMode? */ mode,
+    bool? disable_oob,
+    int? stmtcachesize,
+    String? edition,
+    String? tag,
+    bool? matchanytag,
+    String? config_dir,
+    List? appcontext,
+    List? shardingkey,
+    List? supershardingkey,
+    String? debug_jdwp,
+    String? connection_id_prefix,
+    dynamic /* ssl.SSLContext? */ ssl_context,
+    int? sdu,
+    String? pool_boundary,
+    bool? use_tcp_fast_open,
+    dynamic /* ssl.TLSVersion? */ ssl_version,
+    String? program,
+    String? machine,
+    String? terminal,
+    String? osuser,
+    String? driver_name,
+    bool? use_sni,
+    bool? thick_mode_dsn_passthrough,
+    Map? extra_auth_params,
+    int? handle,
+  });
+}
+
+
+// ========================================
+// Source file: C:\MyProjectsDart\oracledb_dart\python-oracledb\src\oracledb\soda.py
+// ========================================
+
+abstract class SodaDatabase {
+  // __repr__ skipped (toString equivalent)
+  // @classmethod _from_impl skipped (static)
+  // _create_doc_impl skipped (internal helper)
+
+  dynamic /* SodaCollection */ createCollection(
+    String name, {
+    dynamic /* String | Dict? */ metadata,
+    bool mapMode = false,
+  });
+
+  dynamic /* SodaDocument */ createDocument(
+    dynamic content, {
+    String? key,
+    String mediaType = "application/json",
+  });
+
+  Future<List<String>> getCollectionNames({ // async due to potential I/O
+    String? startName,
+    int limit = 0,
+  });
+
+  Future<dynamic /* SodaCollection? */ > openCollection(String name); // async due to potential I/O
+}
+
+abstract class SodaCollection {
+  // @classmethod _from_impl skipped (static)
+  // _process_doc_arg skipped (internal helper)
+
+  void createIndex(dynamic /* Dict | String */ spec);
+  bool drop();
+  bool dropIndex(String name, {bool force = false});
+  dynamic /* SodaOperation */ find();
+  Future<dynamic /* SodaDocument? */ > getDataGuide(); // async due to potential I/O
+  void insertMany(List<dynamic> docs);
+  Future<List<dynamic /* SodaDocument */ >> insertManyAndGet( // async due to potential I/O
+    List<dynamic> docs, {
+    String? hint,
+  });
+  void insertOne(dynamic doc);
+  Future<dynamic /* SodaDocument */ > insertOneAndGet( // async due to potential I/O
+    dynamic doc, {
+    String? hint,
+  });
+  Future<List<dynamic>> listIndexes(); // async due to potential I/O
+  Map<String, dynamic> get metadata;
+  String get name;
+  void save(dynamic doc);
+  Future<dynamic /* SodaDocument */ > saveAndGet( // async due to potential I/O
+    dynamic doc, {
+    String? hint,
+  });
+  void truncate();
+}
+
+abstract class SodaDocument {
+  // @classmethod _from_impl skipped (static)
+
+  String? get createdOn;
+  dynamic /* Dict | List? */ getContent(); // Union type
+  Uint8List? getContentAsBytes();
+  String? getContentAsString();
+  String? get key;
+  String? get lastModified;
+  String get mediaType;
+  String? get version;
+}
+
+abstract class SodaDocCursor implements Iterator<dynamic /* SodaDocument */ > {
+  // __iter__, __next__ map roughly to Dart's Iterator, signature isn't abstract
+  // @classmethod _from_impl skipped (static)
+
+  void close();
+}
+
+abstract class SodaOperation {
+  // __init__ skipped (constructor)
+
+  int count();
+  SodaOperation fetchArraySize(int value);
+  SodaOperation filter(dynamic /* Dict | String */ value);
+  dynamic /* SodaDocCursor */ getCursor();
+  List<dynamic /* SodaDocument */ > getDocuments();
+  Future<dynamic /* SodaDocument? */ > getOne(); // async due to potential I/O
+  SodaOperation hint(String value);
+  SodaOperation key(String value);
+  SodaOperation keys(List<String> value);
+  SodaOperation limit(int value);
+  SodaOperation lock();
+  int remove();
+  bool replaceOne(dynamic doc);
+  Future<dynamic /* SodaDocument */ > replaceOneAndGet(dynamic doc); // async due to potential I/O
+  SodaOperation skip(int value);
+  SodaOperation version(String value);
+}
+
+
+// ========================================
+// Source file: C:\MyProjectsDart\oracledb_dart\python-oracledb\src\oracledb\sparse_vector.py
+// ========================================
+
+abstract class SparseVector {
+  // __init__ skipped (constructor)
+  // __repr__ skipped (toString equivalent)
+  // __str__ skipped (toString equivalent)
+  // @classmethod _from_impl skipped (static)
+
+  array.array get indices; // Assuming array.array maps to a Dart collection like List<int>
+  int get num_dimensions;
+  array.array get values; // Assuming array.array maps to List<double> or similar
+}
+
+
+// ========================================
+// Source file: C:\MyProjectsDart\oracledb_dart\python-oracledb\src\oracledb\subscr.py
+// ========================================
+
+abstract class Subscription {
+  // __repr__ skipped (toString equivalent)
+  // @classmethod _from_impl skipped (static)
+
+  Function? get callback;
+  dynamic /* Connection */ get connection;
+  int get id;
+  String? get ip_address;
+  String? get ipAddress; // Deprecated mapping
+  String? get name;
+  int get namespace;
+  int get operations;
+  int get port;
+  int get protocol;
+  int get qos;
+  int registerquery(String statement, [dynamic /* List | Dict? */ args]);
+  int get timeout;
+}
+
+abstract class Message {
+  // __init__ skipped (constructor)
+
+  String? get consumer_name;
+  String? get consumerName; // Deprecated mapping
+  String? get dbname;
+  Uint8List? get msgid; // bytes? -> Uint8List?
+  List<dynamic /* MessageQuery */ > get queries;
+  String? get queue_name;
+  String? get queueName; // Deprecated mapping
+  bool get registered;
+  Subscription get subscription;
+  List<dynamic /* MessageTable */ > get tables;
+  Uint8List? get txid; // bytes? -> Uint8List?
+  int get type;
+}
+
+abstract class MessageQuery {
+  // __init__ skipped (constructor)
+
+  int get id;
+  int get operation;
+  List<dynamic /* MessageTable */ > get tables;
+}
+
+abstract class MessageRow {
+  // __init__ skipped (constructor)
+
+  int get operation;
+  String? get rowid;
+}
+
+abstract class MessageTable {
+  // __init__ skipped (constructor)
+
+  String? get name;
+  int get operation;
+  List<dynamic /* MessageRow */ > get rows;
+}
+
+
+// ========================================
+// Source file: C:\MyProjectsDart\oracledb_dart\python-oracledb\src\oracledb\var.py
+// ========================================
+
+abstract class Var {
+  // __repr__ skipped (toString equivalent)
+  // @classmethod _from_impl skipped (static)
+
+  int get actual_elements;
+  int get actualElements; // Deprecated mapping
+  int get buffer_size;
+  int get bufferSize; // Deprecated mapping
+  bool get convert_nulls;
+  dynamic getvalue([int pos = 0]);
+  Function? get inconverter;
+  int get num_elements;
+  int get numElements; // Deprecated mapping
+  Function? get outconverter;
+  void setvalue(int pos, dynamic value);
+  int get size;
+  dynamic /* DbType | DbObjectType */ get type; // Union type
+  List<dynamic> get values;
+}
+
+// ========================================
+// Source file: C:\MyProjectsDart\oracledb_dart\python-oracledb\src\oracledb\version.py
+// ========================================
+// Version constant skipped.
+
+// ========================================
+// Source file: C:\MyProjectsDart\oracledb_dart\python-oracledb\src\oracledb\__init__.py
+// ========================================
+// Initialization code and alias definitions skipped.
+
+// End of generated Dart signatures

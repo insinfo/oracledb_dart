@@ -1,5 +1,7 @@
 // Core packet helpers for the thin protocol.
 
+import 'dart:convert';
+import 'dart:math';
 import 'dart:typed_data';
 
 import '../../exceptions.dart';
@@ -7,7 +9,7 @@ import 'constants.dart';
 
 /// Basic write buffer that grows as bytes are appended.
 class WriteBuffer {
-  final BytesBuilder _builder = BytesBuilder(copyOnWrite: false);
+  final BytesBuilder _builder = BytesBuilder();
 
   void writeUint8(int value) {
     _builder.addByte(value & 0xFF);
@@ -32,6 +34,27 @@ class WriteBuffer {
     _builder.add(bytes);
   }
 
+  void writeBytesWithLength(List<int> bytes) {
+    if (bytes.isEmpty) {
+      writeUint8(0);
+      return;
+    }
+    if (bytes.length < TNS_LONG_LENGTH_INDICATOR) {
+      writeUint8(bytes.length);
+      writeBytes(bytes);
+      return;
+    }
+    writeUint8(TNS_LONG_LENGTH_INDICATOR);
+    var offset = 0;
+    while (offset < bytes.length) {
+      final chunkLen = min(0xFFFF, bytes.length - offset);
+      writeUint32(chunkLen);
+      writeBytes(bytes.sublist(offset, offset + chunkLen));
+      offset += chunkLen;
+    }
+    writeUint32(0);
+  }
+
   Uint8List toBytes() => _builder.toBytes();
 }
 
@@ -47,13 +70,41 @@ class ReadBuffer {
 
   int readUint8() => _read(1, (bd) => bd.getUint8(0));
   int readUint16() => _read(2, (bd) => bd.getUint16(0, Endian.big));
+  int readUint16LE() => _read(2, (bd) => bd.getUint16(0, Endian.little));
   int readUint32() => _read(4, (bd) => bd.getUint32(0, Endian.big));
   int readUint64() => _read(8, (bd) => bd.getUint64(0, Endian.big));
   int readInt16() => _read(2, (bd) => bd.getInt16(0, Endian.big));
   int readInt32() => _read(4, (bd) => bd.getInt32(0, Endian.big));
 
+  /// Reads a null-terminated string from the buffer.
+  String readNullTerminatedString({Encoding encoding = utf8}) {
+    final startPos = _pos;
+    while (_pos < _data.length && _data[_pos] != 0) {
+      _pos++;
+    }
+    final strBytes = _data.sublist(startPos, _pos);
+    if (_pos < _data.length) {
+      _pos++; // Skip the null terminator
+    }
+    return encoding.decode(strBytes);
+  }
+
   Uint8List readBytes(int length) => _slice(length);
   void skipBytes(int length) => _skip(length);
+
+  /// Saves the current cursor position. The thin Dart port keeps packet
+  /// payloads fully materialized for now, so this is a no-op but maintains API
+  /// compatibility with the Python implementation.
+  void savePoint() {}
+
+  /// Reads a length-prefixed string using the default UTF-8 encoding.
+  String readStringWithLength({Encoding encoding = utf8}) {
+    final bytes = readBytesWithLength();
+    if (bytes.isEmpty) {
+      return '';
+    }
+    return encoding.decode(bytes);
+  }
 
   /// Reads a server rowid tuple.
   Rowid readRowid() {
@@ -197,12 +248,37 @@ class Rowid {
 // Packet header starts with 8 bytes in the Python implementation.
 const int packetHeaderSize = 8;
 
+Uint8List buildTnsPacket({
+  required Uint8List bodyBytes,
+  required int packetType,
+  int packetFlags = 0,
+  bool includeDataFlags = false,
+  bool useLargeSdu = false,
+}) {
+  final dataFlagsLen = includeDataFlags ? 2 : 0;
+  final totalLen = packetHeaderSize + dataFlagsLen + bodyBytes.length;
+  final packet = Uint8List(totalLen);
+  final header = ByteData.sublistView(packet, 0, packetHeaderSize);
+  if (useLargeSdu) {
+    header.setUint32(0, totalLen, Endian.big);
+  } else {
+    header.setUint16(0, totalLen, Endian.big);
+    header.setUint16(2, 0, Endian.big);
+  }
+  header.setUint8(4, packetType);
+  header.setUint8(5, packetFlags);
+  header.setUint16(6, 0, Endian.big);
+  var offset = packetHeaderSize;
+  if (includeDataFlags) {
+    packet[offset] = 0;
+    packet[offset + 1] = 0;
+    offset += 2;
+  }
+  packet.setRange(offset, totalLen, bodyBytes);
+  return packet;
+}
+
 int _readUint16BE(Uint8List data, int offset) {
   final view = ByteData.sublistView(data, offset, offset + 2);
   return view.getUint16(0, Endian.big);
-}
-
-int _readUint32BE(Uint8List data, int offset) {
-  final view = ByteData.sublistView(data, offset, offset + 4);
-  return view.getUint32(0, Endian.big);
 }

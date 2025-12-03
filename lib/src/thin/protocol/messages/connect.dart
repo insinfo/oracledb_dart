@@ -1,3 +1,5 @@
+import 'dart:typed_data';
+
 import '../../../exceptions.dart';
 import '../constants.dart';
 import '../packet.dart';
@@ -24,11 +26,13 @@ class ConnectMessage extends Message {
   final int packetFlags;
 
   int get connectStringLen => connectStringBytes.length;
+  bool get needsConnectData => connectStringLen > TNS_MAX_CONNECT_DATA;
 
   /// Process ACCEPT / REFUSE / REDIRECT responses (partial).
   void process(ReadBuffer buf, int packetType) {
     if (packetType == TNS_PACKET_TYPE_ACCEPT) {
       final protocolVersion = buf.readUint16();
+      print('DEBUG: ACCEPT protocolVersion=$protocolVersion');
       if (protocolVersion < TNS_VERSION_MIN_ACCEPTED) {
         throw createOracleException(
           dpyCode: ERR_SERVER_VERSION_NOT_SUPPORTED,
@@ -51,9 +55,11 @@ class ConnectMessage extends Message {
         buf.skipBytes(5);
         flags2 = buf.readUint32();
       }
-      connImpl?.capabilities
-          ?._adjustForProtocol(protocolVersion, protocolOptions, flags2);
-      connImpl?.transport.setFullPacketSize(true);
+          connImpl?.capabilities
+            ?.adjustForProtocol(protocolVersion, protocolOptions, flags2);
+        final useFourByteLengths =
+          protocolVersion >= TNS_VERSION_MIN_LARGE_SDU;
+        connImpl?.transport.setFullPacketSize(useFourByteLengths);
       connImpl?.transport.setSdu(sdu);
     } else if (packetType == TNS_PACKET_TYPE_REFUSE) {
       throw createOracleException(
@@ -99,21 +105,29 @@ class ConnectMessage extends Message {
     body.writeUint32(sdu); // TDU (large)
     body.writeUint32(connectFlags1);
     body.writeUint32(connectFlags2);
-    body.writeBytes(connectStringBytes);
+    if (!needsConnectData) {
+      body.writeBytes(connectStringBytes);
+    }
 
     final bodyBytes = body.toBytes();
-    final totalLen = packetHeaderSize + bodyBytes.length;
-    final packet = Uint8List(totalLen);
-    final header = ByteData.sublistView(packet, 0, packetHeaderSize);
+    return buildTnsPacket(
+      bodyBytes: bodyBytes,
+      packetType: TNS_PACKET_TYPE_CONNECT,
+      packetFlags: packetFlags,
+      useLargeSdu: false,
+    );
+  }
 
-    // Initial CONNECT uses 2-byte length.
-    header.setUint16(0, totalLen, Endian.big);
-    header.setUint16(2, 0, Endian.big);
-    packet[4] = TNS_PACKET_TYPE_CONNECT;
-    packet[5] = packetFlags;
-    header.setUint16(6, 0, Endian.big);
-
-    packet.setRange(packetHeaderSize, totalLen, bodyBytes);
-    return packet;
+  Uint8List? buildConnectDataPacket() {
+    if (!needsConnectData) return null;
+    final body = WriteBuffer();
+    body.writeBytes(connectStringBytes);
+    final bodyBytes = body.toBytes();
+    return buildTnsPacket(
+      bodyBytes: bodyBytes,
+      packetType: TNS_PACKET_TYPE_DATA,
+      includeDataFlags: true,
+      useLargeSdu: false,
+    );
   }
 }

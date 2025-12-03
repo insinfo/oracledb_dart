@@ -21,7 +21,8 @@ class OracleTestConfig {
   static OracleTestConfig fromEnv() {
     final env = Platform.environment;
     return OracleTestConfig(
-      enabled: env['ORACLE_TESTS'] == '1',
+      // Default to enabled; set ORACLE_TESTS=0 to skip integration tests.
+      enabled: env['ORACLE_TESTS'] != '0',
       host: env['ORACLE_HOST'] ?? 'localhost',
       port: int.tryParse(env['ORACLE_PORT'] ?? '1521') ?? 1521,
       service: env['ORACLE_SERVICE'] ?? 'XEPDB1',

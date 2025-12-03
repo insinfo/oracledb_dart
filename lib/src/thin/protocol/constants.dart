@@ -124,8 +124,12 @@ const int TNS_VERSION_MIN_END_OF_RESPONSE = 319;
 // connect flags and characteristics
 const int TNS_GSO_DONT_CARE = 0x0001;
 const int TNS_GSO_CAN_RECV_ATTENTION = 0x0400;
+const int TNS_NSI_NA_REQUIRED = 0x10;
+const int TNS_NSI_DISABLE_NA = 0x04;
+const int TNS_NSI_SUPPORT_SECURITY_RENEG = 0x80;
 const int TNS_PROTOCOL_CHARACTERISTICS = 0x4f98;
 const int TNS_CHECK_OOB = 0x01;
+const int TNS_CHUNK_SIZE = 32767;
 
 // parameter keyword numbers
 const int TNS_KEYWORD_NUM_CURRENT_SCHEMA = 168;
@@ -277,40 +281,15 @@ const int TNS_END_TO_END_CLIENT_INFO = 0x0100;
 const int TNS_END_TO_END_DBOP = 0x0200;
 const int TNS_END_TO_END_MODULE = 0x0008;
 
-// versions
-const int TNS_VERSION_DESIRED = 319;
-const int TNS_VERSION_MINIMUM = 300;
-const int TNS_VERSION_MIN_ACCEPTED = 315;      // 12.1
-const int TNS_VERSION_MIN_LARGE_SDU = 315;
-const int TNS_VERSION_MIN_OOB_CHECK = 318;
-const int TNS_VERSION_MIN_END_OF_RESPONSE = 319;
-
 // control packet types
 const int TNS_CONTROL_TYPE_INBAND_NOTIFICATION = 8;
 const int TNS_CONTROL_TYPE_RESET_OOB = 9;
 
-// connect flags
-const int TNS_GSO_DONT_CARE = 0x0001;
-const int TNS_GSO_CAN_RECV_ATTENTION = 0x0400;
-const int TNS_NSI_NA_REQUIRED = 0x10;
-const int TNS_NSI_DISABLE_NA = 0x04;
-const int TNS_NSI_SUPPORT_SECURITY_RENEG = 0x80;
-
-// other connection constants
-const int TNS_PROTOCOL_CHARACTERISTICS = 0x4f98;
-const int TNS_CHECK_OOB = 0x01;
-
-// charset ids (common defaults)
-const int TNS_CHARSET_UTF8 = 873;
-const int TNS_CHARSET_UTF16 = 2000;
-
-// verifier types
-const int TNS_VERIFIER_TYPE_11G = 0;
-const int TNS_VERIFIER_TYPE_12C = 1;
-
-// TTC functions
+// auth function codes
 const int TNS_FUNC_AUTH_PHASE_ONE = 118;
 const int TNS_FUNC_AUTH_PHASE_TWO = 115;
+
+// TTC functions
 const int TNS_FUNC_CLOSE_CURSORS = 105;
 const int TNS_FUNC_COMMIT = 14;
 const int TNS_FUNC_EXECUTE = 94;
@@ -456,6 +435,7 @@ const int TNS_RCAP_TTC_SESSION_STATE_OPS = 0x10;
 const int TNS_VERIFIER_TYPE_11G_1 = 0xb152;
 const int TNS_VERIFIER_TYPE_11G_2 = 0x1b25;
 const int TNS_VERIFIER_TYPE_12C = 0x4815;
+const int TNS_VERIFIER_TYPE_11G = TNS_VERIFIER_TYPE_11G_1;
 
 // UDS flags
 const int TNS_UDS_FLAGS_IS_JSON = 0x00000100;

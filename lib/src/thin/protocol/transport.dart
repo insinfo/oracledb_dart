@@ -11,15 +11,12 @@ import 'packet.dart';
 
 class Transport {
   Transport({
-    int maxPacketSize = TNS_CHUNK_SIZE,
     bool fullPacketSize = false,
     bool? debugPackets,
-  })  : _maxPacketSize = maxPacketSize,
-        _fullPacketSize = fullPacketSize,
+  })  : _fullPacketSize = fullPacketSize,
         _debugPackets =
             debugPackets ?? Platform.environment.containsKey('PYO_DEBUG_PACKETS');
 
-  final int _maxPacketSize;
   bool _fullPacketSize;
   final bool _debugPackets;
 
@@ -151,8 +148,9 @@ class Transport {
     if (size < packetHeaderSize) return null;
 
     final buf = _partialBuf!;
-    final packetSize =
-        _fullPacketSize ? _readUint32BE(buf, 0) : _readUint16BE(buf, 0);
+    final packetSize = _fullPacketSize
+        ? ByteData.sublistView(buf, 0, 4).getUint32(0, Endian.big)
+        : ByteData.sublistView(buf, 0, 2).getUint16(0, Endian.big);
     if (size < packetSize) return null;
 
     final packetBuf =

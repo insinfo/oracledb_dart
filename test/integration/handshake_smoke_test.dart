@@ -23,7 +23,7 @@ void main() {
         addTearDown(conn.close);
       },
       skip: config.enabled
-          ? 'Auth/session setup is still incomplete; enable once TTC login is ready.'
+          ? null
           : 'Set ORACLE_TESTS=1 to enable Oracle integration smoke tests.',
     );
   });

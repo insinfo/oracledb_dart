@@ -43,6 +43,11 @@ abstract class Message {
   bool retry = false; // Flag indicating execution should be retried (e.g., datatype change)
   OracleWarning? warning; // Any warning received
 
+  bool get useLargeSdu {
+    final version = connImpl?.capabilities.protocolVersion ?? 0;
+    return version >= TNS_VERSION_MIN_LARGE_SDU;
+  }
+
   /// Initializes the base message fields.
   /// Must be called by concrete message constructors or initialization methods.
   void initialize(dynamic connImpl) {
@@ -176,6 +181,8 @@ abstract class Message {
       _processWarningInfo(buf);
     } else if (messageType == TNS_MSG_TYPE_SERVER_SIDE_PIGGYBACK) {
       _processServerSidePiggyback(buf);
+    } else if (messageType == TNS_MSG_TYPE_PARAMETER) {
+      processReturnParameters(buf);
     } else if (messageType == TNS_MSG_TYPE_TOKEN) {
       final token = buf.readUint64();
       if (token != tokenNum) {
@@ -195,6 +202,22 @@ abstract class Message {
         dpyCode: ERR_MESSAGE_TYPE_UNKNOWN,
         message: 'Unknown message type $messageType at position ${buf.remaining}',
       );
+    }
+  }
+
+  /// Process all message chunks contained in the supplied buffer until the
+  /// server signals the end of response or the buffer is exhausted.
+  void processBuffer(ReadBuffer buf) {
+    while (!buf.isEOF && !endOfResponse) {
+      final messageType = buf.readUint8();
+      processMessage(buf, messageType);
+    }
+  }
+
+  /// Hook for subclasses that expect parameter payloads (for example AUTH).
+  void processReturnParameters(ReadBuffer buf) {
+    if (buf.remaining > 0) {
+      buf.skipBytes(buf.remaining);
     }
   }
 

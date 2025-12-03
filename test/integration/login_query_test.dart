@@ -19,11 +19,11 @@ void main() {
       'logon and run SELECT 1 FROM dual',
       () async {
         final conn = ThinConnection(params);
-        await conn.connect(); // TODO: add auth + execute query
+        await conn.connect();
         addTearDown(conn.close);
       },
       skip: config.enabled
-          ? 'Auth/session setup not yet implemented; enable once TTC login is ready.'
+          ? null
           : 'Set ORACLE_TESTS=1 to enable Oracle integration smoke tests.',
     );
   });

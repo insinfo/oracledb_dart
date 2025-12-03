@@ -110,6 +110,23 @@ const int TNS_MSG_TYPE_END_OF_RESPONSE = 29;
 const int TNS_MSG_TYPE_TOKEN = 33;
 const int TNS_MSG_TYPE_FAST_AUTH = 34;
 
+// length markers
+const int TNS_LONG_LENGTH_INDICATOR = 0xFE;
+
+// protocol versions
+const int TNS_VERSION_DESIRED = 319;
+const int TNS_VERSION_MINIMUM = 300;
+const int TNS_VERSION_MIN_ACCEPTED = 315;
+const int TNS_VERSION_MIN_LARGE_SDU = 315;
+const int TNS_VERSION_MIN_OOB_CHECK = 318;
+const int TNS_VERSION_MIN_END_OF_RESPONSE = 319;
+
+// connect flags and characteristics
+const int TNS_GSO_DONT_CARE = 0x0001;
+const int TNS_GSO_CAN_RECV_ATTENTION = 0x0400;
+const int TNS_PROTOCOL_CHARACTERISTICS = 0x4f98;
+const int TNS_CHECK_OOB = 0x01;
+
 // parameter keyword numbers
 const int TNS_KEYWORD_NUM_CURRENT_SCHEMA = 168;
 const int TNS_KEYWORD_NUM_EDITION = 172;
@@ -282,6 +299,14 @@ const int TNS_NSI_SUPPORT_SECURITY_RENEG = 0x80;
 // other connection constants
 const int TNS_PROTOCOL_CHARACTERISTICS = 0x4f98;
 const int TNS_CHECK_OOB = 0x01;
+
+// charset ids (common defaults)
+const int TNS_CHARSET_UTF8 = 873;
+const int TNS_CHARSET_UTF16 = 2000;
+
+// verifier types
+const int TNS_VERIFIER_TYPE_11G = 0;
+const int TNS_VERIFIER_TYPE_12C = 1;
 
 // TTC functions
 const int TNS_FUNC_AUTH_PHASE_ONE = 118;

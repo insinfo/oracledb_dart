@@ -1,12 +1,15 @@
 name: oracledb_dart
 description: A pure dart Oracle Database driver
 version: 1.0.0
-environment:
-  sdk: '>=3.3.0 <4.0.0'
 
-dependencies:
-  path: any
-  ffi: any
+
+environment:
+  sdk: '^3.6.0'
+
+dependencies: 
+  pointycastle: ^4.0.0
+  #crypto: any
+ 
 
 dev_dependencies:
   test: any

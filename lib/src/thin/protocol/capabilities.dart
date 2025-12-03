@@ -1,8 +1,8 @@
 // lib/src/thin/protocol/capabilities.dart
 
 import 'dart:typed_data';
-import 'package:oracledb_dart/src/exceptions.dart'; 
-import 'constants.dart'; 
+import 'package:oracledb_dart/src/exceptions.dart';
+import 'constants.dart';
 
 /// Represents the negotiated capabilities between the client and server.
 /// This class holds information about supported features, protocol versions,
@@ -10,8 +10,8 @@ import 'constants.dart';
 class Capabilities {
   late int protocolVersion;
   late int ttcFieldVersion;
-  late int charsetId;
-  late int ncharsetId;
+  int charsetId = TNS_CHARSET_UTF8; // default UTF-8
+  int ncharsetId = TNS_CHARSET_UTF16; // default UTF-16
   late Uint8List compileCaps;
   late Uint8List runtimeCaps;
   late int maxStringSize;
@@ -74,15 +74,11 @@ class Capabilities {
   /// Throws [OracleNotSupportedError] if not supported.
   void checkNCharsetId() {
     if (ncharsetId != TNS_CHARSET_UTF16) {
-      // Assuming _createOracleException or similar exists to create the error
-      throw _createOracleException(
-          dpyCode: ERR_NCHAR_CS_NOT_SUPPORTED, // Need this constant defined
-          message: 'National character set id $ncharsetId is not supported',
-          // Additional arguments like charset_id would be handled by formatting
-          );
-      // Direct throw for simplicity if _createOracleException is complex:
-      // throw OracleNotSupportedError(
-      //     'National character set id $ncharsetId is not supported by oracle_db thin mode');
+      throw createOracleException(
+        dpyCode: ERR_NCHAR_CS_NOT_SUPPORTED,
+        message: 'National character set id $ncharsetId is not supported',
+        context: 'The thin driver currently only supports AL16UTF16',
+      );
     }
   }
 
@@ -145,16 +141,3 @@ class Capabilities {
     runtimeCaps[TNS_RCAP_TTC] = TNS_RCAP_TTC_ZERO_COPY | TNS_RCAP_TTC_32K;
   }
 }
-
-// Dummy _createOracleException for compilation - replace with actual implementation
-OracleException _createOracleException({
-    int? dpyCode,
-    String? message,
-    int? charset_id, // Example argument based on Python code
-}) {
-  // In a real implementation, this would look up the error code, format the message,
-  // determine the exception type, etc.
-  return OracleNotSupportedError(message ?? 'Error $dpyCode');
-}
-// Assuming ERR_NCHAR_CS_NOT_SUPPORTED is defined elsewhere, e.g., in exceptions.dart
-const int ERR_NCHAR_CS_NOT_SUPPORTED = 3012; // Example definition

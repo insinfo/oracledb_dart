@@ -899,11 +899,15 @@ OracleException createOracleException(
     final format = _errorMessageFormats[dpyCode];
     if (format != null) {
       // Basic placeholder replacement (real implementation needs more robust formatting)
-      var formattedMessage = format.replaceAll('{error_num}', dpyCode.toString());
+      var formattedMessage =
+          format.replaceAll('{error_num}', dpyCode.toString());
       // Add more replacements as needed based on args in the Python version
       message = '$formattedMessage\n$message';
     } else {
-       message = '$_errorMessageFormats[ERR_MISSING_ERROR]'.replaceAll('{error_num}', dpyCode.toString()) + '\n$message'; // Use missing error format
+      final fallbackFormat =
+          _errorMessageFormats[ERR_MISSING_ERROR] ?? 'missing error {error_num}';
+      message =
+          '${fallbackFormat.replaceAll('{error_num}', dpyCode.toString())}\n$message';
     }
   } else if (oraCode != null) {
     exceptionType = _oraCodeExceptionTypeMap[oraCode] ?? OracleDatabaseError;

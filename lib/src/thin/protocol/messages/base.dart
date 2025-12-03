@@ -1,123 +1,257 @@
-// // lib/src/thin/messages/base.dart
+// Base thin message scaffolding. This is an incremental port of
+// python-oracledb's base.pyx; many parts are still TODO.
 
-// import 'dart:async';
-// import 'dart:typed_data';
-// import 'dart:collection'; // For List based structures if needed for batch errors
+import '../../../exceptions.dart';
+import '../constants.dart';
+import '../packet.dart';
 
-// import '../constants.dart'; // Assuming TNS constants are defined here
-// import '../capabilities.dart'; // If needed
-// import '../connection_impl.dart'; // Placeholder for BaseThinConnImpl
-// import '../dbobject_cache.dart'; // Placeholder for BaseThinDbObjectTypeCache
-// import '../db_object_impl.dart'; // For TNS_OBJ_* constants if not in protocol/constants
-// import '../packet.dart'; // Placeholder for ReadBuffer, WriteBuffer, Rowid
-// import '../var_impl.dart'; // Placeholder for ThinVarImpl
-// import '../../pipeline.dart'; // Placeholder for PipelineOpResultImpl
-// import '../../base_impl.dart'; // Placeholder for OracleMetadata, DbType
-//  // For OracleException and subtypes
-// import '../../../exceptions.dart'; // For DPY error codes if creating exceptions internally
+/// Internal representation of error information received from the database.
+class OracleErrorInfo {
+  int num = 0; // ORA- or internal error number
+  int cursorId = 0;
+  int pos = 0; // Position offset in SQL for error
+  int rowcount = 0; // Row count or row number for PL/SQL errors
+  String? message;
+  Rowid? rowid; // Rowid components
+  List<OracleException>? batchErrors; // Batch errors, if any
+}
 
-// // --- Helper Classes (Internal Representations) ---
+/// Base class for all messages sent to and received from the Oracle database
+/// in thin mode. Concrete message classes should override the parsing logic.
+abstract class Message {
+  /// Connection implementation (kept dynamic until the connection layer is ported).
+  late final dynamic connImpl;
 
-// /// Internal representation of error information received from the database.
-// class _OracleErrorInfo {
-//   int num = 0; // ORA- or internal error number
-//   int cursorId = 0;
-//   int pos = 0; // Position offset in SQL for error
-//   int rowcount = 0; // Row count or row number for PL/SQL errors
-//   String? message;
-//   Rowid? rowid; // Assumes a Rowid class/record exists
-//   List<OracleException>? batchErrors; // List to hold batch errors
-// }
+  /// Object type cache; dynamic placeholder for now.
+  dynamic typeCache;
 
-// /// Base class for all messages sent to and received from the Oracle database
-// /// in Thin mode.
-// abstract class Message {
-//   late final BaseThinConnImpl connImpl;
-//   BaseThinDbObjectTypeCache? typeCache; // Used for object type fetching
-//   PipelineOpResultImpl? pipelineResultImpl; // Used for pipeline operations
-//   late final _OracleErrorInfo errorInfo;
+  /// Pipeline operation result; dynamic placeholder for now.
+  dynamic pipelineResultImpl;
 
-//   int messageType = TNS_MSG_TYPE_FUNCTION;
-//   int functionCode = 0; // Set by subclasses
-//   int callStatus = 0; // Received from server
-//   int endToEndSeqNum = 0; // Received from server
-//   int tokenNum = 0; // Used for pipeline operations
+  late OracleErrorInfo errorInfo;
 
-//   bool endOfResponse = false; // Flag indicating end of server response
-//   bool errorOccurred = false; // Flag indicating if an error was received
-//   bool flushOutBinds = false; // Flag indicating out binds need flushing
-//   bool resend = false; // Flag indicating message needs to be resent (e.g., define phase)
-//   bool retry = false; // Flag indicating execution should be retried (e.g., datatype change)
-//   OracleWarning? warning; // Any warning received
+  int messageType = TNS_MSG_TYPE_FUNCTION;
+  int functionCode = 0; // Set by subclasses
+  int callStatus = 0; // Received from server
+  int endToEndSeqNum = 0; // Received from server
+  int tokenNum = 0; // Used for pipeline operations
 
-//   /// Initializes the base message fields.
-//   /// Must be called by concrete message constructors or initialization methods.
-//   void _initialize(BaseThinConnImpl connImpl) {
-//     // In Dart, final fields must be initialized in the initializer list or constructor body.
-//     // This approach simulates the Python _initialize method.
-//     this.connImpl = connImpl;
-//     errorInfo = _OracleErrorInfo();
-//     _initializeHook(); // Call subclass specific initialization
-//   }
+  bool endOfResponse = false; // Flag indicating end of server response
+  bool errorOccurred = false; // Flag indicating if an error was received
+  bool flushOutBinds = false; // Flag indicating out binds need flushing
+  bool resend = false; // Flag indicating message needs to be resent (e.g., define phase)
+  bool retry = false; // Flag indicating execution should be retried (e.g., datatype change)
+  OracleWarning? warning; // Any warning received
 
-//   /// Hook for subclasses to perform specific initialization.
-//   void _initializeHook() {
-//     // Default implementation does nothing. Subclasses override this.
-//   }
+  /// Initializes the base message fields.
+  /// Must be called by concrete message constructors or initialization methods.
+  void initialize(dynamic connImpl) {
+    this.connImpl = connImpl;
+    errorInfo = OracleErrorInfo();
+    initializeHook(); // Call subclass specific initialization
+  }
 
-//   /// Checks if an error occurred during processing and throws the appropriate
-//   /// Dart exception. Forces connection closure for session dead errors.
-//   void _checkAndRaiseException() {
-//     if (!errorOccurred) return;
+  /// Hook for subclasses to perform specific initialization.
+  void initializeHook() {}
 
-//     bool isRecoverable = false;
-//     // Check against known recoverable ORA codes
-//     const recoverableOraCodes = {
-//       28, 31, 376, 603, 1012, 1033, 1034, 1089, 1090, 1092, 1115, 2396,
-//       3113, 3114, 3135, 12153, 12514, 12537, 12547, 12570, 12571, 12583,
-//       12757, 16456,
-//     };
-//     if (recoverableOraCodes.contains(errorInfo.num)) {
-//       isRecoverable = true;
-//     }
+  /// Checks if an error occurred during processing and throws the appropriate
+  /// Dart exception. Forces connection closure for session dead errors.
+  void checkAndRaiseException() {
+    if (!errorOccurred) return;
 
-//     // Use the internal _createOracleException function (defined in exceptions.dart)
-//     // This function determines the correct exception type based on DPY/ORA codes.
-//     final OracleException error = _createOracleException(
-//       message: errorInfo.message ?? "Unknown database error",
-//       oraCode: errorInfo.num,
-//       // dpyCode: Will be determined/set if applicable during error processing
-//       offset: errorInfo.pos,
-//       isRecoverable: isRecoverable,
-//       // context: Could be added if needed
-//     );
+    final isRecoverable = _recoverableOraCodes.contains(errorInfo.num);
 
-//     if (error.isSessionDead) {
-//       // In Dart, direct access/modification like this might be better handled
-//       // via callbacks or state management within the protocol handler.
-//       // This is a direct translation attempt.
-//       connImpl.protocol._forceClose();
-//     }
-//     throw error;
-//   }
+    final OracleException error = createOracleException(
+      message: errorInfo.message ?? "Unknown database error",
+      oraCode: errorInfo.num,
+      offset: errorInfo.pos,
+      isRecoverable: isRecoverable,
+    );
 
+    if (error.isSessionDead) {
+      try {
+        // Best-effort: some connection implementations expose protocol control.
+        connImpl?.protocol?._forceClose();
+      } catch (_) {
+        // ignore: best effort close
+      }
+    }
+    throw error;
+  }
 
-//   /// Processes the error information part of a response packet.
-//   void _processErrorInfo(ReadBuffer buf) {
-//      final info = errorInfo;
-//      info.batchErrors = null; // Reset batch errors
+  /// Processes the error information part of a response packet.
+  /// This is a partial port; detailed batch/warning parsing still TODO.
+  void processErrorInfo(ReadBuffer buf) {
+    final info = errorInfo;
+    info.batchErrors = null; // Reset batch errors
 
-//      callStatus = buf.readUint32(); // end of call status
-//      endToEndSeqNum = buf.readUint16(); // end to end seq# (ignored here)
-//      buf.skipUint32(); // current row number
-//      buf.skipUint16(); // error number (older format)
-//      buf.skipUint16(); // array elem error (older format)
-//      buf.skipUint16(); // array elem error (older format)
-//      info.cursorId = buf.readUint16(); // cursor id
-//      info.pos = buf.readInt16(); // error position
-//      buf.skipUint8(); // sql type (19c and earlier)
-//      buf.skipUint8(); // fatal?
-//      buf.skipUint8(); // flags
+    callStatus = buf.readUint32(); // end of call status
+    endToEndSeqNum = buf.readUint16(); // end to end seq# (ignored here)
+    buf.skipUint32(); // current row number
+    buf.skipUint16(); // error number (older format)
+    buf.skipUint16(); // array elem error (older format)
+    buf.skipUint16(); // array elem error (older format)
+    info.cursorId = buf.readUint16(); // cursor id
+    info.pos = buf.readInt16(); // error position
+    buf.skipUint8(); // sql type (19c and earlier)
+    buf.skipUint8(); // fatal?
+    final flags = buf.readUint8(); // flags
+    buf.skipUint8(); // user cursor options
+    buf.skipUint8(); // UPI parameter
+
+    if ((flags & 0x20) != 0) {
+      warning = createOracleException(
+        message: 'Compilation warning',
+        dpyCode: WRN_COMPILATION_ERROR,
+      ) as OracleWarning;
+    }
+
+    // Rowid
+    info.rowid = buf.readRowid();
+    buf.skipUint32(); // OS error
+    buf.skipUint8(); // statement number
+    buf.skipUint8(); // call number
+    buf.skipUint16(); // padding
+    buf.skipUint32(); // success iters
+
+    final numBytes = buf.readUint32(); // oerrdd (logical rowid) length
+    if (numBytes > 0) {
+      buf.skipRawBytesChunked();
+    }
+
+    // Batch errors: codes
+    final numErrors = buf.readUint16();
+    if (numErrors > 0) {
+      info.batchErrors = <OracleException>[];
+      final firstByte = buf.readUint8();
+      for (var i = 0; i < numErrors; i++) {
+        if (firstByte == TNS_LONG_LENGTH_INDICATOR) {
+          buf.skipUint32(); // chunk length ignored
+        }
+        final code = buf.readUint16();
+        info.batchErrors!.add(
+          createOracleException(message: 'Batch error $code', oraCode: code),
+        );
+      }
+      if (firstByte == TNS_LONG_LENGTH_INDICATOR) {
+        buf.skipBytes(1); // end marker
+      }
+    }
+
+    // Batch errors: offsets
+    final numOffsets = buf.readUint32();
+    if (numOffsets > 0) {
+      if (numOffsets > 65535) {
+        throw createOracleException(
+          dpyCode: ERR_TOO_MANY_BATCH_ERRORS,
+          message: 'Too many batch errors returned ($numOffsets)',
+        );
+      }
+      final firstByte = buf.readUint8();
+      for (var i = 0; i < numOffsets; i++) {
+        if (firstByte == TNS_LONG_LENGTH_INDICATOR) {
+          buf.skipUint32();
+        }
+        final offset = buf.readUint32();
+        if (i < (info.batchErrors?.length ?? 0)) {
+          info.batchErrors![i] = createOracleException(
+            message: info.batchErrors![i].message,
+            oraCode: info.batchErrors![i].code,
+            offset: offset,
+          );
+        }
+      }
+      if (firstByte == TNS_LONG_LENGTH_INDICATOR) {
+        buf.skipBytes(1); // end marker
+      }
+    }
+  }
+
+  /// Process a single message segment from the server.
+  /// This covers common message types and marks end-of-response when needed.
+  void processMessage(ReadBuffer buf, int messageType) {
+    if (messageType == TNS_MSG_TYPE_ERROR) {
+      processErrorInfo(buf);
+    } else if (messageType == TNS_MSG_TYPE_WARNING) {
+      _processWarningInfo(buf);
+    } else if (messageType == TNS_MSG_TYPE_SERVER_SIDE_PIGGYBACK) {
+      _processServerSidePiggyback(buf);
+    } else if (messageType == TNS_MSG_TYPE_TOKEN) {
+      final token = buf.readUint64();
+      if (token != tokenNum) {
+        throw createOracleException(
+          dpyCode: ERR_MISMATCHED_TOKEN,
+          message: 'Token mismatch: got $token expected $tokenNum',
+        );
+      }
+    } else if (messageType == TNS_MSG_TYPE_STATUS) {
+      callStatus = buf.readUint32();
+      endToEndSeqNum = buf.readUint16();
+      endOfResponse = true; // conservative; refined once caps are threaded
+    } else if (messageType == TNS_MSG_TYPE_END_OF_RESPONSE) {
+      endOfResponse = true;
+    } else {
+      throw createOracleException(
+        dpyCode: ERR_MESSAGE_TYPE_UNKNOWN,
+        message: 'Unknown message type $messageType at position ${buf.remaining}',
+      );
+    }
+  }
+
+  void _processWarningInfo(ReadBuffer buf) {
+    // Minimal warning handling: consume status and create a warning object.
+    callStatus = buf.readUint32();
+    warning = createOracleException(
+      dpyCode: WRN_COMPILATION_ERROR,
+      message: 'Server returned warning (status=$callStatus)',
+    ) as OracleWarning;
+  }
+
+  void _processServerSidePiggyback(ReadBuffer buf) {
+    if (buf.remaining == 0) return;
+    final opcode = buf.readUint8();
+    if (opcode == TNS_SERVER_PIGGYBACK_LTXID) {
+      final ltxid = buf.readBytesWithLength();
+      try {
+        connImpl?._ltxid = ltxid;
+      } catch (_) {
+        // ignore if connection impl not wired yet
+      }
+      return;
+    }
+    // For other opcodes, consume the remaining payload to keep stream aligned.
+    if (buf.remaining > 0) {
+      buf.skipBytes(buf.remaining);
+    }
+  }
+}
+
+const Set<int> _recoverableOraCodes = {
+  28,
+  31,
+  376,
+  603,
+  1012,
+  1033,
+  1034,
+  1089,
+  1090,
+  1092,
+  1115,
+  2396,
+  3113,
+  3114,
+  3135,
+  12153,
+  12514,
+  12537,
+  12547,
+  12570,
+  12571,
+  12583,
+  12757,
+  16456,
+};
 //      buf.skipUint8(); // user cursor options
 //      buf.skipUint8(); // UPI parameter
 //      int flags = buf.readUint8();

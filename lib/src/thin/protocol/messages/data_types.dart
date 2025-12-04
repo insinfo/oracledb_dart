@@ -11,27 +11,7 @@ class DataTypesMessage extends Message {
   /// Builds the data types request packet to send to the server.
   Uint8List buildRequest() {
     final body = WriteBuffer();
-    
-    // Write message type
-    body.writeUint8(TNS_MSG_TYPE_DATA_TYPES);
-    
-    // Write character set and capabilities
-    body.writeUint16LE(TNS_CHARSET_UTF8);
-    body.writeUint16LE(TNS_CHARSET_UTF8);
-    body.writeUint8(TNS_ENCODING_MULTI_BYTE | TNS_ENCODING_CONV_LENGTH);
-    body.writeBytesWithLength(connImpl.capabilities.compileCaps);
-    body.writeBytesWithLength(connImpl.capabilities.runtimeCaps);
-    
-    // Write data types array
-    for (final entry in DATA_TYPES) {
-      if (entry[0] == 0) break;
-      body.writeUint16(entry[0]); // data_type
-      body.writeUint16(entry[1]); // conv_data_type
-      body.writeUint16(entry[2]); // representation
-      body.writeUint16(0);        // padding
-    }
-    body.writeUint16(0); // terminator
-    
+    writeMessageBody(body);
     final bodyBytes = body.toBytes();
     return buildTnsPacket(
       bodyBytes: bodyBytes,
@@ -39,6 +19,27 @@ class DataTypesMessage extends Message {
       includeDataFlags: true,
       useLargeSdu: useLargeSdu,
     );
+  }
+
+  void writeMessageBody(WriteBuffer body) {
+    body.writeUint8(TNS_MSG_TYPE_DATA_TYPES);
+
+    // Write character set and capabilities
+    body.writeUint16LE(TNS_CHARSET_UTF8);
+    body.writeUint16LE(TNS_CHARSET_UTF8);
+    body.writeUint8(TNS_ENCODING_MULTI_BYTE | TNS_ENCODING_CONV_LENGTH);
+    body.writeBytesWithLength(connImpl.capabilities.compileCaps);
+    body.writeBytesWithLength(connImpl.capabilities.runtimeCaps);
+
+    // Write data types array
+    for (final entry in DATA_TYPES) {
+      if (entry[0] == 0) break;
+      body.writeUint16(entry[0]); // data_type
+      body.writeUint16(entry[1]); // conv_data_type
+      body.writeUint16(entry[2]); // representation
+      body.writeUint16(0); // padding
+    }
+    body.writeUint16(0); // terminator
   }
 
   @override

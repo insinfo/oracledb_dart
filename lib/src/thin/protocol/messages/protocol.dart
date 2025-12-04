@@ -14,14 +14,17 @@ class ProtocolMessage extends Message {
   Uint8List? serverRuntimeCaps;
   String? serverBanner;
 
-  Uint8List buildRequest() {
-    final body = WriteBuffer();
+  void writeMessageBody(WriteBuffer body) {
     body.writeUint8(TNS_MSG_TYPE_PROTOCOL);
     body.writeUint8(6); // protocol version (8.1 and higher)
     body.writeUint8(0); // array terminator
     body.writeBytes(_driverName.codeUnits);
     body.writeUint8(0); // NULL terminator
+  }
 
+  Uint8List buildRequest() {
+    final body = WriteBuffer();
+    writeMessageBody(body);
     final bodyBytes = body.toBytes();
     return buildTnsPacket(
       bodyBytes: bodyBytes,

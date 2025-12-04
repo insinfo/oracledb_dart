@@ -51,20 +51,17 @@ class AuthMessage extends Message {
         : TNS_FUNC_AUTH_PHASE_ONE;
   }
 
-  Uint8List buildRequest() {
+  void writeMessageBody(WriteBuffer body) {
     final phaseCode = includePassword
         ? TNS_FUNC_AUTH_PHASE_TWO
         : TNS_FUNC_AUTH_PHASE_ONE;
-    final body = WriteBuffer();
     body.writeUint8(TNS_MSG_TYPE_FUNCTION);
     body.writeUint8(phaseCode);
-    // Write sequence number (1 byte, increments per message)
     final seqNum = connImpl?.capabilities?.getNextSeqNum() ?? 1;
     body.writeUint8(seqNum);
-    // Write token_num if TTC field version >= 18 (TNS_CCAP_FIELD_VERSION_23_1_EXT_1)
     final ttcFieldVersion = connImpl?.capabilities?.ttcFieldVersion ?? 0;
     if (ttcFieldVersion >= TNS_CCAP_FIELD_VERSION_23_1_EXT_1) {
-      body.writeUB8(0); // token_num = 0
+      body.writeUB8(0);
     }
 
     final userBytes = Uint8List.fromList(utf8.encode(user));
@@ -79,10 +76,10 @@ class AuthMessage extends Message {
     body.writeUint8(hasUser);
     body.writeUB4(userBytes.length);
     body.writeUB4(authMode);
-    body.writeUint8(1); // pointer (authivl)
+    body.writeUint8(1);
     body.writeUB4(keyValues.length);
-    body.writeUint8(1); // pointer (authovl)
-    body.writeUint8(1); // pointer (authovln)
+    body.writeUint8(1);
+    body.writeUint8(1);
     if (hasUser == 1) {
       body.writeBytesWithLength(userBytes);
     }
@@ -90,7 +87,11 @@ class AuthMessage extends Message {
     for (final entry in keyValues) {
       _writeKeyValue(body, entry.key, entry.value, entry.flags);
     }
+  }
 
+  Uint8List buildRequest() {
+    final body = WriteBuffer();
+    writeMessageBody(body);
     final bodyBytes = body.toBytes();
     return buildTnsPacket(
       bodyBytes: bodyBytes,

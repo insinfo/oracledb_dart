@@ -19,7 +19,7 @@ class OracleErrorInfo {
 /// Base class for all messages sent to and received from the Oracle database
 /// in thin mode. Concrete message classes should override the parsing logic.
 abstract class Message {
-  /// Connection implementation (kept dynamic until the connection layer is ported).
+  /// TODO Connection implementation (kept dynamic until the connection layer is ported).
   late final dynamic connImpl;
 
   /// Object type cache; dynamic placeholder for now.
@@ -275,6 +275,8 @@ const Set<int> _recoverableOraCodes = {
   12757,
   16456,
 };
+// TODO muito codigo comentado abaixo porque ?
+
 //      buf.skipUint8(); // user cursor options
 //      buf.skipUint8(); // UPI parameter
 //      int flags = buf.readUint8();

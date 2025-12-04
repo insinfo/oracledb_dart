@@ -23,6 +23,7 @@ use rg para buscas no codigo fonte
 - [x] corrigir PBKDF2 (usando senha como entrada em vez de chave do HMAC) e manter API compatível (`lib/src/thin/crypto.dart`).
 - [x] garantir que a senha seja codificada em UTF-8 antes de alimentar PBKDF2/AES (`lib/src/thin/protocol/messages/auth.dart`).
 - [x] instrumentar drivers Dart/Python para gerar dumps hex dos pacotes AUTH (env `DART_AUTH_TRACE`/`PYTHON_AUTH_TRACE_FILE`).
+- [x] portar FastAuth (combinar Protocol/DataTypes/Auth fase1) com fallback para servidores antigos e logar pacotes combinados.
 - [ ] validar/auth TTC contra servidor XE real e ajustar verificador/sessao ate login funcionar.
 - [ ] coletar e comparar os arquivos gerados pelos tracers (fase1/fase2) para achar divergencias restantes.
 - [ ] completar o parsing das mensagens base (warnings/piggybacks/row data/result sets) e amarrar ao transporte.

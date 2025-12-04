@@ -11,6 +11,7 @@ import 'protocol/messages/connect.dart';
 import 'protocol/messages/protocol.dart';
 import 'protocol/messages/data_types.dart';
 import 'protocol/messages/auth.dart';
+import 'protocol/messages/fast_auth.dart';
 import 'protocol/packet.dart';
 import 'protocol/transport.dart';
 
@@ -89,67 +90,69 @@ class ThinConnection {
     final buf = ReadBuffer(body);
     connectMsg.process(buf, packet.packetType);
 
-    // Disable end-of-response for Protocol and DataTypes messages
-    // as the server doesn't send it for these messages
-    final savedSupportsEOR = capabilities.supportsEndOfResponse;
-    capabilities.supportsEndOfResponse = false;
-
-    // Send Protocol message
-    print('DEBUG: Sending Protocol message...');
     final protocolMsg = ProtocolMessage()..initialize(this);
-    final protocolPkt = protocolMsg.buildRequest();
-    print('DEBUG: Protocol packet (${protocolPkt.length} bytes): ${protocolPkt.take(50).map((b) => b.toRadixString(16).padLeft(2, '0')).join(' ')}');
-    await _transport.sendRaw(protocolPkt);
-    print('DEBUG: Receiving Protocol response...');
-    await _receiveMessage(protocolMsg);
-    print('DEBUG: Protocol message complete');
-
-    // Send DataTypes message
-    print('DEBUG: Sending DataTypes message...');
     final dataTypesMsg = DataTypesMessage()..initialize(this);
-    final dataTypesPkt = dataTypesMsg.buildRequest();
-    print('DEBUG: DataTypes packet (${dataTypesPkt.length} bytes):');
-    _printHexDump(dataTypesPkt);
-    await _transport.sendRaw(dataTypesPkt);
-    print('DEBUG: Receiving DataTypes response...');
-    await _receiveMessage(dataTypesMsg);
-    print('DEBUG: DataTypes message complete');
-    print('DEBUG: ttcFieldVersion after negotiation: ${capabilities.ttcFieldVersion}');
 
-    // Restore end-of-response support
-    capabilities.supportsEndOfResponse = savedSupportsEOR;
+    if (capabilities.supportsFastAuth) {
+      print('DEBUG: Sending FastAuth message (protocol + data types + auth phase 1)...');
+      final authPhase1 = _createAuthMessage(includePassword: false);
+      final fastAuthMsg = FastAuthMessage(
+        protocolMessage: protocolMsg,
+        dataTypesMessage: dataTypesMsg,
+        authMessage: authPhase1,
+      )..initialize(this);
+      final fastPkt = fastAuthMsg.buildRequest();
+      AuthPacketLogger.logSend(authPhase1.traceLabel, fastPkt);
+      await _transport.sendRaw(fastPkt);
+      print('DEBUG: Receiving FastAuth response...');
+      await _receiveMessage(fastAuthMsg);
+      sessionData = {...sessionData, ...authPhase1.sessionData};
+    } else {
+      // Disable end-of-response for Protocol and DataTypes messages
+      final savedSupportsEOR = capabilities.supportsEndOfResponse;
+      capabilities.supportsEndOfResponse = false;
 
-    // AUTH phase 1: request session data (no password)
-    print('DEBUG: Sending AUTH phase 1...');
-    final authPhase1 = AuthMessage(
-      user: params.user,
-      password: params.password,
-      serviceName: params.serviceName,
-      charsetId: capabilities.charsetId,
-      ncharsetId: capabilities.ncharsetId,
-      capabilities: capabilities,
-      includePassword: false,
-    )..initialize(this);
-    final pkt1 = authPhase1.buildRequest();
-    AuthPacketLogger.logSend(authPhase1.traceLabel, pkt1);
-    print('DEBUG: AUTH phase 1 packet (${pkt1.length} bytes):');
-    _printHexDump(pkt1);
-    await _transport.sendRaw(pkt1);
-    print('DEBUG: Receiving AUTH phase 1 response...');
-    await _receiveMessage(authPhase1);
-    sessionData = {...sessionData, ...authPhase1.sessionData};
+      // Send Protocol message
+      print('DEBUG: Sending Protocol message...');
+      final protocolPkt = protocolMsg.buildRequest();
+      print('DEBUG: Protocol packet (${protocolPkt.length} bytes): ${protocolPkt.take(50).map((b) => b.toRadixString(16).padLeft(2, '0')).join(' ')}');
+      await _transport.sendRaw(protocolPkt);
+      print('DEBUG: Receiving Protocol response...');
+      await _receiveMessage(protocolMsg);
+      print('DEBUG: Protocol message complete');
+
+      // Send DataTypes message
+      print('DEBUG: Sending DataTypes message...');
+      final dataTypesPkt = dataTypesMsg.buildRequest();
+      print('DEBUG: DataTypes packet (${dataTypesPkt.length} bytes):');
+      _printHexDump(dataTypesPkt);
+      await _transport.sendRaw(dataTypesPkt);
+      print('DEBUG: Receiving DataTypes response...');
+      await _receiveMessage(dataTypesMsg);
+      print('DEBUG: DataTypes message complete');
+      print('DEBUG: ttcFieldVersion after negotiation: ${capabilities.ttcFieldVersion}');
+
+      // Restore end-of-response support
+      capabilities.supportsEndOfResponse = savedSupportsEOR;
+
+      // AUTH phase 1: request session data (no password)
+      print('DEBUG: Sending AUTH phase 1...');
+      final authPhase1 = _createAuthMessage(includePassword: false);
+      final pkt1 = authPhase1.buildRequest();
+      AuthPacketLogger.logSend(authPhase1.traceLabel, pkt1);
+      print('DEBUG: AUTH phase 1 packet (${pkt1.length} bytes):');
+      _printHexDump(pkt1);
+      await _transport.sendRaw(pkt1);
+      print('DEBUG: Receiving AUTH phase 1 response...');
+      await _receiveMessage(authPhase1);
+      sessionData = {...sessionData, ...authPhase1.sessionData};
+    }
 
     // AUTH phase 2: send verifier using session data
-    final authPhase2 = AuthMessage(
-      user: params.user,
-      password: params.password,
-      serviceName: params.serviceName,
-      charsetId: capabilities.charsetId,
-      ncharsetId: capabilities.ncharsetId,
-      capabilities: capabilities,
+    final authPhase2 = _createAuthMessage(
       includePassword: true,
       initialSessionData: sessionData,
-    )..initialize(this);
+    );
     final pkt2 = authPhase2.buildRequest();
     AuthPacketLogger.logSend(authPhase2.traceLabel, pkt2);
     await _transport.sendRaw(pkt2);
@@ -190,10 +193,18 @@ class ThinConnection {
         continue;
       }
       
-      if (message is AuthMessage && AuthPacketLogger.enabled) {
-        final packetBytes =
-            Uint8List.fromList(packet.buf.sublist(0, packet.packetSize));
-        AuthPacketLogger.logReceive(message.traceLabel, packetBytes);
+      if (AuthPacketLogger.enabled) {
+        String? traceLabel;
+        if (message is AuthMessage) {
+          traceLabel = message.traceLabel;
+        } else if (message is FastAuthMessage) {
+          traceLabel = message.authMessage.traceLabel;
+        }
+        if (traceLabel != null) {
+          final packetBytes =
+              Uint8List.fromList(packet.buf.sublist(0, packet.packetSize));
+          AuthPacketLogger.logReceive(traceLabel, packetBytes);
+        }
       }
       print('DEBUG: Got packet type=${packet.packetType}, size=${packet.packetSize}, hasEOR=${packet.hasEndOfResponse}');
       final bodyOffset = packet.packetType == TNS_PACKET_TYPE_DATA
@@ -266,6 +277,23 @@ class ThinConnection {
     await _transport.sendRaw(packet);
   }
   */
+
+  AuthMessage _createAuthMessage({
+    required bool includePassword,
+    Map<String, String>? initialSessionData,
+  }) {
+    final msg = AuthMessage(
+      user: params.user,
+      password: params.password,
+      serviceName: params.serviceName,
+      charsetId: capabilities.charsetId,
+      ncharsetId: capabilities.ncharsetId,
+      capabilities: capabilities,
+      includePassword: includePassword,
+      initialSessionData: initialSessionData,
+    )..initialize(this);
+    return msg;
+  }
 
   void _printHexDump(Uint8List data) {
     final sb = StringBuffer();

@@ -24,6 +24,7 @@ class ThinConnection {
   final Transport _transport;
   final Capabilities capabilities;
   bool _connected = false;
+  Packet? _pendingPacket;
   Uint8List? comboKey; // combo key derived during auth
   Uint8List? sessionKey; // session key from verifier negotiation
   String? sessionSignature;
@@ -170,7 +171,12 @@ class ThinConnection {
     print('DEBUG: _receiveMessage starting, supportsEOR=${capabilities.supportsEndOfResponse}');
     while (!message.endOfResponse) {
       print('DEBUG: Reading packet...');
-      final packet = await _transport.readPacket();
+      final packet = await _nextPacket();
+      if (packet.packetType == TNS_PACKET_TYPE_MARKER) {
+        print('DEBUG: Received marker packet');
+        await _handleMarkerPacket(packet);
+        continue;
+      }
       print('DEBUG: Got packet type=${packet.packetType}, size=${packet.packetSize}, hasEOR=${packet.hasEndOfResponse}');
       final bodyOffset = packet.packetType == TNS_PACKET_TYPE_DATA
           ? packetHeaderSize + 2
@@ -190,5 +196,51 @@ class ThinConnection {
     }
     print('DEBUG: _receiveMessage complete');
     message.checkAndRaiseException();
+  }
+
+  Future<Packet> _nextPacket() async {
+    if (_pendingPacket != null) {
+      final packet = _pendingPacket!;
+      _pendingPacket = null;
+      return packet;
+    }
+    return _transport.readPacket();
+  }
+
+  Future<void> _handleMarkerPacket(Packet packet) async {
+    final markerType = _markerTypeFromPacket(packet);
+    print('DEBUG: Marker type=$markerType, sending RESET');
+    await _sendMarker(TNS_MARKER_TYPE_RESET);
+    Packet? nextPacket;
+    while (true) {
+      nextPacket = await _transport.readPacket();
+      if (nextPacket.packetType != TNS_PACKET_TYPE_MARKER) {
+        break;
+      }
+      final nextMarkerType = _markerTypeFromPacket(nextPacket);
+      if (nextMarkerType == TNS_MARKER_TYPE_RESET) {
+        print('DEBUG: Received RESET marker ack');
+        continue;
+      }
+    }
+    _pendingPacket = nextPacket;
+  }
+
+  int _markerTypeFromPacket(Packet packet) {
+    if (packet.packetSize < packetHeaderSize + 3) {
+      return -1;
+    }
+    return packet.buf[packetHeaderSize + 2];
+  }
+
+  Future<void> _sendMarker(int markerType) async {
+    final body = Uint8List.fromList([1, 0, markerType & 0xFF]);
+    final packet = buildTnsPacket(
+      bodyBytes: body,
+      packetType: TNS_PACKET_TYPE_MARKER,
+      useLargeSdu:
+          capabilities.protocolVersion >= TNS_VERSION_MIN_LARGE_SDU,
+    );
+    await _transport.sendRaw(packet);
   }
 }

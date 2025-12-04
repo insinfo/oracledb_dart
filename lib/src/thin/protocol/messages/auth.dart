@@ -57,11 +57,6 @@ class AuthMessage extends Message {
     body.writeUint8(phaseCode);
     body.writeUint16(0);
 
-    body.writeBytes(capabilities.compileCaps);
-    body.writeBytes(capabilities.runtimeCaps);
-    body.writeUint16(charsetId);
-    body.writeUint16(ncharsetId);
-
     final userBytes = Uint8List.fromList(user.codeUnits);
     final authMode = includePassword
         ? (TNS_AUTH_MODE_LOGON | TNS_AUTH_MODE_WITH_PASSWORD)
@@ -87,18 +82,12 @@ class AuthMessage extends Message {
     }
 
     final bodyBytes = body.toBytes();
-    final totalLen = packetHeaderSize + 2 + bodyBytes.length;
-    final packet = Uint8List(totalLen);
-    final header = ByteData.sublistView(packet, 0, packetHeaderSize);
-    header.setUint16(0, totalLen, Endian.big);
-    header.setUint16(2, 0, Endian.big);
-    packet[4] = TNS_PACKET_TYPE_DATA;
-    packet[5] = 0;
-    header.setUint16(6, 0);
-    packet[packetHeaderSize] = 0;
-    packet[packetHeaderSize + 1] = 0;
-    packet.setRange(packetHeaderSize + 2, totalLen, bodyBytes);
-    return packet;
+    return buildTnsPacket(
+      bodyBytes: bodyBytes,
+      packetType: TNS_PACKET_TYPE_DATA,
+      includeDataFlags: true,
+      useLargeSdu: useLargeSdu,
+    );
   }
 
   @override

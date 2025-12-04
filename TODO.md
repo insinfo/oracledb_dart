@@ -24,6 +24,8 @@ use rg para buscas no codigo fonte
 - [x] garantir que a senha seja codificada em UTF-8 antes de alimentar PBKDF2/AES (`lib/src/thin/protocol/messages/auth.dart`).
 - [x] instrumentar drivers Dart/Python para gerar dumps hex dos pacotes AUTH (env `DART_AUTH_TRACE`/`PYTHON_AUTH_TRACE_FILE`).
 - [x] portar FastAuth (combinar Protocol/DataTypes/Auth fase1) com fallback para servidores antigos e logar pacotes combinados.
+- [x] alinhar buffers do thin driver com python-oracledb (`python-oracledb/tests/test_buffer_unit.py`, `test/thin/protocol/packet_test.dart`) e corrigir chunking TNS.
+- [x] corrigir leituras UB4 em strings/bytes length-prefixed e cobrir com teste de chunking (`lib/src/thin/protocol/packet.dart`, `test/thin/protocol/packet_test.dart`).
 - [ ] validar/auth TTC contra servidor XE real e ajustar verificador/sessao ate login funcionar.
 - [ ] coletar e comparar os arquivos gerados pelos tracers (fase1/fase2) para achar divergencias restantes.
 - [ ] completar o parsing das mensagens base (warnings/piggybacks/row data/result sets) e amarrar ao transporte.
@@ -32,3 +34,5 @@ use rg para buscas no codigo fonte
 - [ ] remover os skips atuais de `test/integration/handshake_smoke_test.dart` e `test/integration/login_query_test.dart` assim que o fluxo de auth TTC permitir logons completos.
 
 ```
+implementado este teste unitario em python para avaliar o comportamento do python
+python -m pytest python-oracledb/tests/test_buffer_unit.py

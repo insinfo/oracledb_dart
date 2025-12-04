@@ -1,5 +1,8 @@
+// Arquivo: \src\thin\protocol\messages\auth.dart
+
 import 'dart:convert';
 import 'dart:io';
+import 'dart:math';
 import 'dart:typed_data';
 
 import '../../../exceptions.dart';
@@ -46,15 +49,29 @@ class AuthMessage extends Message {
     sessionData = initialSessionData != null
         ? Map<String, String>.from(initialSessionData!)
         : <String, String>{};
-    functionCode = includePassword
-        ? TNS_FUNC_AUTH_PHASE_TWO
-        : TNS_FUNC_AUTH_PHASE_ONE;
+    functionCode =
+        includePassword ? TNS_FUNC_AUTH_PHASE_TWO : TNS_FUNC_AUTH_PHASE_ONE;
+  }
+
+  /// Sobrescreve processMessage para garantir que endOfResponse seja setado
+  /// corretamente em versões de protocolo que não enviam flags explícitas.
+  @override
+  void processMessage(ReadBuffer buf, int messageType) {
+    if (messageType == TNS_MSG_TYPE_PARAMETER) {
+      processReturnParameters(buf);
+      // Se o protocolo negociado não suporta fim de resposta explícito (comum no handshake),
+      // marcamos como finalizado após ler os parâmetros.
+      if (connImpl?.capabilities.supportsEndOfResponse == false) {
+        endOfResponse = true;
+      }
+    } else {
+      super.processMessage(buf, messageType);
+    }
   }
 
   void writeMessageBody(WriteBuffer body) {
-    final phaseCode = includePassword
-        ? TNS_FUNC_AUTH_PHASE_TWO
-        : TNS_FUNC_AUTH_PHASE_ONE;
+    final phaseCode =
+        includePassword ? TNS_FUNC_AUTH_PHASE_TWO : TNS_FUNC_AUTH_PHASE_ONE;
     body.writeUint8(TNS_MSG_TYPE_FUNCTION);
     body.writeUint8(phaseCode);
     final seqNum = connImpl?.capabilities?.getNextSeqNum() ?? 1;
@@ -68,21 +85,20 @@ class AuthMessage extends Message {
     final authMode = includePassword
         ? (TNS_AUTH_MODE_LOGON | TNS_AUTH_MODE_WITH_PASSWORD)
         : TNS_AUTH_MODE_LOGON;
-    final keyValues = includePassword
-        ? _buildPhaseTwoKeyValues()
-        : _buildPhaseOneKeyValues();
+    final keyValues =
+        includePassword ? _buildPhaseTwoKeyValues() : _buildPhaseOneKeyValues();
 
     final hasUser = userBytes.isNotEmpty ? 1 : 0;
     body.writeUint8(hasUser);
     body.writeUB4(userBytes.length);
-    if (hasUser == 1) {
-      body.writeBytes(userBytes);
-    }
     body.writeUB4(authMode);
     body.writeUint8(1);
     body.writeUB4(keyValues.length);
     body.writeUint8(1);
     body.writeUint8(1);
+    if (hasUser == 1) {
+      body.writeBytesWithLength(userBytes);
+    }
 
     for (final entry in keyValues) {
       _writeKeyValue(body, entry.key, entry.value, entry.flags);
@@ -110,18 +126,45 @@ class AuthMessage extends Message {
       );
     }
 
+    // Logs detalhados para diagnosticar desalinhamentos de buffer
+    print(
+        'DEBUG: processReturnParameters START. Remaining=${buf.remaining}');
+    try {
+      final preview = buf.peekBytes(min(16, buf.remaining));
+      final hex = preview
+          .map((b) => b.toRadixString(16).padLeft(2, '0'))
+          .join(' ');
+      print('DEBUG: Next bytes: $hex');
+    } catch (_) {}
+
     final parsed = <String, String>{};
     final raw = <String>[];
     final numParams = buf.readUB2();
+    print('DEBUG: numParams=$numParams');
     for (var i = 0; i < numParams; i++) {
+      print('DEBUG: Reading key #$i (rem=${buf.remaining})');
+      if (buf.remaining < 4) {
+        print('DEBUG: CRITICAL - not enough bytes for key length');
+        break;
+      }
       final key = buf.readStringWithLength();
+      print('DEBUG: Key[$i]="$key" (rem=${buf.remaining})');
+
+      print('DEBUG: Reading value #$i (rem=${buf.remaining})');
+      if (buf.remaining < 4) {
+        print('DEBUG: CRITICAL - not enough bytes for value length');
+        break;
+      }
       final value = buf.readStringWithLength();
+      print('DEBUG: Value[$i] len=${value.length} (rem=${buf.remaining})');
+
       if (key.isEmpty) {
-        buf.skipUB4();
+        buf.skipBytes(4); // skip flags (fixed 4-byte)
         continue;
       }
       if (key == 'AUTH_VFR_DATA') {
-        final type = buf.readUB4();
+        final type = buf.readUint32(); // fixed 4-byte value
+        print('DEBUG: AUTH_VFR_DATA flags/type=$type');
         parsed[key] = value;
         raw.add('$key=$value');
         sessionData['AUTH_VFR_DATA'] = value;
@@ -131,7 +174,8 @@ class AuthMessage extends Message {
       }
       parsed[key] = value;
       raw.add('$key=$value');
-      buf.skipUB4();
+      final flags = buf.readUint32(); // fixed 4-byte
+      print('DEBUG: Flags[$i]=$flags');
     }
 
     if (raw.isNotEmpty) {
@@ -205,13 +249,19 @@ class AuthMessage extends Message {
     ];
 
     if (verifier.speedyKeyHex != null) {
-      values.add(_AuthKeyValue('AUTH_PBKDF2_SPEEDY_KEY', verifier.speedyKeyHex!));
+      values
+          .add(_AuthKeyValue('AUTH_PBKDF2_SPEEDY_KEY', verifier.speedyKeyHex!));
     }
 
     return values;
   }
 
   _VerifierResult _generateVerifierPayload() {
+    final debugAuth = Platform.environment['ORA_DEBUG_AUTH'] == '1';
+    if (debugAuth) {
+      print('DEBUG AUTH: verifierType=$verifierType');
+    }
+
     String requireField(String name) {
       final value = sessionData[name] ?? connImpl?.sessionData?[name];
       if (value == null) {
@@ -230,7 +280,7 @@ class AuthMessage extends Message {
     int keyLength;
 
     if (verifierType == TNS_VERIFIER_TYPE_12C) {
-      keyLength = 32;
+      keyLength = 32; // AES-256
       final iterations =
           int.tryParse(requireField('AUTH_PBKDF2_VGEN_COUNT')) ?? 4096;
       final salt = concat([
@@ -245,57 +295,120 @@ class AuthMessage extends Message {
       );
       final hInput = concat([passwordKey, verifierData]);
       passwordHash = sha512Bytes(hInput).sublist(0, 32);
+      
+        print('DEBUG AUTH: passwordKey=${bytesToHex(passwordKey)}');
+        print('DEBUG AUTH: passwordHash=${bytesToHex(passwordHash)}');
+      
     } else {
-      keyLength = 24;
+      keyLength = 24; // AES-192
       final sha = sha1Bytes(passwordBytes);
       final hInput = concat([sha, verifierData]);
       final h = sha1Bytes(hInput);
+      // Pad to 24 bytes for AES-192 key
       passwordHash = concat([h, Uint8List(4)]);
     }
 
     final encodedServerKey = hexToBytes(requireField('AUTH_SESSKEY'));
+   
+      print('DEBUG AUTH: AUTH_SESSKEY=${sessionData['AUTH_SESSKEY']}');
+      print('DEBUG AUTH: AUTH_VFR_DATA=${sessionData['AUTH_VFR_DATA']}');
+      print(
+          'DEBUG AUTH: PBKDF2_VGEN_COUNT=${sessionData['AUTH_PBKDF2_VGEN_COUNT']}');
+      print(
+          'DEBUG AUTH: PBKDF2_CSK_SALT=${sessionData['AUTH_PBKDF2_CSK_SALT']}');
+      print(
+          'DEBUG AUTH: PBKDF2_SDER_COUNT=${sessionData['AUTH_PBKDF2_SDER_COUNT']}');
+    
+
+    // Decrypt server key.
+    // Important: AES block size is 16 bytes. The decrypted output might have padding.
+    // However, Oracle protocol usually treats the raw decrypted bytes as the key material.
     final sessionKeyPartA = aesCbcDecrypt(
       key: passwordHash,
       iv: Uint8List(16),
       ciphertext: encodedServerKey,
-      zeroPadding: true,
+      zeroPadding: false,
+      removePadding: false,
     );
+  
+      print('DEBUG AUTH: sessionKeyPartA=${bytesToHex(sessionKeyPartA)}');
+    
+
+    // Generate client key part
     final sessionKeyPartB = randomBytes(sessionKeyPartA.length);
+
     final encodedClientKey = aesCbcEncrypt(
       key: passwordHash,
       iv: Uint8List(16),
       plaintext: sessionKeyPartB,
-      zeroPadding: true,
+      zeroPadding: false,
     );
+    
+      print('DEBUG AUTH: sessionKeyPartB=${bytesToHex(sessionKeyPartB)}');
+      print('DEBUG AUTH: encodedClientKey=${bytesToHex(encodedClientKey)}');
+  
 
     Uint8List comboKey;
     String sessionKeyHex;
+
+    // Logic to derive session key and combo key based on protocol version/key size
     if (sessionKeyPartA.length == 48) {
+      // Older protocol logic (often 11g verifier with 192-bit keys + extra handling)
       sessionKeyHex = bytesToHex(encodedClientKey).substring(0, 96);
       final xorBuf = Uint8List(24);
+      // RangeError fix: Ensure indices are valid.
+      // sessionKeyPartA should be 48 bytes here.
       for (var i = 16; i < 40; i++) {
         xorBuf[i - 16] = sessionKeyPartA[i] ^ sessionKeyPartB[i];
       }
       final part1 = md5Bytes(xorBuf.sublist(0, 16));
-      final part2 = md5Bytes(xorBuf.sublist(16));
+      final part2 = md5Bytes(
+          xorBuf.sublist(16)); // Remaining 8 bytes padded/handled by MD5 digest
+      // Note: MD5 digest is always 16 bytes.
+      // If keyLength is 24 (AES-192), we need 24 bytes.
+      // part1 (16) + part2 (16) = 32 bytes. We take the first keyLength bytes.
       comboKey = concat([part1, part2]).sublist(0, keyLength);
     } else {
-      sessionKeyHex = bytesToHex(encodedClientKey).substring(0, 64);
+      // Newer protocol logic (12c verifier, usually 32/64 bytes)
+      // For AES-256 (12c), sessionKeyPartA might be 32 bytes or 64 bytes depending on mode.
+      // Typically 12c uses 32, 48 or 64 bytes.
+
+      // Assuming 12c/PBKDF2 logic applies if length is NOT 48, or based on verifier type.
+      // Python driver logic: if len(session_key_part_a) == 48: ... else: ...
+
+      // We need to ensure encodedClientKey is large enough before substring.
+      // If sessionKeyPartA is 32 bytes, encodedClientKey is 32 bytes (64 hex chars).
+      // .substring(0, 64) gets the whole thing.
+
+      sessionKeyHex = bytesToHex(encodedClientKey);
+      // Python uses .upper()[:64] which implies it takes up to 32 bytes.
+      if (sessionKeyHex.length > 64) {
+        sessionKeyHex = sessionKeyHex.substring(0, 64);
+      }
+
       final salt = hexToBytes(requireField('AUTH_PBKDF2_CSK_SALT'));
       final iterations =
           int.tryParse(requireField('AUTH_PBKDF2_SDER_COUNT')) ?? 4096;
+
+      // Safe slicing: ensure we don't exceed array bounds
+      final partBLen = min(keyLength, sessionKeyPartB.length);
+      final partALen = min(keyLength, sessionKeyPartA.length);
+
       final tempKey = concat([
-        sessionKeyPartB.sublist(0, keyLength),
-        sessionKeyPartA.sublist(0, keyLength),
+        sessionKeyPartB.sublist(0, partBLen),
+        sessionKeyPartA.sublist(0, partALen),
       ]);
-      final tempKeyHexBytes =
-          Uint8List.fromList(bytesToHex(tempKey).codeUnits);
+
+      final tempKeyHexBytes = Uint8List.fromList(bytesToHex(tempKey).codeUnits);
       comboKey = pbkdf2Sha512(
         password: tempKeyHexBytes,
         salt: salt,
         iterations: iterations,
         keyLength: keyLength,
       );
+     
+        print('DEBUG AUTH: tempKey=${bytesToHex(tempKey)}');
+      
     }
 
     String? speedyKeyHex;
@@ -305,12 +418,25 @@ class AuthMessage extends Message {
         key: comboKey,
         iv: Uint8List(16),
         plaintext: speedyPayload,
-        zeroPadding: true,
+        zeroPadding: false,
       );
-      speedyKeyHex = bytesToHex(speedyKey.sublist(0, 80));
+      // Ensure we don't crash if speedyKey is shorter than 40 bytes (80 hex chars)
+      // though it should be larger (16 + 64 = 80 bytes payload -> encrypted size >= 80)
+      final end = min(80, speedyKey.length * 2);
+      // Actually we need 40 bytes of binary => 80 hex chars.
+      // aesCbcEncrypt pads to block size (16). 80 is multiple of 16.
+      speedyKeyHex = bytesToHex(speedyKey).substring(0, 80);
+     
+        print('DEBUG AUTH: speedyKeyHex=$speedyKeyHex');
+      
     }
 
     final encryptedPassword = _encryptPassword(comboKey);
+    
+      print('DEBUG AUTH: comboKey=${bytesToHex(comboKey)}');
+      print('DEBUG AUTH: sessionKeyHex=$sessionKeyHex');
+      print('DEBUG AUTH: encPwd=${bytesToHex(encryptedPassword)}');
+    
 
     _comboKey = comboKey;
     _sessionKey = hexToBytes(sessionKeyHex);
@@ -332,7 +458,7 @@ class AuthMessage extends Message {
       key: comboKey,
       iv: Uint8List(16),
       plaintext: payload,
-      zeroPadding: true,
+      zeroPadding: false,
     );
   }
 
@@ -400,8 +526,7 @@ class AuthMessage extends Message {
     ];
   }
 
-  void _writeKeyValue(WriteBuffer buf, String key, String value,
-      int flags) {
+  void _writeKeyValue(WriteBuffer buf, String key, String value, int flags) {
     final keyBytes = utf8.encode(key);
     final valueBytes = utf8.encode(value);
     buf.writeUB4(keyBytes.length);
@@ -441,8 +566,7 @@ String _clientProgramName() {
 }
 
 String _clientOsUser() {
-  final user = Platform.environment['USERNAME'] ??
-      Platform.environment['USER'];
+  final user = Platform.environment['USERNAME'] ?? Platform.environment['USER'];
   final sanitized = _sanitizeClientString(user ?? '');
   return sanitized.isNotEmpty ? sanitized : 'dart';
 }

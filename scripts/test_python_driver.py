@@ -1,20 +1,24 @@
+#C:\MyDartProjects\oracledb_dart\scripts\test_python_driver.py
 import contextlib
 import os
 import sys
-
+# cd .\python-oracledb\ 
+# python -m pip install . --no-binary oracledb --force-reinstall
 # Ensure the local python-oracledb source is on sys.path
-PROJECT_ROOT = os.path.abspath(os.path.join(os.path.dirname(__file__), '..'))
-PYTHON_ORACLEDB_SRC = os.path.join(PROJECT_ROOT, 'python-oracledb', 'src')
-if PYTHON_ORACLEDB_SRC not in sys.path:
-    sys.path.insert(0, PYTHON_ORACLEDB_SRC)
+# --- COMENTE OU APAGUE ESTE BLOCO ---
+# PROJECT_ROOT = os.path.abspath(os.path.join(os.path.dirname(__file__), '..'))
+# PYTHON_ORACLEDB_SRC = os.path.join(PROJECT_ROOT, 'python-oracledb', 'src')
+# if PYTHON_ORACLEDB_SRC not in sys.path:
+#     sys.path.insert(0, PYTHON_ORACLEDB_SRC)
+# ------------------------------------
 
 import oracledb
 
 
 def main():
-    user = os.getenv('ORACLE_USER', 'dart_user')
-    password = os.getenv('ORACLE_PASSWORD', 'dart')
-    dsn = os.getenv('ORACLE_DSN', 'localhost:1521/XEPDB1')
+    user =  'dart_user'
+    password =  'dart'
+    dsn =  'localhost:1521/XEPDB1'
 
     print(f'Connecting as {user}@{dsn} using local python-oracledb checkout...')
     with oracledb.connect(user=user, password=password, dsn=dsn) as conn:

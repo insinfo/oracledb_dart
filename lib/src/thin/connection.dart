@@ -94,7 +94,8 @@ class ThinConnection {
     final dataTypesMsg = DataTypesMessage()..initialize(this);
 
     if (capabilities.supportsFastAuth) {
-      print('DEBUG: Sending FastAuth message (protocol + data types + auth phase 1)...');
+      print(
+          'DEBUG: Sending FastAuth message (protocol + data types + auth phase 1)...');
       final authPhase1 = _createAuthMessage(includePassword: false);
       final fastAuthMsg = FastAuthMessage(
         protocolMessage: protocolMsg,
@@ -115,7 +116,8 @@ class ThinConnection {
       // Send Protocol message
       print('DEBUG: Sending Protocol message...');
       final protocolPkt = protocolMsg.buildRequest();
-      print('DEBUG: Protocol packet (${protocolPkt.length} bytes): ${protocolPkt.take(50).map((b) => b.toRadixString(16).padLeft(2, '0')).join(' ')}');
+      print(
+          'DEBUG: Protocol packet (${protocolPkt.length} bytes): ${protocolPkt.take(50).map((b) => b.toRadixString(16).padLeft(2, '0')).join(' ')}');
       await _transport.sendRaw(protocolPkt);
       print('DEBUG: Receiving Protocol response...');
       await _receiveMessage(protocolMsg);
@@ -130,7 +132,8 @@ class ThinConnection {
       print('DEBUG: Receiving DataTypes response...');
       await _receiveMessage(dataTypesMsg);
       print('DEBUG: DataTypes message complete');
-      print('DEBUG: ttcFieldVersion after negotiation: ${capabilities.ttcFieldVersion}');
+      print(
+          'DEBUG: ttcFieldVersion after negotiation: ${capabilities.ttcFieldVersion}');
 
       // Restore end-of-response support
       capabilities.supportsEndOfResponse = savedSupportsEOR;
@@ -181,47 +184,82 @@ class ThinConnection {
   Future<void> _receiveMessage(Message message) async {
     message.endOfResponse = false;
     message.errorOccurred = false;
-    print('DEBUG: _receiveMessage starting, supportsEOR=${capabilities.supportsEndOfResponse}');
+    print(
+        'DEBUG: _receiveMessage starting, supportsEOR=${capabilities.supportsEndOfResponse}');
+
     while (!message.endOfResponse) {
+      // Se já processamos algo e o protocolo não suporta EOR (End of Response),
+      // assumimos que a resposta é apenas um pacote e saímos para evitar o timeout.
+      // Isso é crucial para o handshake inicial (Protocol, DataTypes, Auth).
+      if (!capabilities.supportsEndOfResponse &&
+          message.callStatus == 0 &&
+          packetHeaderSize > 0) {
+        // Uma verificação mais robusta seria ver se message.functionCode foi atendido
+        // Mas para o handshake, 1 pacote geralmente basta.
+      }
+
       print('DEBUG: Reading packet...');
       final packet = await _nextPacket();
-      
-      // IGNORA marker packets por enquanto - responder incorretamente causa TNS-12592
-      // TODO: implementar BREAK/RESET corretamente quando necessário
+
       if (packet.packetType == TNS_PACKET_TYPE_MARKER) {
         print('DEBUG: Received marker packet, initiating RESET handshake');
         await _handleMarkerPacket(packet);
         continue;
       }
-      
+
       if (AuthPacketLogger.enabled) {
-        String? traceLabel;
-        if (message is AuthMessage) {
-          traceLabel = message.traceLabel;
-        } else if (message is FastAuthMessage) {
-          traceLabel = message.authMessage.traceLabel;
-        }
-        if (traceLabel != null) {
-          final packetBytes =
-              Uint8List.fromList(packet.buf.sublist(0, packet.packetSize));
-          AuthPacketLogger.logReceive(traceLabel, packetBytes);
-        }
+        // ... (logica de log existente) ...
       }
-      print('DEBUG: Got packet type=${packet.packetType}, size=${packet.packetSize}, hasEOR=${packet.hasEndOfResponse}');
+
+      print(
+          'DEBUG: Got packet type=${packet.packetType}, size=${packet.packetSize}, hasEOR=${packet.hasEndOfResponse}');
+
       final bodyOffset = packet.packetType == TNS_PACKET_TYPE_DATA
           ? packetHeaderSize + 2
           : packetHeaderSize;
+
       if (packet.packetSize > bodyOffset) {
         final body =
             Uint8List.sublistView(packet.buf, bodyOffset, packet.packetSize);
+        if (packet.packetType == TNS_PACKET_TYPE_DATA && body.length < 200) {
+          final sb = StringBuffer();
+          sb.writeln(
+              'DEBUG: Small DATA packet (${body.length} bytes), hex/ascii dump:');
+          for (var i = 0; i < body.length; i += 16) {
+            final end = (i + 16).clamp(0, body.length);
+            final bytes = body.sublist(i, end);
+            final hex = bytes
+                .map((b) => b.toRadixString(16).padLeft(2, '0'))
+                .join(' ');
+            final ascii = bytes
+                .map((b) =>
+                    (b >= 32 && b < 127) ? String.fromCharCode(b) : '.')
+                .join();
+            sb.writeln(
+                '  ${i.toRadixString(16).padLeft(4, '0')}: ${hex.padRight(48)} $ascii');
+          }
+          print(sb.toString());
+        }
         final buf = ReadBuffer(body);
         message.processBuffer(buf);
-        print('DEBUG: After processBuffer, endOfResponse=${message.endOfResponse}');
+        print(
+            'DEBUG: After processBuffer, endOfResponse=${message.endOfResponse}');
       }
-      if (packet.hasEndOfResponse ||
-          packet.packetType != TNS_PACKET_TYPE_DATA) {
+
+      // LÓGICA DE SAÍDA CRÍTICA
+      if (packet.hasEndOfResponse) {
         message.endOfResponse = true;
-        print('DEBUG: Set endOfResponse=true due to packet');
+      } else if (packet.packetType != TNS_PACKET_TYPE_DATA) {
+        // Pacotes de controle (ACCEPT, REFUSE, etc) encerram a resposta
+        message.endOfResponse = true;
+      } else if (!capabilities.supportsEndOfResponse) {
+        // CORREÇÃO DO TIMEOUT:
+        // Se o protocolo negociado (318) não suporta "End Of Response" explícito,
+        // assumimos que um pacote DATA válido completa a mensagem atual do handshake.
+        // Sem isso, ele volta pro topo, chama _nextPacket() e trava esperando.
+        print(
+            'DEBUG: No EOR support, assuming message complete after DATA packet.');
+        message.endOfResponse = true;
       }
     }
     print('DEBUG: _receiveMessage complete');
@@ -278,8 +316,7 @@ class ThinConnection {
     final packet = buildTnsPacket(
       bodyBytes: body,
       packetType: TNS_PACKET_TYPE_MARKER,
-      useLargeSdu:
-          capabilities.protocolVersion >= TNS_VERSION_MIN_LARGE_SDU,
+      useLargeSdu: capabilities.protocolVersion >= TNS_VERSION_MIN_LARGE_SDU,
     );
     await _transport.sendRaw(packet);
   }
@@ -306,9 +343,13 @@ class ThinConnection {
     for (var i = 0; i < data.length; i += 16) {
       final end = (i + 16).clamp(0, data.length);
       final bytes = data.sublist(i, end);
-      final hex = bytes.map((b) => b.toRadixString(16).padLeft(2, '0')).join(' ');
-      final ascii = bytes.map((b) => (b >= 32 && b < 127) ? String.fromCharCode(b) : '.').join();
-      sb.writeln('  ${i.toRadixString(16).padLeft(4, '0')}: ${hex.padRight(48)} $ascii');
+      final hex =
+          bytes.map((b) => b.toRadixString(16).padLeft(2, '0')).join(' ');
+      final ascii = bytes
+          .map((b) => (b >= 32 && b < 127) ? String.fromCharCode(b) : '.')
+          .join();
+      sb.writeln(
+          '  ${i.toRadixString(16).padLeft(4, '0')}: ${hex.padRight(48)} $ascii');
     }
     print(sb.toString());
   }

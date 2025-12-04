@@ -1,5 +1,5 @@
+//C:\MyDartProjects\oracledb_dart\lib\src\thin\protocol\messages\protocol.dart
 import 'dart:typed_data';
-
 import '../constants.dart';
 import '../packet.dart';
 import 'base.dart';
@@ -59,20 +59,22 @@ class ProtocolMessage extends Message {
     final ix = 6 + fdo[5] + fdo[6];
     final ncharsetId = (fdo[ix + 3] << 8) + fdo[ix + 4];
 
-    // Read server compile caps
-    serverCompileCaps = buf.readBytesWithLength();
-    if (serverCompileCaps != null && serverCompileCaps!.isNotEmpty) {
+    // Read server compile caps (raw byte payload)
+    final compileCaps = buf.readBytesRawOrNull();
+    if (compileCaps != null && compileCaps.isNotEmpty) {
+      serverCompileCaps = compileCaps;
       print(
-          'DEBUG: Server compile caps (${serverCompileCaps!.length} bytes): ${serverCompileCaps!.take(20).map((b) => b.toRadixString(16).padLeft(2, '0')).join(' ')}');
-      connImpl?.capabilities.adjustForServerCompileCaps(serverCompileCaps!);
+          'DEBUG: Server compile caps (${compileCaps.length} bytes): ${compileCaps.take(20).map((b) => b.toRadixString(16).padLeft(2, '0')).join(' ')}');
+      connImpl?.capabilities.adjustForServerCompileCaps(compileCaps);
     }
 
-    // Read server runtime caps
-    serverRuntimeCaps = buf.readBytesWithLength();
-    if (serverRuntimeCaps != null && serverRuntimeCaps!.isNotEmpty) {
+    // Read server runtime caps (raw byte payload)
+    final runtimeCaps = buf.readBytesRawOrNull();
+    if (runtimeCaps != null && runtimeCaps.isNotEmpty) {
+      serverRuntimeCaps = runtimeCaps;
       print(
-          'DEBUG: Server runtime caps (${serverRuntimeCaps!.length} bytes): ${serverRuntimeCaps!.map((b) => b.toRadixString(16).padLeft(2, '0')).join(' ')}');
-      connImpl?.capabilities.adjustForServerRuntimeCaps(serverRuntimeCaps!);
+          'DEBUG: Server runtime caps (${runtimeCaps.length} bytes): ${runtimeCaps.map((b) => b.toRadixString(16).padLeft(2, '0')).join(' ')}');
+      connImpl?.capabilities.adjustForServerRuntimeCaps(runtimeCaps);
     }
 
     connImpl?.capabilities.charsetId = charsetId;

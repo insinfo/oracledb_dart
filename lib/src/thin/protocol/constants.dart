@@ -112,6 +112,7 @@ const int TNS_MSG_TYPE_FAST_AUTH = 34;
 
 // length markers
 const int TNS_LONG_LENGTH_INDICATOR = 0xFE;
+const int TNS_NULL_LENGTH_INDICATOR = 0xFF;
 
 // protocol versions
 const int TNS_VERSION_DESIRED = 319;

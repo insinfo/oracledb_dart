@@ -1,3 +1,4 @@
+//C:\MyDartProjects\oracledb_dart\lib\src\thin\crypto.dart
 import 'dart:math';
 import 'dart:typed_data';
 
@@ -72,16 +73,31 @@ Uint8List aesCbcDecrypt({
   required Uint8List iv,
   required Uint8List ciphertext,
   bool zeroPadding = false,
+  bool removePadding = true,
 }) {
+  if (!removePadding) {
+    // Alguns usos do protocolo (ex.: AUTH_SESSKEY) devolvem bytes crús sem
+    // padding real; tentar remover padding gera erro. Aqui fazemos apenas o
+    // decrypt CBC em blocos inteiros e devolvemos o resultado bruto.
+    final blockCipher = CBCBlockCipher(AESEngine())
+      ..init(false, ParametersWithIV<KeyParameter>(KeyParameter(key), iv));
+    final out = Uint8List(ciphertext.length);
+    var offset = 0;
+    while (offset < ciphertext.length) {
+      offset += blockCipher.processBlock(ciphertext, offset, out, offset);
+    }
+    return out;
+  }
+
   final padding = zeroPadding ? _ZeroPadding() : PKCS7Padding();
-  final cipher = PaddedBlockCipherImpl(padding, CBCBlockCipher(AESEngine()));
-  cipher.init(
-    false,
-    PaddedBlockCipherParameters<ParametersWithIV<KeyParameter>, CipherParameters>(
-      ParametersWithIV<KeyParameter>(KeyParameter(key), iv),
-      null,
-    ),
-  );
+  final cipher = PaddedBlockCipherImpl(padding, CBCBlockCipher(AESEngine()))
+    ..init(
+      false,
+      PaddedBlockCipherParameters<ParametersWithIV<KeyParameter>, CipherParameters>(
+        ParametersWithIV<KeyParameter>(KeyParameter(key), iv),
+        null,
+      ),
+    );
   return cipher.process(ciphertext);
 }
 

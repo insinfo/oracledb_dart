@@ -67,9 +67,13 @@ cdef class AuthMessage(Message):
 
         # encrypt password
         salt = secrets.token_bytes(16)
+        print(f"[PY-DEBUG] Password Salt: {salt.hex().upper()}")
+
         password_with_salt = salt + self.password
         encrypted_password = encrypt_cbc(self.conn_impl._combo_key,
                                          password_with_salt)
+        print(f"[PY-DEBUG] Encrypted Password Payload: "
+              f"{encrypted_password.hex().upper()}")
         self.encoded_password = encrypted_password.hex().upper()
 
         # encrypt new password
@@ -88,18 +92,31 @@ cdef class AuthMessage(Message):
             bytearray b
             ssize_t i
 
+        print("\n[PY-DEBUG] --- _generate_verifier START ---")
+        print(f"[PY-DEBUG] Password (utf8): {self.password}")
+        print(f"[PY-DEBUG] Verifier Type: {self.verifier_type}")
+
         # create password hash
         verifier_data = bytes.fromhex(self.session_data['AUTH_VFR_DATA'])
+        print(f"[PY-DEBUG] AUTH_VFR_DATA: {verifier_data.hex().upper()}")
+
         if self.verifier_type == TNS_VERIFIER_TYPE_12C:
             keylen = 32
             iterations = int(self.session_data['AUTH_PBKDF2_VGEN_COUNT'])
             salt = verifier_data + b'AUTH_PBKDF2_SPEEDY_KEY'
+            # print(f"[PY-DEBUG] PBKDF2 Salt (VFR+SpeedyStr): "
+            #       f"{salt.hex().upper()}")
+            # print(f"[PY-DEBUG] Iterations: {iterations}")
             password_key = get_derived_key(self.password, salt, 64,
                                            iterations)
+            print(f"[PY-DEBUG] password_key (PBKDF2): "
+                  f"{password_key.hex().upper()}")
             h = hashlib.new("sha512")
             h.update(password_key)
             h.update(verifier_data)
             password_hash = h.digest()[:32]
+            print(f"[PY-DEBUG] password_hash (SHA512): "
+                  f"{password_hash.hex().upper()}")
         else:
             keylen = 24
             h = hashlib.sha1(self.password)
@@ -108,11 +125,19 @@ cdef class AuthMessage(Message):
 
         # decrypt first half of session key
         encoded_server_key = bytes.fromhex(self.session_data['AUTH_SESSKEY'])
+        print(f"[PY-DEBUG] AUTH_SESSKEY (Server Encrypted): "
+              f"{encoded_server_key.hex().upper()}")
         session_key_part_a = decrypt_cbc(password_hash, encoded_server_key)
+        print(f"[PY-DEBUG] session_key_part_a (Decrypted): "
+              f"{session_key_part_a.hex().upper()}")
 
         # generate second half of session key
         session_key_part_b = secrets.token_bytes(len(session_key_part_a))
+        print(f"[PY-DEBUG] session_key_part_b (Generated): "
+              f"{session_key_part_b.hex().upper()}")
         encoded_client_key = encrypt_cbc(password_hash, session_key_part_b)
+        print(f"[PY-DEBUG] encoded_client_key (To Send): "
+              f"{encoded_client_key.hex().upper()}")
 
         # create session key and combo key
         if len(session_key_part_a) == 48:
@@ -128,8 +153,12 @@ cdef class AuthMessage(Message):
             salt = bytes.fromhex(self.session_data['AUTH_PBKDF2_CSK_SALT'])
             iterations = int(self.session_data['AUTH_PBKDF2_SDER_COUNT'])
             temp_key = session_key_part_b[:keylen] + session_key_part_a[:keylen]
+            print(f"[PY-DEBUG] temp_key (Raw B+A truncated): "
+                  f"{temp_key.hex().upper()}")
             combo_key = get_derived_key(temp_key.hex().upper().encode(), salt,
                                         keylen, iterations)
+            print(f"[PY-DEBUG] combo_key (Final Session Key): "
+                  f"{combo_key.hex().upper()}")
 
         # retain session key for use by the change password API
         self.conn_impl._combo_key = combo_key

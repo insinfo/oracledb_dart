@@ -22,12 +22,27 @@ class AuthPacketLogger {
 
   static void _log(String direction, String phase, Uint8List data) {
     if (!enabled) return;
-    final sink = _sink ??= File(_logPath).openWrite(mode: FileMode.append);
-    final timestamp = DateTime.now().toIso8601String();
-    sink.writeln('[$timestamp] $direction $phase len=${data.length}');
-    sink.writeln(_formatHex(data));
-    sink.writeln('');
-    sink.flush();
+    try {
+      final sink = _sink ??= File(_logPath).openWrite(mode: FileMode.append);
+      final timestamp = DateTime.now().toIso8601String();
+      sink.writeln('[$timestamp] $direction $phase len=${data.length}');
+      sink.writeln(_formatHex(data));
+      sink.writeln('');
+      sink.flush();
+    } catch (_) {
+      // Se o sink foi “bound” a outro stream ou corrompido, recria e tenta de novo.
+      _sink = null;
+      try {
+        final sink = _sink ??= File(_logPath).openWrite(mode: FileMode.append);
+        final timestamp = DateTime.now().toIso8601String();
+        sink.writeln('[$timestamp] $direction $phase len=${data.length}');
+        sink.writeln(_formatHex(data));
+        sink.writeln('');
+        sink.flush();
+      } catch (_) {
+        // Última tentativa falhou; não bloquear a aplicação.
+      }
+    }
   }
 
   static String _formatHex(Uint8List data) {

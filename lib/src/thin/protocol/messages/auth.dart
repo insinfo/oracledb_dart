@@ -1,5 +1,4 @@
 // Arquivo: \src\thin\protocol\messages\auth.dart
-
 import 'dart:convert';
 import 'dart:io';
 import 'dart:math';
@@ -53,14 +52,10 @@ class AuthMessage extends Message {
         includePassword ? TNS_FUNC_AUTH_PHASE_TWO : TNS_FUNC_AUTH_PHASE_ONE;
   }
 
-  /// Sobrescreve processMessage para garantir que endOfResponse seja setado
-  /// corretamente em versões de protocolo que não enviam flags explícitas.
   @override
   void processMessage(ReadBuffer buf, int messageType) {
     if (messageType == TNS_MSG_TYPE_PARAMETER) {
       processReturnParameters(buf);
-      // Se o protocolo negociado não suporta fim de resposta explícito (comum no handshake),
-      // marcamos como finalizado após ler os parâmetros.
       if (connImpl?.capabilities.supportsEndOfResponse == false) {
         endOfResponse = true;
       }
@@ -119,6 +114,9 @@ class AuthMessage extends Message {
 
   @override
   void processReturnParameters(ReadBuffer buf) {
+    // Capture start pos for debugging
+    final startPos = buf.pos;
+    
     if (buf.isEOF) {
       throw createOracleException(
         dpyCode: ERR_CONNECTION_FAILED,
@@ -126,95 +124,97 @@ class AuthMessage extends Message {
       );
     }
 
-    // Logs detalhados para diagnosticar desalinhamentos de buffer
-    print(
-        'DEBUG: processReturnParameters START. Remaining=${buf.remaining}');
     try {
-      final preview = buf.peekBytes(min(16, buf.remaining));
-      final hex = preview
-          .map((b) => b.toRadixString(16).padLeft(2, '0'))
-          .join(' ');
-      print('DEBUG: Next bytes: $hex');
-    } catch (_) {}
+      final numParams = buf.readUB2();
+      print('[DART-DEBUG] Processing $numParams return params...');
+      print('DEBUG: --- DUMPING AUTH PARAMETERS ---');
 
-    final parsed = <String, String>{};
-    final raw = <String>[];
-    final numParams = buf.readUB2();
-    print('DEBUG: numParams=$numParams');
-    for (var i = 0; i < numParams; i++) {
-      print('DEBUG: Reading key #$i (rem=${buf.remaining})');
-      if (buf.remaining < 4) {
-        print('DEBUG: CRITICAL - not enough bytes for key length');
-        break;
+      for (var i = 0; i < numParams; i++) {
+        final key = buf.readStringWithLength();
+        final value = buf.readStringWithLength();
+        print('DEBUG: Param [$key] = $value');
+
+        if (key.isEmpty) {
+          buf.skipUB4();
+          continue;
+        }
+        if (key == 'AUTH_VFR_DATA') {
+          final type = buf.readUB4();
+          sessionData['AUTH_VFR_DATA'] = value;
+          sessionData['AUTH_VFR_TYPE'] = type.toString();
+          verifierType = type;
+          print('DEBUG: AUTH_VFR_DATA Type=$type');
+          continue;
+        }
+        buf.skipUB4(); // Skip flags
+        sessionData[key] = value;
       }
-      final key = buf.readStringWithLength();
-      print('DEBUG: Key[$i]="$key" (rem=${buf.remaining})');
+      print('DEBUG: --- END DUMP ---');
 
-      print('DEBUG: Reading value #$i (rem=${buf.remaining})');
-      if (buf.remaining < 4) {
-        print('DEBUG: CRITICAL - not enough bytes for value length');
-        break;
-      }
-      final value = buf.readStringWithLength();
-      print('DEBUG: Value[$i] len=${value.length} (rem=${buf.remaining})');
-
-      if (key.isEmpty) {
-        buf.skipBytes(4); // skip flags (fixed 4-byte)
-        continue;
-      }
-      if (key == 'AUTH_VFR_DATA') {
-        final type = buf.readUint32(); // fixed 4-byte value
-        print('DEBUG: AUTH_VFR_DATA flags/type=$type');
-        parsed[key] = value;
-        raw.add('$key=$value');
-        sessionData['AUTH_VFR_DATA'] = value;
-        sessionData['AUTH_VFR_TYPE'] = type.toString();
-        verifierType = type;
-        continue;
-      }
-      parsed[key] = value;
-      raw.add('$key=$value');
-      final flags = buf.readUint32(); // fixed 4-byte
-      print('DEBUG: Flags[$i]=$flags');
-    }
-
-    if (raw.isNotEmpty) {
-      parsed['AUTH_RAW_FIELDS'] = raw.join(';');
-    }
-
-    sessionData.addAll(parsed);
-    final mergedSessionData = <String, String>{};
-    final existingSessionData = connImpl?.sessionData;
-    if (existingSessionData is Map<String, String>) {
-      mergedSessionData.addAll(existingSessionData);
-    } else if (existingSessionData is Map) {
-      for (final entry in existingSessionData.entries) {
-        final key = entry.key;
-        final value = entry.value;
-        if (key is String && value is String) {
-          mergedSessionData[key] = value;
+      final mergedSessionData = <String, String>{};
+      final existingSessionData = connImpl?.sessionData;
+      if (existingSessionData is Map<String, String>) {
+        mergedSessionData.addAll(existingSessionData);
+      } else if (existingSessionData is Map) {
+        for (final entry in existingSessionData.entries) {
+          final key = entry.key;
+          final value = entry.value;
+          if (key is String && value is String) {
+            mergedSessionData[key] = value;
+          }
         }
       }
-    }
-    mergedSessionData.addAll(sessionData);
-    if (connImpl != null) {
-      connImpl.sessionData = mergedSessionData;
-    }
+      mergedSessionData.addAll(sessionData);
+      if (connImpl != null) {
+        connImpl.sessionData = mergedSessionData;
+      }
 
-    final statusStr = sessionData['AUTH_STATUS'];
-    if (statusStr != null && statusStr != '0') {
-      throw createOracleException(
-        dpyCode: ERR_CONNECTION_FAILED,
-        message: 'AUTH failed with status $statusStr',
-      );
-    }
+      final statusStr = sessionData['AUTH_STATUS'];
+      if (statusStr != null && statusStr != '0') {
+        throw createOracleException(
+          dpyCode: ERR_CONNECTION_FAILED,
+          message: 'AUTH failed with status $statusStr',
+        );
+      }
 
-    if (includePassword) {
-      _applySessionMetadata();
-    }
+      if (includePassword) {
+        _applySessionMetadata();
+      }
 
-    if (_comboKey != null) connImpl?.comboKey = _comboKey;
-    if (_sessionKey != null) connImpl?.sessionKey = _sessionKey;
+      if (_comboKey != null) connImpl?.comboKey = _comboKey;
+      if (_sessionKey != null) connImpl?.sessionKey = _sessionKey;
+
+    } catch (e) {
+      print('\n[DART-DEBUG] CRASH in processReturnParameters');
+      print('[DART-DEBUG] Error: $e');
+      print('[DART-DEBUG] Buffer Hex Dump (Start of Params -> End):');
+      // Reset buffer to start of params to verify structure
+      // Note: ReadBuffer doesn't support seek backwards easily in this impl, 
+      // so we dump from current failure point logic.
+      // Ideally, access the underlying Uint8List
+      if (buf.data is Uint8List) {
+         final data = buf.data as Uint8List;
+         _printHex(data, startOffset: startPos);
+      }
+      rethrow;
+    }
+  }
+  
+  void _printHex(Uint8List data, {int startOffset = 0}) {
+    final buffer = StringBuffer();
+    for (var i = startOffset; i < data.length; i += 16) {
+      final end = (i + 16).clamp(0, data.length);
+      final chunk = data.sublist(i, end);
+      final hex = chunk
+          .map((b) => b.toRadixString(16).padLeft(2, '0'))
+          .join(' ')
+          .padRight(16 * 3 - 1);
+      final ascii = chunk
+          .map((b) => (b >= 32 && b < 127) ? String.fromCharCode(b) : '.')
+          .join();
+      buffer.writeln('${i.toRadixString(16).padLeft(4, '0')}: $hex  $ascii');
+    }
+    print(buffer.toString());
   }
 
   List<_AuthKeyValue> _buildPhaseOneKeyValues() {
@@ -236,32 +236,30 @@ class AuthMessage extends Message {
     }
 
     final verifier = _generateVerifierPayload();
-    final values = <_AuthKeyValue>[
-      _AuthKeyValue('AUTH_SESSKEY', verifier.sessionKeyHex, flags: 1),
-      _AuthKeyValue('AUTH_PASSWORD', verifier.encryptedPasswordHex),
+    final values = <_AuthKeyValue>[];
+
+    // Ordem igual ao python-oracledb:
+    // 1) AUTH_SESSKEY
+    values.add(_AuthKeyValue('AUTH_SESSKEY', verifier.sessionKeyHex, flags: 1));
+    // 2) AUTH_PBKDF2_SPEEDY_KEY (se existir)
+    if (verifier.speedyKeyHex != null) {
+      values.add(
+          _AuthKeyValue('AUTH_PBKDF2_SPEEDY_KEY', verifier.speedyKeyHex!));
+    }
+    // 3) AUTH_PASSWORD
+    values.add(_AuthKeyValue('AUTH_PASSWORD', verifier.encryptedPasswordHex));
+    // Demais params
+    values.addAll([
       _AuthKeyValue('SESSION_CLIENT_CHARSET', charsetId.toString()),
-      _AuthKeyValue(
-        'SESSION_CLIENT_DRIVER_NAME',
-        _clientDriverName,
-      ),
+      _AuthKeyValue('SESSION_CLIENT_DRIVER_NAME', _clientDriverName),
       _AuthKeyValue('SESSION_CLIENT_VERSION', _clientVersion),
       _AuthKeyValue('AUTH_ALTER_SESSION', _alterSessionStatement(), flags: 1),
-    ];
-
-    if (verifier.speedyKeyHex != null) {
-      values
-          .add(_AuthKeyValue('AUTH_PBKDF2_SPEEDY_KEY', verifier.speedyKeyHex!));
-    }
+    ]);
 
     return values;
   }
 
   _VerifierResult _generateVerifierPayload() {
-    final debugAuth = Platform.environment['ORA_DEBUG_AUTH'] == '1';
-    if (debugAuth) {
-      print('DEBUG AUTH: verifierType=$verifierType');
-    }
-
     String requireField(String name) {
       final value = sessionData[name] ?? connImpl?.sessionData?[name];
       if (value == null) {
@@ -278,141 +276,111 @@ class AuthMessage extends Message {
     Uint8List passwordHash;
     Uint8List? passwordKey;
     int keyLength;
+    final is12c = verifierType == TNS_VERIFIER_TYPE_12C ||
+        sessionData.containsKey('AUTH_PBKDF2_CSK_SALT');
+    print('DEBUG: verifierType=$verifierType is12c=$is12c');
 
-    if (verifierType == TNS_VERIFIER_TYPE_12C) {
+    if (is12c) {
       keyLength = 32; // AES-256
-      final iterations =
-          int.tryParse(requireField('AUTH_PBKDF2_VGEN_COUNT')) ?? 4096;
+      final iterStr = requireField('AUTH_PBKDF2_VGEN_COUNT');
+      final iterations = int.tryParse(iterStr) ?? 4096;
+      
       final salt = concat([
         verifierData,
         Uint8List.fromList('AUTH_PBKDF2_SPEEDY_KEY'.codeUnits),
       ]);
+
       passwordKey = pbkdf2Sha512(
         password: passwordBytes,
         salt: salt,
         iterations: iterations,
         keyLength: 64,
       );
+      
       final hInput = concat([passwordKey, verifierData]);
       passwordHash = sha512Bytes(hInput).sublist(0, 32);
-      
-        print('DEBUG AUTH: passwordKey=${bytesToHex(passwordKey)}');
-        print('DEBUG AUTH: passwordHash=${bytesToHex(passwordHash)}');
-      
     } else {
       keyLength = 24; // AES-192
       final sha = sha1Bytes(passwordBytes);
       final hInput = concat([sha, verifierData]);
       final h = sha1Bytes(hInput);
-      // Pad to 24 bytes for AES-192 key
       passwordHash = concat([h, Uint8List(4)]);
     }
 
     final encodedServerKey = hexToBytes(requireField('AUTH_SESSKEY'));
-   
-      print('DEBUG AUTH: AUTH_SESSKEY=${sessionData['AUTH_SESSKEY']}');
-      print('DEBUG AUTH: AUTH_VFR_DATA=${sessionData['AUTH_VFR_DATA']}');
-      print(
-          'DEBUG AUTH: PBKDF2_VGEN_COUNT=${sessionData['AUTH_PBKDF2_VGEN_COUNT']}');
-      print(
-          'DEBUG AUTH: PBKDF2_CSK_SALT=${sessionData['AUTH_PBKDF2_CSK_SALT']}');
-      print(
-          'DEBUG AUTH: PBKDF2_SDER_COUNT=${sessionData['AUTH_PBKDF2_SDER_COUNT']}');
     
-
-    // Decrypt server key.
-    // Important: AES block size is 16 bytes. The decrypted output might have padding.
-    // However, Oracle protocol usually treats the raw decrypted bytes as the key material.
+    // Decrypt server key. Explicitly request NO padding removal to match Python logic
     final sessionKeyPartA = aesCbcDecrypt(
       key: passwordHash,
       iv: Uint8List(16),
       ciphertext: encodedServerKey,
       zeroPadding: false,
-      removePadding: false,
+      removePadding: false, 
     );
-  
-      print('DEBUG AUTH: sessionKeyPartA=${bytesToHex(sessionKeyPartA)}');
-    
 
     // Generate client key part
     final sessionKeyPartB = randomBytes(sessionKeyPartA.length);
-
+    
     final encodedClientKey = aesCbcEncrypt(
       key: passwordHash,
       iv: Uint8List(16),
       plaintext: sessionKeyPartB,
       zeroPadding: false,
     );
-    
-      print('DEBUG AUTH: sessionKeyPartB=${bytesToHex(sessionKeyPartB)}');
-      print('DEBUG AUTH: encodedClientKey=${bytesToHex(encodedClientKey)}');
-  
+    print('DEBUG: sessionKeyPartA=${bytesToHex(sessionKeyPartA)}');
+    print('DEBUG: sessionKeyPartB=${bytesToHex(sessionKeyPartB)}');
+    print('DEBUG: encodedClientKey=${bytesToHex(encodedClientKey)}');
 
     Uint8List comboKey;
     String sessionKeyHex;
 
-    // Logic to derive session key and combo key based on protocol version/key size
     if (sessionKeyPartA.length == 48) {
-      // Older protocol logic (often 11g verifier with 192-bit keys + extra handling)
       sessionKeyHex = bytesToHex(encodedClientKey).substring(0, 96);
       final xorBuf = Uint8List(24);
-      // RangeError fix: Ensure indices are valid.
-      // sessionKeyPartA should be 48 bytes here.
       for (var i = 16; i < 40; i++) {
         xorBuf[i - 16] = sessionKeyPartA[i] ^ sessionKeyPartB[i];
       }
       final part1 = md5Bytes(xorBuf.sublist(0, 16));
-      final part2 = md5Bytes(
-          xorBuf.sublist(16)); // Remaining 8 bytes padded/handled by MD5 digest
-      // Note: MD5 digest is always 16 bytes.
-      // If keyLength is 24 (AES-192), we need 24 bytes.
-      // part1 (16) + part2 (16) = 32 bytes. We take the first keyLength bytes.
+      final part2 = md5Bytes(xorBuf.sublist(16));
       comboKey = concat([part1, part2]).sublist(0, keyLength);
     } else {
-      // Newer protocol logic (12c verifier, usually 32/64 bytes)
-      // For AES-256 (12c), sessionKeyPartA might be 32 bytes or 64 bytes depending on mode.
-      // Typically 12c uses 32, 48 or 64 bytes.
-
-      // Assuming 12c/PBKDF2 logic applies if length is NOT 48, or based on verifier type.
-      // Python driver logic: if len(session_key_part_a) == 48: ... else: ...
-
-      // We need to ensure encodedClientKey is large enough before substring.
-      // If sessionKeyPartA is 32 bytes, encodedClientKey is 32 bytes (64 hex chars).
-      // .substring(0, 64) gets the whole thing.
-
       sessionKeyHex = bytesToHex(encodedClientKey);
-      // Python uses .upper()[:64] which implies it takes up to 32 bytes.
       if (sessionKeyHex.length > 64) {
         sessionKeyHex = sessionKeyHex.substring(0, 64);
       }
 
-      final salt = hexToBytes(requireField('AUTH_PBKDF2_CSK_SALT'));
-      final iterations =
-          int.tryParse(requireField('AUTH_PBKDF2_SDER_COUNT')) ?? 4096;
+      final saltHex = requireField('AUTH_PBKDF2_CSK_SALT');
+      print('DEBUG: Using AUTH_PBKDF2_CSK_SALT = $saltHex');
+      final salt = hexToBytes(saltHex);
+      final iterStr = requireField('AUTH_PBKDF2_SDER_COUNT');
+      final iterations = int.tryParse(iterStr) ?? 4096;
+      print('DEBUG: AUTH_PBKDF2_SDER_COUNT = $iterations');
 
-      // Safe slicing: ensure we don't exceed array bounds
       final partBLen = min(keyLength, sessionKeyPartB.length);
       final partALen = min(keyLength, sessionKeyPartA.length);
+      print('DEBUG: PartB Len=$partBLen, PartA Len=$partALen');
+      print('DEBUG: PartB (Hex)=${bytesToHex(sessionKeyPartB)}');
+      print('DEBUG: PartA (Hex)=${bytesToHex(sessionKeyPartA)}');
 
       final tempKey = concat([
         sessionKeyPartB.sublist(0, partBLen),
         sessionKeyPartA.sublist(0, partALen),
       ]);
-
+      print('DEBUG: tempKey (Hex)=${bytesToHex(tempKey)}');
+      
       final tempKeyHexBytes = Uint8List.fromList(bytesToHex(tempKey).codeUnits);
+      
       comboKey = pbkdf2Sha512(
         password: tempKeyHexBytes,
         salt: salt,
         iterations: iterations,
         keyLength: keyLength,
       );
-     
-        print('DEBUG AUTH: tempKey=${bytesToHex(tempKey)}');
-      
+      print('DEBUG: comboKey (Hex)=${bytesToHex(comboKey)}');
     }
 
     String? speedyKeyHex;
-    if (verifierType == TNS_VERIFIER_TYPE_12C && passwordKey != null) {
+    if (is12c && passwordKey != null) {
       final speedyPayload = concat([randomBytes(16), passwordKey]);
       final speedyKey = aesCbcEncrypt(
         key: comboKey,
@@ -420,24 +388,12 @@ class AuthMessage extends Message {
         plaintext: speedyPayload,
         zeroPadding: false,
       );
-      // Ensure we don't crash if speedyKey is shorter than 40 bytes (80 hex chars)
-      // though it should be larger (16 + 64 = 80 bytes payload -> encrypted size >= 80)
-      final end = min(80, speedyKey.length * 2);
-      // Actually we need 40 bytes of binary => 80 hex chars.
-      // aesCbcEncrypt pads to block size (16). 80 is multiple of 16.
+      final len = min(80, speedyKey.length * 2);
       speedyKeyHex = bytesToHex(speedyKey).substring(0, 80);
-     
-        print('DEBUG AUTH: speedyKeyHex=$speedyKeyHex');
-      
     }
 
     final encryptedPassword = _encryptPassword(comboKey);
     
-      print('DEBUG AUTH: comboKey=${bytesToHex(comboKey)}');
-      print('DEBUG AUTH: sessionKeyHex=$sessionKeyHex');
-      print('DEBUG AUTH: encPwd=${bytesToHex(encryptedPassword)}');
-    
-
     _comboKey = comboKey;
     _sessionKey = hexToBytes(sessionKeyHex);
     sessionData['AUTH_SESSION_KEY'] = sessionKeyHex;
@@ -454,12 +410,15 @@ class AuthMessage extends Message {
     final salt = randomBytes(16);
     final pwdBytes = Uint8List.fromList(utf8.encode(password));
     final payload = concat([salt, pwdBytes]);
-    return aesCbcEncrypt(
+    
+    // Explicitly use PKCS7 Padding via helper wrapper to match Python behavior
+    final encrypted = aesCbcEncrypt(
       key: comboKey,
       iv: Uint8List(16),
       plaintext: payload,
       zeroPadding: false,
     );
+    return encrypted;
   }
 
   void _applySessionMetadata() {
@@ -467,7 +426,17 @@ class AuthMessage extends Message {
     if (conn == null) {
       return;
     }
-    conn.sessionData = {...conn.sessionData, ...sessionData};
+    final merged = <String, String>{};
+    final existing = conn.sessionData;
+    if (existing is Map) {
+      existing.forEach((key, value) {
+        if (key is String && value != null) {
+          merged[key] = value.toString();
+        }
+      });
+    }
+    merged.addAll(sessionData);
+    conn.sessionData = merged;
 
     conn.sessionId = int.tryParse(sessionData['AUTH_SESSION_ID'] ?? '');
     conn.serialNum = int.tryParse(sessionData['AUTH_SERIAL_NUM'] ?? '');

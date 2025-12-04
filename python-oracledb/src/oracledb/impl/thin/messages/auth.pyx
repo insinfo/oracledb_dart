@@ -238,25 +238,42 @@ cdef class AuthMessage(Message):
             bytes encoded_response, response
             uint16_t num_params, i
             str key, value
+        print("[PY-DEBUG] _process_return_parameters start")
         buf.read_ub2(&num_params)
+        print(f"[PY-DEBUG] num_params={num_params}")
         for i in range(num_params):
+            print(f"[PY-DEBUG] reading param #{i}")
             key = buf.read_str_with_length()
             value = buf.read_str_with_length()
+            if key is None:
+                key = ""
+            if value is not None:
+                print(f"[PY-DEBUG] key={key} value_len={len(value)}")
+            else:
+                print(f"[PY-DEBUG] key={key} value=None")
             if value is None:
                 value = ""
             if key == "AUTH_VFR_DATA":
                 buf.read_ub4(&self.verifier_type)
+                print(f"[PY-DEBUG] AUTH_VFR_DATA flags/type={self.verifier_type}")
             else:
                 buf.skip_ub4()                  # skip flags
             self.session_data[key] = value
+        # log session data of interest
+        for k in ("AUTH_VFR_DATA", "AUTH_SESSKEY", "AUTH_PBKDF2_CSK_SALT",
+                  "AUTH_PBKDF2_VGEN_COUNT", "AUTH_PBKDF2_SDER_COUNT"):
+            if k in self.session_data:
+                print(f"[PY-DEBUG] session_data[{k}]={self.session_data[k]}")
         if self.function_code == TNS_FUNC_AUTH_PHASE_ONE:
             self.function_code = TNS_FUNC_AUTH_PHASE_TWO
+            print("[PY-DEBUG] Switching to AUTH phase 2")
         elif not self.change_password \
                 and self.conn_impl._combo_key is not None:
             response = None
             value = self.session_data.get("AUTH_SVR_RESPONSE")
             if value is not None:
                 encoded_response = bytes.fromhex(value)
+                print(f"[PY-DEBUG] AUTH_SVR_RESPONSE len={len(encoded_response)}")
                 response = decrypt_cbc(
                     self.conn_impl._combo_key, encoded_response
                 )

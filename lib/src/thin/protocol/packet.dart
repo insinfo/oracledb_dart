@@ -115,7 +115,8 @@ class WriteBuffer {
 /// Basic read buffer with big-endian helpers mirroring python-oracledb.
 class ReadBuffer {
   ReadBuffer(Uint8List data) : _data = data;
-
+  int get pos => _pos;
+  Uint8List get data => _data;
   final Uint8List _data;
   int _pos = 0;
 
@@ -123,7 +124,7 @@ class ReadBuffer {
   int get remaining => _data.length - _pos;
 
   int readUint8() => _read(1, (bd) => bd.getUint8(0));
-  
+
   /// Peeks the next byte without advancing the position.
   int peekUint8() {
     if (isEOF) {

@@ -28,6 +28,7 @@ use rg para buscas no codigo fonte
 - [x] corrigir leituras UB4 em strings/bytes length-prefixed e cobrir com teste de chunking (`lib/src/thin/protocol/packet.dart`, `test/thin/protocol/packet_test.dart`).
 - [ ] validar/auth TTC contra servidor XE real e ajustar verificador/sessao ate login funcionar.
 - [ ] coletar e comparar os arquivos gerados pelos tracers (fase1/fase2) para achar divergencias restantes.
+- [ ] comparar comboKey/enc password do Dart com o tracer do python (ORA-01017) e alinhar PBKDF2_CSK_SALT/AUTH_SESSKEY.
 - [ ] completar o parsing das mensagens base (warnings/piggybacks/row data/result sets) e amarrar ao transporte.
 - [ ] expandir testes de integracao para login e queries simples (usar `ORACLE_TESTS=1`).
 - [ ] exercitar login real contra o serviço `XEPDB1` com `dart_user/dart` (conexao mostrada no Navicat) e registrar sessionData para comparar com python-oracledb.

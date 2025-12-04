@@ -67,19 +67,6 @@ class DataTypesMessage extends Message {
   }
 }
 
-// Data type definitions for Oracle protocol negotiation
-// Format: [data_type, conv_data_type, representation]
-
-
-// WriteBuffer extension for little-endian writes
-extension _WriteBufferLE on WriteBuffer {
-  void writeUint16LE(int value) {
-    final data = ByteData(2)..setUint16(0, value & 0xFFFF, Endian.little);
-    writeBytes(data.buffer.asUint8List());
-  }
-}
-
-
 // NATIVE TYPE
 const NATIVE_TYPE_NUM_BOOLEAN = 3011;
 const NATIVE_TYPE_NUM_BYTES = 3004;

@@ -15,6 +15,11 @@ class WriteBuffer {
     _builder.addByte(value & 0xFF);
   }
 
+  void writeUint16LE(int value) {
+    final data = ByteData(2)..setUint16(0, value & 0xFFFF, Endian.little);
+    writeBytes(data.buffer.asUint8List());
+  }
+
   void writeUint16(int value) {
     final data = ByteData(2)..setUint16(0, value & 0xFFFF, Endian.big);
     _builder.add(data.buffer.asUint8List());

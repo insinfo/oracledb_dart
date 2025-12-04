@@ -1,3 +1,5 @@
+diretorio de log do servidor E:\OracleXE_instalado\diag\rdbms\xe\xe\trace
+
 responda sempre em portugues 
 continue a portar o driver oracledb puro python C:\MyDartProjects\tlslite\oracledb_dart\python-oracledb para dart e atualizar o C:\MyDartProjects\tlslite\oracledb_dart\TODO.md
 

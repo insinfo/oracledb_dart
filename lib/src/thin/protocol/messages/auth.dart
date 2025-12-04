@@ -75,14 +75,14 @@ class AuthMessage extends Message {
     final hasUser = userBytes.isNotEmpty ? 1 : 0;
     body.writeUint8(hasUser);
     body.writeUB4(userBytes.length);
+    if (hasUser == 1) {
+      body.writeBytes(userBytes);
+    }
     body.writeUB4(authMode);
     body.writeUint8(1);
     body.writeUB4(keyValues.length);
     body.writeUint8(1);
     body.writeUint8(1);
-    if (hasUser == 1) {
-      body.writeBytesWithLength(userBytes);
-    }
 
     for (final entry in keyValues) {
       _writeKeyValue(body, entry.key, entry.value, entry.flags);
@@ -139,7 +139,23 @@ class AuthMessage extends Message {
     }
 
     sessionData.addAll(parsed);
-    connImpl?.sessionData = {...connImpl?.sessionData ?? {}, ...sessionData};
+    final mergedSessionData = <String, String>{};
+    final existingSessionData = connImpl?.sessionData;
+    if (existingSessionData is Map<String, String>) {
+      mergedSessionData.addAll(existingSessionData);
+    } else if (existingSessionData is Map) {
+      for (final entry in existingSessionData.entries) {
+        final key = entry.key;
+        final value = entry.value;
+        if (key is String && value is String) {
+          mergedSessionData[key] = value;
+        }
+      }
+    }
+    mergedSessionData.addAll(sessionData);
+    if (connImpl != null) {
+      connImpl.sessionData = mergedSessionData;
+    }
 
     final statusStr = sessionData['AUTH_STATUS'];
     if (statusStr != null && statusStr != '0') {

@@ -189,7 +189,8 @@ class ThinConnection {
       // IGNORA marker packets por enquanto - responder incorretamente causa TNS-12592
       // TODO: implementar BREAK/RESET corretamente quando necessário
       if (packet.packetType == TNS_PACKET_TYPE_MARKER) {
-        print('DEBUG: Received marker packet (IGNORING for now)');
+        print('DEBUG: Received marker packet, initiating RESET handshake');
+        await _handleMarkerPacket(packet);
         continue;
       }
       
@@ -236,27 +237,33 @@ class ThinConnection {
     return _transport.readPacket();
   }
 
-  // TODO: Implementar BREAK/RESET corretamente quando necessário
-  // Por enquanto, marker packets são ignorados em _receiveMessage
-  // para evitar TNS-12592 "bad packet"
-  /*
   Future<void> _handleMarkerPacket(Packet packet) async {
     final markerType = _markerTypeFromPacket(packet);
     print('DEBUG: Marker type=$markerType, sending RESET');
     await _sendMarker(TNS_MARKER_TYPE_RESET);
-    Packet? nextPacket;
-    while (true) {
-      nextPacket = await _transport.readPacket();
+
+    var resetAckReceived = false;
+    while (!resetAckReceived) {
+      final nextPacket = await _transport.readPacket();
       if (nextPacket.packetType != TNS_PACKET_TYPE_MARKER) {
-        break;
+        _pendingPacket = nextPacket;
+        return;
       }
       final nextMarkerType = _markerTypeFromPacket(nextPacket);
       if (nextMarkerType == TNS_MARKER_TYPE_RESET) {
         print('DEBUG: Received RESET marker ack');
-        continue;
+        resetAckReceived = true;
       }
     }
-    _pendingPacket = nextPacket;
+
+    while (true) {
+      final nextPacket = await _transport.readPacket();
+      if (nextPacket.packetType == TNS_PACKET_TYPE_MARKER) {
+        continue;
+      }
+      _pendingPacket = nextPacket;
+      return;
+    }
   }
 
   int _markerTypeFromPacket(Packet packet) {
@@ -276,7 +283,6 @@ class ThinConnection {
     );
     await _transport.sendRaw(packet);
   }
-  */
 
   AuthMessage _createAuthMessage({
     required bool includePassword,

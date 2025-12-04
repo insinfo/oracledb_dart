@@ -1,15 +1,29 @@
 .. _introduction:
 
+.. currentmodule:: oracledb
+
 *****************************************************
 Introduction to the Python Driver for Oracle Database
 *****************************************************
 
-The python-oracledb driver is a Python module that enables access to Oracle
-Database. It conforms to the `Python Database API v2.0 Specification
+The python-oracledb driver is an :ref:`open source <license>` Python module
+that enables access to Oracle Database with no extra libraries needed. The
+module is built with Cython for safety and speed. It is lightweight and
+high-performance. It is stable, well tested, and has comprehensive
+documentation. The module is maintained by Oracle.
+
+The module conforms to the `Python Database API v2.0 Specification
 <https://www.python.org/dev/peps/pep-0249/>`__ with a considerable number of
-additions and a couple of exclusions. Synchronous and :ref:`concurrent
-<asyncio>` coding styles are supported.  It is distributed under an open-source
-:ref:`license <license>`.
+additions and a couple of minor exclusions. It is used by many Python
+frameworks, SQL generators, ORMs, and libraries.
+
+Python-oracledb has a rich feature set which is easy to use. It gives you
+control over SQL and PL/SQL statement execution; for working with data frames;
+for fast data ingestion; for calling NoSQL-style document APIs; for message
+queueing; for receiving database notifications; and for starting and stopping
+the database. It also has high availability and security features. Synchronous
+and concurrent coding styles are supported. Database operations can optionally
+be pipelined.
 
 The module is available from standard package repositories including `PyPI
 <https://pypi.org/project/oracledb/>`__, `conda-forge
@@ -18,16 +32,16 @@ The module is available from standard package repositories including `PyPI
 hosted at `github.com/oracle/python-oracledb
 <https://github.com/oracle/python-oracledb>`__.
 
-This module is currently tested with Python 3.9, 3.10, 3.11, 3.12, and 3.13
-against Oracle Database 23ai, 21c, 19c, 18c, 12c, and 11gR2. Previous versions
-of python-oracledb supported older Python versions.
+This module is currently tested with Python 3.9, 3.10, 3.11, 3.12, 3.13, and
+3.14 against Oracle Database version 23, 21, 19, 18, 12, and 11.2. Previous
+versions of python-oracledb supported older Python versions.
 
-Changes in python-oracledb
-releases can be found in the :ref:`release notes <releasenotes>`.
+Changes in python-oracledb releases can be found in the :ref:`release notes
+<releasenotes>`.
 
-The python-oracledb driver is the renamed, major version successor to cx_Oracle
-8.3.  For upgrade information, see :ref:`upgrading83`. The cx_Oracle driver is
-obsolete and should not be used for new development.
+The python-oracledb driver is the renamed, successor to cx_Oracle. The
+cx_Oracle driver is obsolete and should not be used for new development. For
+upgrade information, see :ref:`upgrading83`.
 
 Getting Started
 ===============
@@ -62,11 +76,12 @@ or later.  This Thin mode does not need Oracle Client libraries.
 The figure shows the architecture of python-oracledb.  Users interact with a
 Python application, for example by making web requests. The application program
 makes calls to python-oracledb functions. The connection from python-oracledb
-Thin mode to the Oracle Database is established directly.  The database can be
-on the same machine as Python, or it can be remote.
+Thin mode to Oracle Database is established directly by python-oracledb over
+the Oracle Net protocol. The database can be on the same machine as Python, or
+it can be remote.
 
-The Oracle Net behavior can optionally be configured by using a
-``tnsnames.ora`` file and with application settings. See :ref:`optnetfiles`.
+The behavior of Oracle Net can optionally be configured with application
+settings, or by using a ``tnsnames.ora`` file, see :ref:`optnetfiles`.
 
 python-oracledb Thick Mode Architecture
 ---------------------------------------
@@ -87,18 +102,18 @@ later.
 The figure shows the architecture of the python-oracledb Thick mode.  Users
 interact with a Python application, for example by making web requests. The
 application program makes calls to python-oracledb functions. Internally,
-python-oracledb dynamically loads Oracle Client libraries.  Connections from
-python-oracledb Thick mode to Oracle Database are established using the Oracle
-Client libraries.  The database can be on the same machine as Python, or it can
-be remote.
+python-oracledb dynamically loads Oracle Client libraries. Connections from
+python-oracledb Thick mode to Oracle Database are established by the Oracle
+Client libraries over the Oracle Net protocol. The database can be on the same
+machine as Python, or it can be remote.
 
 To use python-oracledb Thick mode, the Oracle Client libraries must be
 installed separately, see :ref:`installation`.  The libraries can be from an
 installation of `Oracle Instant Client
 <https://www.oracle.com/database/technologies/instant-client.html>`__, from a
 full Oracle Client installation (such as installed by Oracle's GUI installer),
-or even from an Oracle Database installation (if Python is running on the same
-machine as the database). Oracle's standard client-server version
+or even from an Oracle Database installation (if Python is running on the
+same machine as the database). Oracle's standard client-server version
 interoperability allows connection to both older and newer databases from
 different Oracle Client library versions.
 
@@ -106,7 +121,7 @@ Some behaviors of the Oracle Client libraries can optionally be configured with
 an ``oraaccess.xml`` file, for example to enable auto-tuning of a statement
 cache.  See :ref:`optclientfiles`.
 
-The Oracle Net behavior can optionally be configured with files such as
+The behavior of Oracle Net can optionally be configured with files such as
 ``tnsnames.ora`` and ``sqlnet.ora``, for example to enable :ref:`network
 encryption <netencrypt>`. See :ref:`optnetfiles`.
 

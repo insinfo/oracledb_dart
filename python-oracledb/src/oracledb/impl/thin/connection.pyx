@@ -29,6 +29,33 @@
 # thin_impl.pyx).
 #------------------------------------------------------------------------------
 
+cdef class _SessionlessData:
+
+    cdef:
+        bytes transaction_id
+        uint32_t operation
+        uint32_t flags
+        uint32_t timeout
+        bint piggyback_pending
+        bint started_on_server
+
+    cdef TransactionSwitchMessage create_message(self,
+                                                 BaseThinConnImpl conn_impl):
+        """
+        Returns the message used for sending the request to the database.
+        """
+        cdef:
+            uint32_t sessionless_format_id = 0x4e5c3e
+            TransactionSwitchMessage message
+        message = conn_impl._create_message(TransactionSwitchMessage)
+        if self.operation & TNS_TPC_TXN_START:
+            message.xid = (sessionless_format_id, self.transaction_id, b"")
+        message.timeout = self.timeout
+        message.operation = self.operation
+        message.flags = self.flags | TPC_TXN_FLAGS_SESSIONLESS
+        return message
+
+
 cdef class BaseThinConnImpl(BaseConnImpl):
 
     cdef:
@@ -46,7 +73,6 @@ cdef class BaseThinConnImpl(BaseConnImpl):
         bint _client_identifier_modified
         str _module
         bint _module_modified
-        BaseThinPoolImpl _pool
         bytes _ltxid
         str _current_schema
         bint _current_schema_modified
@@ -70,10 +96,12 @@ cdef class BaseThinConnImpl(BaseConnImpl):
         int _dbobject_type_cache_num
         bytes _combo_key
         str _connection_id
+        bint _is_pooled
         bint _is_pool_extra
         bytes _transaction_context
         uint8_t pipeline_mode
         uint8_t _session_state_desired
+        _SessionlessData _sessionless_data
 
     def __init__(self, str dsn, ConnectParamsImpl params):
         _check_cryptography()
@@ -91,6 +119,15 @@ cdef class BaseThinConnImpl(BaseConnImpl):
             errors._raise_err(errors.ERR_UNKNOWN_TRANSACTION_STATE,
                               state=state)
         self._transaction_context = None
+
+    cdef int _clear_dbobject_type_cache(self) except -1:
+        """
+        """
+        cdef int cache_num
+        if self._dbobject_type_cache_num > 0:
+            cache_num = self._dbobject_type_cache_num
+            self._dbobject_type_cache_num = 0
+            remove_dbobject_type_cache(cache_num)
 
     cdef BaseThinLobImpl _create_lob_impl(self, DbType dbtype,
                                           bytes locator=None):
@@ -165,13 +202,6 @@ cdef class BaseThinConnImpl(BaseConnImpl):
         message.context = self._transaction_context
         return message
 
-    cdef int _force_close(self) except -1:
-        self._pool = None
-        if self._dbobject_type_cache_num > 0:
-            remove_dbobject_type_cache(self._dbobject_type_cache_num)
-            self._dbobject_type_cache_num = 0
-        self._protocol._force_close()
-
     cdef Statement _get_statement(self, str sql = None,
                                   bint cache_statement = False):
         """
@@ -191,11 +221,8 @@ cdef class BaseThinConnImpl(BaseConnImpl):
         self._drcp_enabled = description.server_type == "pooled"
         if self._cclass is None:
             self._cclass = description.cclass
-        if self._cclass is None and self._pool is not None \
-                and self._drcp_enabled:
-            gen_uuid = uuid.uuid4()
-            self._cclass = f"DPY:{base64.b64encode(gen_uuid.bytes).decode()}"
-            params._default_description.cclass = self._cclass
+        if self._cclass is None:
+            self._cclass = params._default_description.cclass
 
     cdef int _post_connect_phase_two(self, ConnectParamsImpl params) except -1:
         """
@@ -220,6 +247,29 @@ cdef class BaseThinConnImpl(BaseConnImpl):
         Return the statement to the statement cache, if applicable.
         """
         self._statement_cache.return_statement(statement)
+
+    cdef TransactionSwitchMessage _start_sessionless_transaction(
+        self,
+        bytes transaction_id,
+        uint32_t timeout,
+        uint32_t flags,
+        bint defer_round_trip
+    ):
+        """
+        Starts (either begins or resumes) a sessionless transaction. A message
+        is returned if the request is not going to be deferred.
+        """
+        if self._sessionless_data is not None:
+            errors._raise_err(errors.ERR_SESSIONLESS_ALREADY_ACTIVE)
+        self._sessionless_data = _SessionlessData.__new__(_SessionlessData)
+        self._sessionless_data.transaction_id = transaction_id
+        self._sessionless_data.timeout = timeout
+        self._sessionless_data.operation = TNS_TPC_TXN_START
+        self._sessionless_data.flags = flags
+        if defer_round_trip:
+            self._sessionless_data.piggyback_pending = True
+        if not defer_round_trip:
+            return self._sessionless_data.create_message(self)
 
     def cancel(self):
         self._protocol._break_external()
@@ -262,8 +312,7 @@ cdef class BaseThinConnImpl(BaseConnImpl):
         return self._internal_name
 
     def get_is_healthy(self):
-        return self._protocol._transport is not None \
-                and self._protocol._read_buf._pending_error_num == 0
+        return self._protocol._get_is_healthy()
 
     def get_ltxid(self):
         return self._ltxid or b''
@@ -290,16 +339,6 @@ cdef class BaseThinConnImpl(BaseConnImpl):
         cdef ThinDbObjectTypeCache cache = \
                 get_dbobject_type_cache(self._dbobject_type_cache_num)
         return cache.get_type(conn, name)
-
-    def ping(self):
-        cdef Message message
-        message = self._create_message(PingMessage)
-        self._protocol._process_single_message(message)
-
-    def rollback(self):
-        cdef Message message
-        message = self._create_message(RollbackMessage)
-        self._protocol._process_single_message(message)
 
     def set_action(self, str value):
         self._action = value
@@ -343,6 +382,13 @@ cdef class ThinConnImpl(BaseThinConnImpl):
     def __init__(self, str dsn, ConnectParamsImpl params):
         BaseThinConnImpl.__init__(self, dsn, params)
         self._protocol = Protocol()
+
+    cdef int _close(self):
+        """
+        Internal method for closing the connection.
+        """
+        cdef Protocol protocol = <Protocol> self._protocol
+        protocol._close(self)
 
     cdef int _connect_with_address(self, Address address,
                                    Description description,
@@ -426,6 +472,24 @@ cdef class ThinConnImpl(BaseThinConnImpl):
         """
         return ThinCursorImpl.__new__(ThinCursorImpl, self)
 
+    def begin_sessionless_transaction(
+        self,
+        bytes transaction_id,
+        int timeout,
+        bint defer_round_trip
+    ):
+        """
+        Internal method for beginning a sessionless transaction.
+        """
+        cdef:
+            Protocol protocol = <Protocol> self._protocol
+            TransactionSwitchMessage message
+        message = self._start_sessionless_transaction(
+            transaction_id, timeout, TPC_TXN_FLAGS_NEW, defer_round_trip
+        )
+        if message is not None:
+            protocol._process_single_message(message)
+
     def change_password(self, str old_password, str new_password):
         cdef:
             Protocol protocol = <Protocol> self._protocol
@@ -435,9 +499,12 @@ cdef class ThinConnImpl(BaseThinConnImpl):
         protocol._process_single_message(message)
 
     def close(self, bint in_del=False):
+        """
+        Internal method for closing the connection to the database.
+        """
         cdef Protocol protocol = <Protocol> self._protocol
         try:
-            protocol._close(self)
+            protocol.close(self, in_del)
         except (ssl.SSLError, exceptions.DatabaseError):
             pass
 
@@ -449,17 +516,17 @@ cdef class ThinConnImpl(BaseThinConnImpl):
         protocol._process_single_message(message)
 
     def connect(self, ConnectParamsImpl params):
-        # specify that binding a string to a LOB value is possible in thin
-        # mode without the use of asyncio (will be removed in a future release)
-        self._allow_bind_str_to_lob = True
-
+        cdef Protocol protocol = <Protocol> self._protocol
         try:
             self._pre_connect(params)
             self._connect_with_params(params)
             self._post_connect_phase_two(params)
         except:
-            self._force_close()
+            protocol._disconnect()
             raise
+        # specify that binding a string to a LOB value is possible in thin
+        # mode without the use of asyncio (will be removed in a future release)
+        self._allow_bind_str_to_lob = True
 
     def create_queue_impl(self):
         return ThinQueueImpl.__new__(ThinQueueImpl)
@@ -468,6 +535,45 @@ cdef class ThinConnImpl(BaseThinConnImpl):
         cdef ThinLobImpl lob_impl = self._create_lob_impl(dbtype)
         lob_impl.create_temp()
         return lob_impl
+
+    def direct_path_load(self, str schema_name, str table_name,
+                         list column_names, object data,
+                         uint32_t batch_size):
+        cdef:
+            Protocol protocol = <Protocol> self._protocol
+            DirectPathPrepareMessage prepare_message
+            DirectPathLoadStreamMessage load_message
+            DirectPathOpMessage op_message
+            BatchLoadManager manager
+
+        # prepare message
+        prepare_message = self._create_message(DirectPathPrepareMessage)
+        prepare_message.schema_name = schema_name
+        prepare_message.table_name = table_name
+        prepare_message.column_names = column_names
+        protocol._process_single_message(prepare_message)
+
+        # setup op message
+        op_message = self._create_message(DirectPathOpMessage)
+        op_message.prepare(prepare_message.cursor_id, TNS_DP_OP_ABORT)
+
+        # load message
+        load_message = self._create_message(DirectPathLoadStreamMessage)
+        try:
+            manager = BatchLoadManager.create_for_direct_path_load(
+                data, prepare_message.column_metadata, batch_size
+            )
+            while manager.num_rows > 0:
+                load_message.prepare(
+                    prepare_message.cursor_id,
+                    manager,
+                    prepare_message.column_metadata
+                )
+                protocol._process_single_message(load_message)
+                manager.next_batch()
+            op_message.op_code = TNS_DP_OP_FINISH
+        finally:
+            protocol._process_single_message(op_message)
 
     def get_type(self, object conn, str name):
         cdef ThinDbObjectTypeCache cache = \
@@ -481,6 +587,24 @@ cdef class ThinConnImpl(BaseThinConnImpl):
         message = self._create_message(PingMessage)
         protocol._process_single_message(message)
 
+    def resume_sessionless_transaction(
+        self,
+        bytes transaction_id,
+        int timeout,
+        bint defer_round_trip
+    ):
+        """
+        Internal method for resuming a sessionless transaction.
+        """
+        cdef:
+            Protocol protocol = <Protocol> self._protocol
+            TransactionSwitchMessage message
+        message = self._start_sessionless_transaction(
+            transaction_id, timeout, TPC_TXN_FLAGS_RESUME, defer_round_trip
+        )
+        if message is not None:
+            protocol._process_single_message(message)
+
     def rollback(self):
         cdef:
             Protocol protocol = <Protocol> self._protocol
@@ -491,6 +615,19 @@ cdef class ThinConnImpl(BaseThinConnImpl):
     def set_call_timeout(self, uint32_t value):
         self._protocol._transport.set_timeout(value / 1000)
         self._call_timeout = value
+
+    def suspend_sessionless_transaction(self):
+        cdef:
+            Protocol protocol = <Protocol> self._protocol
+            TransactionSwitchMessage message
+        if self._sessionless_data is None:
+            errors._raise_err(errors.ERR_SESSIONLESS_INACTIVE)
+        elif self._sessionless_data.started_on_server:
+            errors._raise_err(errors.ERR_SESSIONLESS_DIFFERING_METHODS)
+        message = self._create_message(TransactionSwitchMessage)
+        message.operation = TNS_TPC_TXN_DETACH
+        message.flags = TPC_TXN_FLAGS_SESSIONLESS
+        protocol._process_single_message(message)
 
     def tpc_begin(self, xid, uint32_t flags, uint32_t timeout):
         cdef:
@@ -574,6 +711,7 @@ cdef class AsyncThinConnImpl(BaseThinConnImpl):
             PipelineOpImpl op_impl = result_impl.operation
             uint8_t op_type = op_impl.op_type
             AsyncThinCursorImpl cursor_impl
+            BindVar bind_var
 
         # all operations other than commit make use of a cursor
         if op_type == PIPELINE_OP_TYPE_COMMIT:
@@ -585,21 +723,27 @@ cdef class AsyncThinConnImpl(BaseThinConnImpl):
 
         # resend the message if that is required (for operations that fetch
         # LOBS, for example)
-        cursor_impl = message_with_data.cursor_impl
+        cursor_impl = <AsyncThinCursorImpl> message_with_data.cursor_impl
         if message.resend:
             await protocol._process_message(message)
-            if op_type in (
-                PIPELINE_OP_TYPE_FETCH_ONE,
-                PIPELINE_OP_TYPE_FETCH_MANY,
-                PIPELINE_OP_TYPE_FETCH_ALL,
-            ):
-                while cursor_impl._buffer_rowcount > 0:
-                    result_impl.rows.append(cursor_impl._create_row())
+        await message.postprocess_async()
+        if op_impl.op_type == PIPELINE_OP_TYPE_CALL_FUNC:
+            bind_var = <BindVar> cursor_impl.bind_vars[0]
+            result_impl.return_value = bind_var.var_impl.get_value(0)
+        elif op_type in (
+            PIPELINE_OP_TYPE_FETCH_ONE,
+            PIPELINE_OP_TYPE_FETCH_MANY,
+            PIPELINE_OP_TYPE_FETCH_ALL,
+        ):
+            result_impl.rows = []
+            while cursor_impl._buffer_rowcount > 0:
+                result_impl.rows.append(cursor_impl._create_row())
         result_impl.fetch_metadata = cursor_impl.fetch_metadata
 
         # for fetchall(), perform as many round trips as are required to
         # complete the fetch
-        if op_type == PIPELINE_OP_TYPE_FETCH_ALL:
+        if op_type == PIPELINE_OP_TYPE_FETCH_ALL \
+                and cursor_impl._more_rows_to_fetch:
             fetch_message = cursor_impl._create_message(
                 FetchMessage, message_with_data.cursor
             )
@@ -761,27 +905,36 @@ cdef class AsyncThinConnImpl(BaseThinConnImpl):
         elif op_impl.op_type == PIPELINE_OP_TYPE_EXECUTE:
             cursor._prepare_for_execute(op_impl.statement, op_impl.parameters)
         elif op_impl.op_type == PIPELINE_OP_TYPE_EXECUTE_MANY:
-            num_execs = cursor_impl._prepare_for_executemany(
-                cursor, op_impl.statement, op_impl.parameters
+            op_impl.batch_load_manager = cursor_impl._prepare_for_executemany(
+                cursor,
+                op_impl.statement,
+                op_impl.parameters,
+                2 ** 32 - 1
             )
-            op_impl.num_execs = num_execs
-            if cursor_impl._statement.requires_single_execute():
-                num_execs = 1
+            op_impl.num_execs = op_impl.batch_load_manager.num_rows
+            if not cursor_impl._statement.requires_single_execute():
+                num_execs = op_impl.num_execs
         elif op_impl.op_type == PIPELINE_OP_TYPE_FETCH_ONE:
             cursor._prepare_for_execute(op_impl.statement, op_impl.parameters)
             cursor_impl.prefetchrows = 1
             cursor_impl.arraysize = 1
             cursor_impl.rowfactory = op_impl.rowfactory
+            cursor_impl.fetch_lobs = op_impl.fetch_lobs
+            cursor_impl.fetch_decimals = op_impl.fetch_decimals
         elif op_impl.op_type == PIPELINE_OP_TYPE_FETCH_MANY:
             cursor._prepare_for_execute(op_impl.statement, op_impl.parameters)
             cursor_impl.prefetchrows = op_impl.num_rows
             cursor_impl.arraysize = op_impl.num_rows
             cursor_impl.rowfactory = op_impl.rowfactory
+            cursor_impl.fetch_lobs = op_impl.fetch_lobs
+            cursor_impl.fetch_decimals = op_impl.fetch_decimals
         elif op_impl.op_type == PIPELINE_OP_TYPE_FETCH_ALL:
             cursor._prepare_for_execute(op_impl.statement, op_impl.parameters)
             cursor_impl.prefetchrows = op_impl.arraysize
             cursor_impl.arraysize = op_impl.arraysize
             cursor_impl.rowfactory = op_impl.rowfactory
+            cursor_impl.fetch_lobs = op_impl.fetch_lobs
+            cursor_impl.fetch_decimals = op_impl.fetch_decimals
         else:
             errors._raise_err(errors.ERR_UNSUPPORTED_PIPELINE_OPERATION,
                               op_type=op_impl.op_type)
@@ -821,55 +974,6 @@ cdef class AsyncThinConnImpl(BaseThinConnImpl):
             token_num += 1
             messages.append(message)
         return messages
-
-    cdef int _populate_pipeline_op_result(self, Message message) except -1:
-        """
-        Populates the pipeline operation result object.
-        """
-        cdef:
-            MessageWithData message_with_data
-            AsyncThinCursorImpl cursor_impl
-            PipelineOpResultImpl result_impl
-            PipelineOpImpl op_impl
-            BindVar bind_var
-        result_impl = message.pipeline_result_impl
-        op_impl = result_impl.operation
-        if op_impl.op_type == PIPELINE_OP_TYPE_COMMIT:
-            return 0
-        message_with_data = <MessageWithData> message
-        cursor_impl = <AsyncThinCursorImpl> message_with_data.cursor_impl
-        if op_impl.op_type == PIPELINE_OP_TYPE_CALL_FUNC:
-            bind_var = <BindVar> cursor_impl.bind_vars[0]
-            result_impl.return_value = bind_var.var_impl.get_value(0)
-        elif op_impl.op_type in (
-            PIPELINE_OP_TYPE_FETCH_ONE,
-            PIPELINE_OP_TYPE_FETCH_MANY,
-            PIPELINE_OP_TYPE_FETCH_ALL,
-        ):
-            result_impl.rows = []
-            while cursor_impl._buffer_rowcount > 0:
-                result_impl.rows.append(cursor_impl._create_row())
-
-    cdef int _populate_pipeline_op_results(
-        self, list messages, bint continue_on_error
-    ) except -1:
-        """
-        Populates the pipeline operation result objects associated with the
-        messages that were processed on the database.
-        """
-        cdef:
-            PipelineOpResultImpl result_impl
-            Message message
-        for message in messages:
-            result_impl = message.pipeline_result_impl
-            if result_impl.error is not None:
-                continue
-            try:
-                self._populate_pipeline_op_result(message)
-            except Exception as e:
-                if not continue_on_error:
-                    raise
-                result_impl._capture_err(e)
 
     async def _run_pipeline_op_without_pipelining(
         self, object conn, PipelineOpResultImpl result_impl
@@ -934,6 +1038,24 @@ cdef class AsyncThinConnImpl(BaseThinConnImpl):
                     raise
                 message.pipeline_result_impl._capture_err(e)
 
+    async def begin_sessionless_transaction(
+        self,
+        bytes transaction_id,
+        int timeout,
+        bint defer_round_trip
+    ):
+        """
+        Internal method for beginning a sessionless transaction.
+        """
+        cdef:
+            BaseAsyncProtocol protocol = <BaseAsyncProtocol> self._protocol
+            TransactionSwitchMessage message
+        message = self._start_sessionless_transaction(
+            transaction_id, timeout, TPC_TXN_FLAGS_NEW, defer_round_trip
+        )
+        if message is not None:
+            await protocol._process_single_message(message)
+
     async def change_password(self, str old_password, str new_password):
         cdef:
             BaseAsyncProtocol protocol = <BaseAsyncProtocol> self._protocol
@@ -948,7 +1070,7 @@ cdef class AsyncThinConnImpl(BaseThinConnImpl):
         """
         cdef BaseAsyncProtocol protocol = <BaseAsyncProtocol> self._protocol
         try:
-            await protocol._close(self)
+            await protocol.close(self, in_del)
         except (ssl.SSLError, exceptions.DatabaseError):
             pass
 
@@ -973,7 +1095,7 @@ cdef class AsyncThinConnImpl(BaseThinConnImpl):
             await self._connect_with_params(params)
             self._post_connect_phase_two(params)
         except:
-            self._force_close()
+            protocol._disconnect()
             raise
 
     def create_queue_impl(self):
@@ -987,6 +1109,45 @@ cdef class AsyncThinConnImpl(BaseThinConnImpl):
         await lob_impl.create_temp()
         return lob_impl
 
+    async def direct_path_load(self, str schema_name, str table_name,
+                               list column_names, object data,
+                               uint32_t batch_size):
+        cdef:
+            BaseAsyncProtocol protocol = <BaseAsyncProtocol> self._protocol
+            DirectPathPrepareMessage prepare_message
+            DirectPathLoadStreamMessage load_message
+            DirectPathOpMessage op_message
+            BatchLoadManager manager
+
+        # prepare message
+        prepare_message = self._create_message(DirectPathPrepareMessage)
+        prepare_message.schema_name = schema_name
+        prepare_message.table_name = table_name
+        prepare_message.column_names = column_names
+        await protocol._process_single_message(prepare_message)
+
+        # setup op message
+        op_message = self._create_message(DirectPathOpMessage)
+        op_message.prepare(prepare_message.cursor_id, TNS_DP_OP_ABORT)
+
+        # load message
+        load_message = self._create_message(DirectPathLoadStreamMessage)
+        try:
+            manager = BatchLoadManager.create_for_direct_path_load(
+                data, prepare_message.column_metadata, batch_size
+            )
+            while manager.num_rows > 0:
+                load_message.prepare(
+                    prepare_message.cursor_id,
+                    manager,
+                    prepare_message.column_metadata
+                )
+                await protocol._process_single_message(load_message)
+                manager.next_batch()
+            op_message.op_code = TNS_DP_OP_FINISH
+        finally:
+            await protocol._process_single_message(op_message)
+
     async def get_type(self, object conn, str name):
         cdef AsyncThinDbObjectTypeCache cache = \
                 get_dbobject_type_cache(self._dbobject_type_cache_num)
@@ -998,6 +1159,24 @@ cdef class AsyncThinConnImpl(BaseThinConnImpl):
             Message message
         message = self._create_message(PingMessage)
         await protocol._process_single_message(message)
+
+    async def resume_sessionless_transaction(
+        self,
+        bytes transaction_id,
+        int timeout,
+        bint defer_round_trip
+    ):
+        """
+        Internal method for resuming a sessionless transaction.
+        """
+        cdef:
+            BaseAsyncProtocol protocol = <BaseAsyncProtocol> self._protocol
+            TransactionSwitchMessage message
+        message = self._start_sessionless_transaction(
+            transaction_id, timeout, TPC_TXN_FLAGS_RESUME, defer_round_trip
+        )
+        if message is not None:
+            await protocol._process_single_message(message)
 
     async def rollback(self):
         """
@@ -1029,7 +1208,6 @@ cdef class AsyncThinConnImpl(BaseThinConnImpl):
                 self.pipeline_mode = TNS_PIPELINE_MODE_ABORT_ON_ERROR
             self._send_messages_for_pipeline(messages, continue_on_error)
             await protocol.end_pipeline(self, messages, continue_on_error)
-            self._populate_pipeline_op_results(messages, continue_on_error)
             await self._complete_pipeline_ops(messages, continue_on_error)
 
     async def run_pipeline_without_pipelining(
@@ -1064,9 +1242,22 @@ cdef class AsyncThinConnImpl(BaseThinConnImpl):
     def supports_pipelining(self):
         """
         Returns whether the connection supports pipelining. Currently this is
-        only supported with asyncio and Oracle Database 23ai and later.
+        only supported with asyncio and Oracle Database version 23, and later.
         """
         return self._protocol._caps.supports_pipelining
+
+    async def suspend_sessionless_transaction(self):
+        cdef:
+            BaseAsyncProtocol protocol = <BaseAsyncProtocol> self._protocol
+            TransactionSwitchMessage message
+        if self._sessionless_data is None:
+            errors._raise_err(errors.ERR_SESSIONLESS_INACTIVE)
+        elif self._sessionless_data.started_on_server:
+            errors._raise_err(errors.ERR_SESSIONLESS_DIFFERING_METHODS)
+        message = self._create_message(TransactionSwitchMessage)
+        message.operation = TNS_TPC_TXN_DETACH
+        message.flags = TPC_TXN_FLAGS_SESSIONLESS
+        await protocol._process_single_message(message)
 
     async def tpc_begin(self, xid, uint32_t flags, uint32_t timeout):
         cdef:

@@ -1,8 +1,10 @@
 .. _highavailability:
 
-*********************************************
-Using High Availability with python-oracledb
-*********************************************
+.. currentmodule:: oracledb
+
+**************************************
+High Availability with python-oracledb
+**************************************
 
 Applications can use many features for high availability (HA) during planned
 and unplanned outages in order to:
@@ -88,14 +90,14 @@ Fast Application Notification (FAN)
 -----------------------------------
 
 Users of `Oracle Database FAN <https://www.oracle.com/pls/topic/lookup?ctx=
-dblatest&id=GUID-EB0E1525-D3B3-469C-BE22-A569C76864A6>`__
-must connect to a FAN-enabled database service.  The application should have
-``events`` set to `True` when connecting.  This value can also be changed via
+dblatest&id=GUID-EB0E1525-D3B3-469C-BE22-A569C76864A6>`__ must connect to a
+FAN-enabled database service.  The application should have ``events`` set to
+`True` when connecting.  This value can also be changed via
 :ref:`Oracle Client Configuration <optclientfiles>`.
 
 .. note::
 
-    FAN is only supported in the python-oracledb Thick mode. See
+    FAN is only supported in python-oracledb Thick mode. See
     :ref:`enablingthick`.
 
 FAN support is useful for planned and unplanned outages. It provides immediate
@@ -132,15 +134,15 @@ Application Continuity (AC)
 
 Oracle Application Continuity (AC) and Transparent Application Continuity (TAC)
 are Oracle Database technologies that record application interaction with the
-database and, in the event of a database instance outage, attempt to replay
-the interaction on a surviving database instance. If successful, users will
+database and, in the event of a database instance outage, attempt to replay the
+interaction on a surviving database instance. If successful, users will
 be unaware of any database issue. AC and TAC are best suited for OLTP
 applications.
 
 .. note::
 
-    Oracle AC and TAC functionality is only supported in the python-oracledb
-    Thick mode.  See :ref:`enablingthick`.
+    Oracle AC and TAC functionality is only supported in python-oracledb Thick
+    mode.  See :ref:`enablingthick`.
 
 When AC or TAC are configured on the database service, they are transparently
 available to python-oracledb applications.
@@ -157,20 +159,19 @@ information.
 Transaction Guard
 -----------------
 
-Python-oracledb supports `Transaction Guard
-<https://www.oracle.com/pls/topic/lookup?ctx=dblatest&
-id=GUID-A675AF7B-6FF0-460D-A6E6-C15E7C328C8F>`__ which enables Python
-application to verify the success or failure of the last transaction in the
-event of an unplanned outage. This feature requires Oracle Database 12.1 or
-higher. When using python-oracledb Thick mode, Oracle Client 12.1 or higher is
-additionally required.
+Python-oracledb supports `Transaction Guard <https://www.oracle.com/pls/topic/
+lookup?ctx=dblatest&id=GUID-F7E968E4-EE8F-4563-91F3-CD44B5D2E747>`__ which
+enables Python application to verify the success or failure of the last
+transaction in the event of an unplanned outage. This feature requires Oracle
+Database 12.1 or higher. When using python-oracledb Thick mode, Oracle Client
+12.1 or higher is additionally required.
 
 Using Transaction Guard helps to:
 
 *  Preserve the commit outcome
 *  Ensure a known outcome for every transaction
 
-See `Oracle Database Development Guide
+See `Oracle AI Database Development Guide
 <https://www.oracle.com/pls/topic/lookup?ctx=dblatest&
 id=GUID-6C5880E5-C45F-4858-A069-A28BB25FD1DB>`__ for more information about
 using Transaction Guard.

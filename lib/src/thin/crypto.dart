@@ -19,8 +19,16 @@ Uint8List pbkdf2Sha512({
   required int iterations,
   required int keyLength,
 }) {
-  final mac = HMac(SHA512Digest(), 128)..init(KeyParameter(password));
-  return _deriveKeyWithPbkdf2(mac, salt, iterations, keyLength);
+  if (iterations <= 0) {
+    throw ArgumentError.value(iterations, 'iterations', 'must be positive');
+  }
+  if (keyLength <= 0) {
+    throw ArgumentError.value(keyLength, 'keyLength', 'must be positive');
+  }
+  final derivator = pbkdf2.PBKDF2KeyDerivator(
+    HMac(SHA512Digest(), 128),
+  )..init(Pbkdf2Parameters(salt, iterations, keyLength));
+  return derivator.process(password);
 }
 
 Uint8List pbkdf2Sha1({
@@ -29,8 +37,16 @@ Uint8List pbkdf2Sha1({
   required int iterations,
   required int keyLength,
 }) {
-  final mac = HMac(SHA1Digest(), 64)..init(KeyParameter(password));
-  return _deriveKeyWithPbkdf2(mac, salt, iterations, keyLength);
+  if (iterations <= 0) {
+    throw ArgumentError.value(iterations, 'iterations', 'must be positive');
+  }
+  if (keyLength <= 0) {
+    throw ArgumentError.value(keyLength, 'keyLength', 'must be positive');
+  }
+  final derivator = pbkdf2.PBKDF2KeyDerivator(
+    HMac(SHA1Digest(), 64),
+  )..init(Pbkdf2Parameters(salt, iterations, keyLength));
+  return derivator.process(password);
 }
 
 Uint8List aesCbcEncrypt({
@@ -106,24 +122,6 @@ Uint8List randomBytes(int length) {
     out[i] = rnd.nextInt(256);
   }
   return out;
-}
-
-Uint8List _deriveKeyWithPbkdf2(
-  HMac mac,
-  Uint8List salt,
-  int iterations,
-  int keyLength,
-) {
-  if (iterations <= 0) {
-    throw ArgumentError.value(iterations, 'iterations', 'must be positive');
-  }
-  if (keyLength <= 0) {
-    throw ArgumentError.value(keyLength, 'keyLength', 'must be positive');
-  }
-
-  final derivator = pbkdf2.PBKDF2KeyDerivator(mac)
-    ..init(Pbkdf2Parameters(salt, iterations, keyLength));
-  return derivator.process(Uint8List(keyLength));
 }
 
 class _ZeroPadding implements Padding {

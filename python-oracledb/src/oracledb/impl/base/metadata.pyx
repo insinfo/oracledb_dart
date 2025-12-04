@@ -31,6 +31,84 @@
 @cython.freelist(30)
 cdef class OracleMetadata:
 
+    cdef int _create_arrow_schema(self) except -1:
+        """
+        Creates an Arrow schema for the metadata.
+        """
+        cdef:
+            ArrowTimeUnit time_unit = NANOARROW_TIME_UNIT_SECOND
+            ArrowType child_arrow_type = NANOARROW_TYPE_NA
+            ArrowType arrow_type = NANOARROW_TYPE_NA
+            uint8_t py_type_num = self._py_type_num
+            uint32_t db_type_num = self.dbtype.num
+
+        if db_type_num == DB_TYPE_NUM_NUMBER:
+            if py_type_num == PY_TYPE_NUM_DECIMAL \
+                    and self.precision > 0 and self.precision <= 38:
+                arrow_type = NANOARROW_TYPE_DECIMAL128
+            elif py_type_num == PY_TYPE_NUM_STR:
+                arrow_type = NANOARROW_TYPE_LARGE_STRING
+            elif py_type_num == PY_TYPE_NUM_INT and self.scale == 0 \
+                    and 0 < self.precision <= 18:
+                arrow_type = NANOARROW_TYPE_INT64
+            else:
+                arrow_type = NANOARROW_TYPE_DOUBLE
+        elif db_type_num in (DB_TYPE_NUM_CHAR, DB_TYPE_NUM_VARCHAR,
+                             DB_TYPE_NUM_NCHAR, DB_TYPE_NUM_NVARCHAR):
+            arrow_type = NANOARROW_TYPE_LARGE_STRING
+        elif db_type_num == DB_TYPE_NUM_BINARY_FLOAT:
+            arrow_type = NANOARROW_TYPE_FLOAT
+        elif db_type_num == DB_TYPE_NUM_BINARY_DOUBLE:
+            arrow_type = NANOARROW_TYPE_DOUBLE
+        elif db_type_num == DB_TYPE_NUM_BOOLEAN:
+            arrow_type = NANOARROW_TYPE_BOOL
+        elif db_type_num in (DB_TYPE_NUM_DATE,
+                             DB_TYPE_NUM_TIMESTAMP,
+                             DB_TYPE_NUM_TIMESTAMP_LTZ,
+                             DB_TYPE_NUM_TIMESTAMP_TZ):
+            arrow_type = NANOARROW_TYPE_TIMESTAMP
+            if self.scale > 0 and self.scale <= 3:
+                time_unit = NANOARROW_TIME_UNIT_MILLI
+            elif self.scale > 3 and self.scale <= 6:
+                time_unit = NANOARROW_TIME_UNIT_MICRO
+            elif self.scale > 6 and self.scale <= 9:
+                time_unit = NANOARROW_TIME_UNIT_NANO
+        elif db_type_num == DB_TYPE_NUM_LONG_RAW:
+            arrow_type = NANOARROW_TYPE_LARGE_BINARY
+        elif db_type_num in (DB_TYPE_NUM_LONG_VARCHAR,
+                             DB_TYPE_NUM_LONG_NVARCHAR):
+            arrow_type = NANOARROW_TYPE_LARGE_STRING
+        elif db_type_num == DB_TYPE_NUM_RAW:
+            arrow_type = NANOARROW_TYPE_LARGE_BINARY
+        elif db_type_num == DB_TYPE_NUM_VECTOR:
+            if self.vector_flags & VECTOR_META_FLAG_SPARSE_VECTOR:
+                arrow_type = NANOARROW_TYPE_STRUCT
+            else:
+                arrow_type = NANOARROW_TYPE_LIST
+            if self.vector_format == VECTOR_FORMAT_FLOAT32:
+                child_arrow_type = NANOARROW_TYPE_FLOAT
+            elif self.vector_format == VECTOR_FORMAT_FLOAT64:
+                child_arrow_type = NANOARROW_TYPE_DOUBLE
+            elif self.vector_format == VECTOR_FORMAT_INT8:
+                child_arrow_type = NANOARROW_TYPE_INT8
+            elif self.vector_format == VECTOR_FORMAT_BINARY:
+                child_arrow_type = NANOARROW_TYPE_UINT8
+            else:
+                errors._raise_err(errors.ERR_ARROW_UNSUPPORTED_VECTOR_FORMAT)
+        else:
+            errors._raise_err(errors.ERR_ARROW_UNSUPPORTED_DATA_TYPE,
+                              db_type_name=self.dbtype.name)
+
+        self._schema_impl = ArrowSchemaImpl.__new__(ArrowSchemaImpl)
+        self._schema_impl.populate_from_metadata(
+            arrow_type,
+            self.name,
+            self.precision,
+            self.scale,
+            time_unit,
+            child_arrow_type,
+        )
+
     cdef int _finalize_init(self) except -1:
         """
         Internal method that finalizes the initialization of metadata by
@@ -54,45 +132,156 @@ cdef class OracleMetadata:
                 else:
                     self._py_type_num = PY_TYPE_NUM_FLOAT
 
-    cdef int _set_arrow_type(self) except -1:
+    cdef int _set_arrow_schema(self, ArrowSchemaImpl schema_impl) except -1:
         """
-        Determine the arrow type to use for the data.
+        Sets an Arrow schema, which checks to see that the Arrow type is
+        compatible with the database type.
+        """
+        self.check_convert_from_arrow(schema_impl)
+        self._finalize_init()
+        self._schema_impl = schema_impl
+
+    cdef int check_convert_from_arrow(self,
+                                      ArrowSchemaImpl schema_impl) except -1:
+        """
+        Check that the conversion from the Arrow type to the database type is
+        supported.
         """
         cdef:
-            uint8_t py_type_num = self._py_type_num
+            ArrowType arrow_type = schema_impl.arrow_type
             uint32_t db_type_num = self.dbtype.num
+            bint ok = False
+
+        if arrow_type in (NANOARROW_TYPE_BINARY,
+                          NANOARROW_TYPE_FIXED_SIZE_BINARY,
+                          NANOARROW_TYPE_LARGE_BINARY):
+            if db_type_num in (DB_TYPE_NUM_RAW, DB_TYPE_NUM_LONG_RAW):
+                ok = True
+        elif arrow_type == NANOARROW_TYPE_BOOL:
+            if db_type_num in (DB_TYPE_NUM_BOOLEAN):
+                ok = True
+        elif arrow_type in (NANOARROW_TYPE_DECIMAL128,
+                            NANOARROW_TYPE_INT8,
+                            NANOARROW_TYPE_INT16,
+                            NANOARROW_TYPE_INT32,
+                            NANOARROW_TYPE_INT64,
+                            NANOARROW_TYPE_UINT8,
+                            NANOARROW_TYPE_UINT16,
+                            NANOARROW_TYPE_UINT32,
+                            NANOARROW_TYPE_UINT64):
+            if db_type_num == DB_TYPE_NUM_NUMBER:
+                ok = True
+        elif arrow_type in (NANOARROW_TYPE_DATE32,
+                            NANOARROW_TYPE_DATE64,
+                            NANOARROW_TYPE_TIMESTAMP):
+            if db_type_num in (DB_TYPE_NUM_DATE,
+                               DB_TYPE_NUM_TIMESTAMP,
+                               DB_TYPE_NUM_TIMESTAMP_LTZ,
+                               DB_TYPE_NUM_TIMESTAMP_TZ):
+                ok = True
+        elif arrow_type == NANOARROW_TYPE_FLOAT:
+            if db_type_num in (DB_TYPE_NUM_BINARY_DOUBLE,
+                               DB_TYPE_NUM_BINARY_FLOAT,
+                               DB_TYPE_NUM_NUMBER):
+                ok = True
+        elif arrow_type == NANOARROW_TYPE_DOUBLE:
+            if db_type_num in (DB_TYPE_NUM_BINARY_DOUBLE,
+                               DB_TYPE_NUM_BINARY_FLOAT,
+                               DB_TYPE_NUM_NUMBER):
+                ok = True
+        elif arrow_type in (NANOARROW_TYPE_STRING,
+                            NANOARROW_TYPE_LARGE_STRING):
+            if db_type_num in (DB_TYPE_NUM_CHAR,
+                               DB_TYPE_NUM_LONG_VARCHAR,
+                               DB_TYPE_NUM_VARCHAR,
+                               DB_TYPE_NUM_NCHAR,
+                               DB_TYPE_NUM_LONG_NVARCHAR,
+                               DB_TYPE_NUM_NVARCHAR):
+                ok = True
+
+        if not ok:
+            errors._raise_err(errors.ERR_CANNOT_CONVERT_FROM_ARROW_TYPE,
+                              arrow_type=schema_impl.get_type_name(),
+                              db_type=self.dbtype.name)
+
+    cdef int check_convert_to_arrow(self,
+                                    ArrowSchemaImpl schema_impl) except -1:
+        """
+        Check that the conversion to the Arrow type from the database type is
+        supported.
+        """
+        cdef:
+            ArrowType arrow_type = schema_impl.arrow_type
+            uint32_t db_type_num = self.dbtype.num
+            bint ok = False
+
         if db_type_num == DB_TYPE_NUM_NUMBER:
-            if py_type_num == PY_TYPE_NUM_DECIMAL and self.precision > 0:
-                self._arrow_type = NANOARROW_TYPE_DECIMAL128
-            elif py_type_num == PY_TYPE_NUM_STR:
-                self._arrow_type = NANOARROW_TYPE_STRING
-            elif py_type_num == PY_TYPE_NUM_INT and self.scale == 0 \
-                    and self.precision <= 18:
-                self._arrow_type = NANOARROW_TYPE_INT64
-            else:
-                self._arrow_type = NANOARROW_TYPE_DOUBLE
-        elif db_type_num in (DB_TYPE_NUM_CHAR, DB_TYPE_NUM_VARCHAR):
-            self._arrow_type = NANOARROW_TYPE_STRING
-        elif db_type_num == DB_TYPE_NUM_BINARY_FLOAT:
-            self._arrow_type = NANOARROW_TYPE_FLOAT
-        elif db_type_num == DB_TYPE_NUM_BINARY_DOUBLE:
-            self._arrow_type = NANOARROW_TYPE_DOUBLE
+            if arrow_type in (
+                NANOARROW_TYPE_DECIMAL128,
+                NANOARROW_TYPE_DOUBLE,
+                NANOARROW_TYPE_FLOAT,
+                NANOARROW_TYPE_INT8,
+                NANOARROW_TYPE_INT16,
+                NANOARROW_TYPE_INT32,
+                NANOARROW_TYPE_INT64,
+                NANOARROW_TYPE_UINT8,
+                NANOARROW_TYPE_UINT16,
+                NANOARROW_TYPE_UINT32,
+                NANOARROW_TYPE_UINT64
+            ):
+                ok = True
+        elif db_type_num in (
+            DB_TYPE_NUM_BLOB,
+            DB_TYPE_NUM_RAW,
+            DB_TYPE_NUM_LONG_RAW
+        ):
+            if arrow_type in (
+                NANOARROW_TYPE_BINARY,
+                NANOARROW_TYPE_FIXED_SIZE_BINARY,
+                NANOARROW_TYPE_LARGE_BINARY
+            ):
+                ok = True
         elif db_type_num == DB_TYPE_NUM_BOOLEAN:
-            self._arrow_type = NANOARROW_TYPE_BOOL
-        elif db_type_num in (DB_TYPE_NUM_DATE,
-                             DB_TYPE_NUM_TIMESTAMP,
-                             DB_TYPE_NUM_TIMESTAMP_LTZ,
-                             DB_TYPE_NUM_TIMESTAMP_TZ):
-            self._arrow_type = NANOARROW_TYPE_TIMESTAMP
-        elif db_type_num == DB_TYPE_NUM_LONG_RAW:
-            self._arrow_type = NANOARROW_TYPE_LARGE_BINARY
-        elif db_type_num == DB_TYPE_NUM_LONG_VARCHAR:
-            self._arrow_type = NANOARROW_TYPE_LARGE_STRING
-        elif db_type_num == DB_TYPE_NUM_RAW:
-            self._arrow_type = NANOARROW_TYPE_BINARY
-        else:
-            errors._raise_err(errors.ERR_ARROW_UNSUPPORTED_DATA_TYPE,
-                              db_type_name=self.dbtype.name)
+            if arrow_type == NANOARROW_TYPE_BOOL:
+                ok = True
+        elif db_type_num in (
+            DB_TYPE_NUM_DATE,
+            DB_TYPE_NUM_TIMESTAMP,
+            DB_TYPE_NUM_TIMESTAMP_LTZ,
+            DB_TYPE_NUM_TIMESTAMP_TZ
+        ):
+            if arrow_type in (
+                NANOARROW_TYPE_DATE32,
+                NANOARROW_TYPE_DATE64,
+                NANOARROW_TYPE_TIMESTAMP
+            ):
+                ok = True
+        elif db_type_num in (
+            DB_TYPE_NUM_BINARY_DOUBLE,
+            DB_TYPE_NUM_BINARY_FLOAT
+        ):
+            if arrow_type in (NANOARROW_TYPE_DOUBLE, NANOARROW_TYPE_FLOAT):
+                ok = True
+        elif db_type_num in (
+            DB_TYPE_NUM_CHAR,
+            DB_TYPE_NUM_CLOB,
+            DB_TYPE_NUM_LONG_NVARCHAR,
+            DB_TYPE_NUM_LONG_VARCHAR,
+            DB_TYPE_NUM_VARCHAR,
+            DB_TYPE_NUM_NCHAR,
+            DB_TYPE_NUM_NCLOB,
+            DB_TYPE_NUM_NVARCHAR
+        ):
+            if arrow_type in (
+                NANOARROW_TYPE_STRING,
+                NANOARROW_TYPE_LARGE_STRING
+            ):
+                ok = True
+
+        if not ok:
+            errors._raise_err(errors.ERR_CANNOT_CONVERT_TO_ARROW_TYPE,
+                              arrow_type=schema_impl.get_type_name(),
+                              db_type=self.dbtype.name)
 
     cdef OracleMetadata copy(self):
         """
@@ -114,6 +303,59 @@ cdef class OracleMetadata:
         metadata.vector_dimensions = self.vector_dimensions
         metadata.vector_format = self.vector_format
         metadata.vector_flags = self.vector_flags
+        return metadata
+
+    @staticmethod
+    cdef OracleMetadata from_arrow_schema(ArrowSchemaImpl schema_impl):
+        """
+        Returns a new OracleMetadata instance with attributes set from an Arrow
+        array.
+        """
+        cdef:
+            OracleMetadata metadata = OracleMetadata.__new__(OracleMetadata)
+            ArrowType arrow_type = schema_impl.arrow_type
+        if arrow_type in (
+            NANOARROW_TYPE_DECIMAL128,
+            NANOARROW_TYPE_INT8,
+            NANOARROW_TYPE_INT16,
+            NANOARROW_TYPE_INT32,
+            NANOARROW_TYPE_INT64,
+            NANOARROW_TYPE_UINT8,
+            NANOARROW_TYPE_UINT16,
+            NANOARROW_TYPE_UINT32,
+            NANOARROW_TYPE_UINT64,
+        ):
+            metadata.dbtype = DB_TYPE_NUMBER
+        elif arrow_type == NANOARROW_TYPE_STRING:
+            metadata.dbtype = DB_TYPE_VARCHAR
+        elif arrow_type in (NANOARROW_TYPE_BINARY,
+                            NANOARROW_TYPE_FIXED_SIZE_BINARY):
+            metadata.dbtype = DB_TYPE_RAW
+        elif arrow_type == NANOARROW_TYPE_FLOAT:
+            metadata.dbtype = DB_TYPE_BINARY_FLOAT
+        elif arrow_type == NANOARROW_TYPE_DOUBLE:
+            metadata.dbtype = DB_TYPE_BINARY_DOUBLE
+        elif arrow_type == NANOARROW_TYPE_BOOL:
+            metadata.dbtype = DB_TYPE_BOOLEAN
+        elif arrow_type == NANOARROW_TYPE_TIMESTAMP:
+            metadata.dbtype = DB_TYPE_TIMESTAMP
+        elif arrow_type in (NANOARROW_TYPE_DATE32, NANOARROW_TYPE_DATE64):
+            metadata.dbtype = DB_TYPE_DATE
+        elif arrow_type == NANOARROW_TYPE_LARGE_STRING:
+            metadata.dbtype = DB_TYPE_LONG
+        elif arrow_type == NANOARROW_TYPE_LARGE_BINARY:
+            metadata.dbtype = DB_TYPE_LONG_RAW
+        elif arrow_type in (NANOARROW_TYPE_LIST,
+                            NANOARROW_TYPE_STRUCT,
+                            NANOARROW_TYPE_FIXED_SIZE_LIST):
+            metadata.dbtype = DB_TYPE_VECTOR
+        else:
+            errors._raise_err(errors.ERR_UNSUPPORTED_ARROW_TYPE,
+                              arrow_type=schema_impl.get_type_name())
+        metadata._schema_impl = schema_impl
+        metadata.name = schema_impl.name
+        metadata.precision = schema_impl.precision
+        metadata.scale = schema_impl.scale
         return metadata
 
     @staticmethod

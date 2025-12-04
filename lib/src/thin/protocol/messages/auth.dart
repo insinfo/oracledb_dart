@@ -1,3 +1,4 @@
+import 'dart:convert';
 import 'dart:io';
 import 'dart:typed_data';
 
@@ -38,6 +39,8 @@ class AuthMessage extends Message {
   Uint8List? _sessionKey;
   Map<String, String> sessionData = {};
 
+  String get traceLabel => includePassword ? 'auth-phase2' : 'auth-phase1';
+
   @override
   void initializeHook() {
     sessionData = initialSessionData != null
@@ -55,9 +58,16 @@ class AuthMessage extends Message {
     final body = WriteBuffer();
     body.writeUint8(TNS_MSG_TYPE_FUNCTION);
     body.writeUint8(phaseCode);
-    body.writeUint16(0);
+    // Write sequence number (1 byte, increments per message)
+    final seqNum = connImpl?.capabilities?.getNextSeqNum() ?? 1;
+    body.writeUint8(seqNum);
+    // Write token_num if TTC field version >= 18 (TNS_CCAP_FIELD_VERSION_23_1_EXT_1)
+    final ttcFieldVersion = connImpl?.capabilities?.ttcFieldVersion ?? 0;
+    if (ttcFieldVersion >= TNS_CCAP_FIELD_VERSION_23_1_EXT_1) {
+      body.writeUB8(0); // token_num = 0
+    }
 
-    final userBytes = Uint8List.fromList(user.codeUnits);
+    final userBytes = Uint8List.fromList(utf8.encode(user));
     final authMode = includePassword
         ? (TNS_AUTH_MODE_LOGON | TNS_AUTH_MODE_WITH_PASSWORD)
         : TNS_AUTH_MODE_LOGON;
@@ -67,10 +77,10 @@ class AuthMessage extends Message {
 
     final hasUser = userBytes.isNotEmpty ? 1 : 0;
     body.writeUint8(hasUser);
-    body.writeUint32(userBytes.length);
-    body.writeUint32(authMode);
+    body.writeUB4(userBytes.length);
+    body.writeUB4(authMode);
     body.writeUint8(1); // pointer (authivl)
-    body.writeUint32(keyValues.length);
+    body.writeUB4(keyValues.length);
     body.writeUint8(1); // pointer (authovl)
     body.writeUint8(1); // pointer (authovln)
     if (hasUser == 1) {
@@ -101,16 +111,16 @@ class AuthMessage extends Message {
 
     final parsed = <String, String>{};
     final raw = <String>[];
-    final numParams = buf.readUint16();
+    final numParams = buf.readUB2();
     for (var i = 0; i < numParams; i++) {
       final key = buf.readStringWithLength();
       final value = buf.readStringWithLength();
       if (key.isEmpty) {
-        buf.skipUint32();
+        buf.skipUB4();
         continue;
       }
       if (key == 'AUTH_VFR_DATA') {
-        final type = buf.readUint32();
+        final type = buf.readUB4();
         parsed[key] = value;
         raw.add('$key=$value');
         sessionData['AUTH_VFR_DATA'] = value;
@@ -120,7 +130,7 @@ class AuthMessage extends Message {
       }
       parsed[key] = value;
       raw.add('$key=$value');
-      buf.skipUint32();
+      buf.skipUB4();
     }
 
     if (raw.isNotEmpty) {
@@ -197,7 +207,7 @@ class AuthMessage extends Message {
     }
 
     final verifierData = hexToBytes(requireField('AUTH_VFR_DATA'));
-    final passwordBytes = Uint8List.fromList(password.codeUnits);
+    final passwordBytes = Uint8List.fromList(utf8.encode(password));
     Uint8List passwordHash;
     Uint8List? passwordKey;
     int keyLength;
@@ -299,7 +309,7 @@ class AuthMessage extends Message {
 
   Uint8List _encryptPassword(Uint8List comboKey) {
     final salt = randomBytes(16);
-    final pwdBytes = Uint8List.fromList(password.codeUnits);
+    final pwdBytes = Uint8List.fromList(utf8.encode(password));
     final payload = concat([salt, pwdBytes]);
     return aesCbcEncrypt(
       key: comboKey,
@@ -375,15 +385,15 @@ class AuthMessage extends Message {
 
   void _writeKeyValue(WriteBuffer buf, String key, String value,
       int flags) {
-    final keyBytes = key.codeUnits;
-    final valueBytes = value.codeUnits;
-    buf.writeUint32(keyBytes.length);
+    final keyBytes = utf8.encode(key);
+    final valueBytes = utf8.encode(value);
+    buf.writeUB4(keyBytes.length);
     buf.writeBytesWithLength(keyBytes);
-    buf.writeUint32(valueBytes.length);
+    buf.writeUB4(valueBytes.length);
     if (valueBytes.isNotEmpty) {
       buf.writeBytesWithLength(valueBytes);
     }
-    buf.writeUint32(flags);
+    buf.writeUB4(flags);
   }
 }
 
@@ -407,19 +417,25 @@ class _VerifierResult {
   final String? speedyKeyHex;
 }
 
-String _clientProgramName() => _defaultProgramName;
+String _clientProgramName() {
+  final override = Platform.environment['ORACLEDB_PROGRAM'];
+  final exe = _sanitizeClientString(override ?? Platform.resolvedExecutable);
+  return exe.isNotEmpty ? exe : _defaultProgramName;
+}
 
 String _clientOsUser() {
-  return Platform.environment['USERNAME'] ??
-      Platform.environment['USER'] ??
-      'dart';
+  final user = Platform.environment['USERNAME'] ??
+      Platform.environment['USER'];
+  final sanitized = _sanitizeClientString(user ?? '');
+  return sanitized.isNotEmpty ? sanitized : 'dart';
 }
 
 String _clientMachine() {
   try {
     final host = Platform.localHostname;
-    if (host.isNotEmpty) {
-      return host;
+    final sanitized = _sanitizeClientString(host);
+    if (sanitized.isNotEmpty) {
+      return sanitized;
     }
   } catch (_) {
     // ignore and fall back
@@ -428,12 +444,22 @@ String _clientMachine() {
 }
 
 String _clientTerminal() {
-  return Platform.environment['COMPUTERNAME'] ??
-      Platform.environment['HOSTNAME'] ??
-      _clientMachine();
+  final terminal = Platform.environment['ORACLE_TERMINAL'];
+  final sanitized = _sanitizeClientString(terminal ?? '');
+  if (sanitized.isNotEmpty) {
+    return sanitized;
+  }
+  return 'unknown';
 }
 
-String _clientPid() => pid.toString();
+String _clientPid() {
+  final override = Platform.environment['ORACLEDB_PID'];
+  final sanitized = _sanitizeClientString(override ?? '');
+  if (sanitized.isNotEmpty) {
+    return sanitized;
+  }
+  return pid.toString();
+}
 
 String _alterSessionStatement() {
   final envTz = Platform.environment['ORA_SDTZ'];
@@ -448,4 +474,14 @@ String _alterSessionStatement() {
   final tz =
       '$sign${hours.toString().padLeft(2, '0')}:${minutes.toString().padLeft(2, '0')}';
   return "ALTER SESSION SET TIME_ZONE='$tz'\x00";
+}
+
+String _sanitizeClientString(String value) {
+  final sb = StringBuffer();
+  for (final code in value.codeUnits) {
+    if (code >= 32 && code <= 126) {
+      sb.writeCharCode(code);
+    }
+  }
+  return sb.toString();
 }

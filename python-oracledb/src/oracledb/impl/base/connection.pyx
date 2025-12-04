@@ -223,6 +223,8 @@ cdef class BaseConnImpl:
         cursor_impl.scrollable = scrollable
         cursor_impl.arraysize = C_DEFAULTS.arraysize
         cursor_impl.prefetchrows = C_DEFAULTS.prefetchrows
+        cursor_impl.fetch_lobs = C_DEFAULTS.fetch_lobs
+        cursor_impl.fetch_decimals = C_DEFAULTS.fetch_decimals
         return cursor_impl
 
     def create_msg_props_impl(self):
@@ -244,6 +246,13 @@ cdef class BaseConnImpl:
 
     def create_temp_lob_impl(self, DbType dbtype):
         errors._raise_not_supported("creating a temporary LOB")
+
+    def direct_path_load(self, str schema_name, str table_name,
+                         list column_names, object data,
+                         uint32_t batch_size):
+        errors._raise_not_supported(
+            "loading data via the Direct Path Load interface"
+        )
 
     def get_call_timeout(self):
         errors._raise_not_supported("getting the call timeout")

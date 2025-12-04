@@ -1,5 +1,5 @@
 # -----------------------------------------------------------------------------
-# Copyright (c) 2020, 2024, Oracle and/or its affiliates.
+# Copyright (c) 2020, 2025, Oracle and/or its affiliates.
 #
 # This software is dual-licensed to you under the Universal Permissive License
 # (UPL) 1.0 as shown at https://oss.oracle.com/licenses/upl and Apache License
@@ -43,7 +43,7 @@ import oracledb
 import sample_env
 
 # determine whether to use python-oracledb thin mode or thick mode
-if not sample_env.get_is_thin():
+if sample_env.run_in_thick_mode():
     oracledb.init_oracle_client(lib_dir=sample_env.get_oracle_client())
 
 connection = oracledb.connect(
@@ -57,7 +57,7 @@ if not connection.thin:
     client_version = oracledb.clientversion()[0]
 db_version = int(connection.version.split(".")[0])
 
-# Minimum database vesion is 12
+# Minimum database version is 12
 if db_version < 12:
     sys.exit("This example requires Oracle Database 12.1.0.2 or later")
 
@@ -72,6 +72,7 @@ with connection.cursor() as cursor:
         cursor.execute(inssql, [1, data])
     else:
         # Insert the data as a JSON string
+        cursor.setinputsizes(None, oracledb.DB_TYPE_LONG_RAW)
         cursor.execute(inssql, [1, json.dumps(data)])
 
 # Select JSON data
@@ -105,11 +106,10 @@ with connection.cursor() as cursor:
 
     # Using JSON_ARRAYAGG to extract a whole relational table as JSON
 
-    oracledb.defaults.fetch_lobs = False
     sql = """select json_arrayagg(
                         json_object('key' is c.id,
                                     'name' is c.json_data)
                         returning clob)
              from CustomersAsBlob c"""
-    for r in cursor.execute(sql):
+    for r in cursor.execute(sql, fetch_lobs=False):
         print(r)

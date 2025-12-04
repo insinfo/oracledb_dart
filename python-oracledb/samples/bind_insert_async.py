@@ -1,5 +1,5 @@
 # -----------------------------------------------------------------------------
-# Copyright (c) 2023, 2024, Oracle and/or its affiliates.
+# Copyright (c) 2023, 2025, Oracle and/or its affiliates.
 #
 # This software is dual-licensed to you under the Universal Permissive License
 # (UPL) 1.0 as shown at https://oss.oracle.com/licenses/upl and Apache License
@@ -92,7 +92,7 @@ async def main():
     # Inserting a single bind still needs tuples
     # -------------------------------------------------------------------------
 
-    rows = [("Eleventh",), ("Twelth",)]
+    rows = [("Eleventh",), ("Twelfth",)]
 
     await connection.executemany(
         "insert into mytab(id, data) values (12, :1)", rows

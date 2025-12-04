@@ -42,6 +42,32 @@ cdef class _OracleErrorInfo:
         list batcherrors
 
 
+@cython.freelist(20)
+cdef class _PostProcessFn:
+    cdef:
+        object fn
+        bint convert_nulls
+        bint check_awaitable
+        uint32_t num_elements
+        list values
+
+    @staticmethod
+    cdef _PostProcessFn from_info(object fn, uint32_t num_elements,
+                                  list values, bint convert_nulls=False,
+                                  bint check_awaitable=False):
+        """
+        Create a post process function object and return it.
+        """
+        cdef _PostProcessFn fn_obj
+        fn_obj = _PostProcessFn.__new__(_PostProcessFn)
+        fn_obj.fn = fn
+        fn_obj.convert_nulls = convert_nulls
+        fn_obj.check_awaitable = check_awaitable
+        fn_obj.num_elements = num_elements
+        fn_obj.values = values
+        return fn_obj
+
+
 cdef class Message:
     cdef:
         BaseThinConnImpl conn_impl
@@ -67,41 +93,12 @@ cdef class Message:
         connection" error is detected, the connection is forced closed
         immediately.
         """
-        cdef bint is_recoverable = False
         if self.error_occurred:
-            if self.error_info.num in (
-                28,     # session has been terminated
-                31,     # session marked for kill
-                376,    # file %s cannot be read at this time
-                603,    # ORACLE server session terminated
-                1012,   # not logged on
-                1033,   # ORACLE initialization or shutdown in progress
-                1034,   # the Oracle instance is not available for use
-                1089,   # immediate shutdown or close in progress
-                1090,   # shutdown in progress
-                1092,   # ORACLE instance terminated
-                1115,   # IO error reading block from file %s (block # %s)
-                2396,   # exceeded maximum idle time
-                3113,   # end-of-file on communication channel
-                3114,   # not connected to ORACLE
-                3135,   # connection lost contact
-                12153,  # TNS:not connected
-                12514,  # Service %s is not registered with the listener
-                12537,  # TNS:connection closed
-                12547,  # TNS:lost contact
-                12570,  # TNS:packet reader failure
-                12571,  # TNS:packet writer failure
-                12583,  # TNS:no reader
-                12757,  # instance does not currently know of requested service
-                16456,  # missing or invalid value
-            ):
-                is_recoverable = True
             error = errors._Error(self.error_info.message,
                                   code=self.error_info.num,
-                                  offset=self.error_info.pos,
-                                  isrecoverable=is_recoverable)
+                                  offset=self.error_info.pos)
             if error.is_session_dead:
-                self.conn_impl._protocol._force_close()
+                self.conn_impl._protocol._disconnect()
             raise error.exc_type(error)
 
     cdef int _initialize(self, BaseThinConnImpl conn_impl) except -1:
@@ -125,6 +122,42 @@ cdef class Message:
         initialization specific to that class.
         """
         pass
+
+    cdef int _update_sessionless_txn_state(self, bytes data) except -1:
+        """
+        Update the sessionless transaction state.
+        """
+        cdef:
+            uint8_t sessionless_state
+            uint8_t sync_version
+            bytes transaction_id
+            const uint8_t* buf
+            ssize_t buf_len
+
+        # extract the parts of the data
+        buf = <uint8_t*> data
+        buf_len = len(data)
+        transaction_id = data[:buf_len - 2]
+        sessionless_state = <uint8_t> buf[buf_len - 2]
+        sync_version = <uint8_t> buf[buf_len - 1]
+
+        # verify the sync version is one understood by the driver
+        if sync_version != 1:
+            errors._raise_err(errors.ERR_UNKNOWN_TRANSACTION_SYNC_VERSION,
+                              version=sync_version)
+
+        # transaction was cleared (ended or suspended)
+        if sessionless_state & TNS_TPC_TXNID_SYNC_UNSET:
+            self.conn_impl._sessionless_data = None
+            self.conn_impl._protocol._txn_in_progress = False
+
+        # transaction was set (started or resumed)
+        elif sessionless_state & TNS_TPC_TXNID_SYNC_SET:
+            self.conn_impl._sessionless_data = \
+                    _SessionlessData.__new__(_SessionlessData)
+            self.conn_impl._sessionless_data.started_on_server = \
+                    sessionless_state & TNS_TPC_TXNID_SYNC_SERVER
+            self.conn_impl._protocol._txn_in_progress = True
 
     cdef int _process_error_info(self, ReadBuffer buf) except -1:
         cdef:
@@ -219,6 +252,30 @@ cdef class Message:
         if not buf._caps.supports_end_of_response:
             self.end_of_response = True
 
+    cdef int _process_keyword_value_pairs(self, ReadBuffer buf,
+                                          uint16_t num_pairs) except -1:
+        """
+        Processes the keyword/value pairs returned by the server.
+        """
+        cdef:
+            uint16_t i, num_bytes, keyword_num
+            bytes text_value, binary_value
+        for i in range(num_pairs):
+            text_value = binary_value = None
+            buf.read_ub2(&num_bytes)        # text value
+            if num_bytes > 0:
+                text_value = buf.read_bytes()
+            buf.read_ub2(&num_bytes)        # binary value
+            if num_bytes > 0:
+                binary_value = buf.read_bytes()
+            buf.read_ub2(&keyword_num)      # keyword num
+            if keyword_num == TNS_KEYWORD_NUM_CURRENT_SCHEMA:
+                self.conn_impl._current_schema = text_value.decode()
+            elif keyword_num == TNS_KEYWORD_NUM_EDITION:
+                self.conn_impl._edition = text_value.decode()
+            elif keyword_num == TNS_KEYWORD_NUM_TRANSACTION_ID:
+                self._update_sessionless_txn_state(binary_value)
+
     cdef int _process_message(self, ReadBuffer buf,
                               uint8_t message_type) except -1:
         cdef uint64_t token_num
@@ -273,7 +330,14 @@ cdef class Message:
         buf.skip_ub2()                      # version
         buf.skip_ub2()                      # character set id
         buf.read_ub1(&csfrm)                # character set form
-        metadata.dbtype = DbType._from_ora_type_and_csfrm(ora_type_num, csfrm)
+        # in some cases the metadata returned contains an invalid character
+        # set form for data types that do not actually require it; if the
+        # lookup fails, try again with a zero character set form
+        try:
+            metadata.dbtype = \
+                    DbType._from_ora_type_and_csfrm(ora_type_num, csfrm)
+        except:
+            metadata.dbtype = DbType._from_ora_type_and_csfrm(ora_type_num, 0)
         buf.read_ub4(&metadata.max_size)
         if ora_type_num == ORA_TYPE_NUM_RAW:
             metadata.max_size = metadata.buffer_size
@@ -345,14 +409,7 @@ cdef class Message:
             buf.skip_ub1()                  # skip length of DTYs
             buf.read_ub2(&num_elements)
             buf.skip_ub1()                  # skip length
-            for i in range(num_elements):
-                buf.read_ub2(&temp16)
-                if temp16 > 0:              # skip key
-                    buf.skip_raw_bytes_chunked()
-                buf.read_ub2(&temp16)
-                if temp16 > 0:              # skip value
-                    buf.skip_raw_bytes_chunked()
-                buf.skip_ub2()              # skip flags
+            self._process_keyword_value_pairs(buf, num_elements)
             buf.skip_ub4()                  # skip overall flags
         elif opcode == TNS_SERVER_PIGGYBACK_EXT_SYNC:
             buf.skip_ub2()                  # skip number of DTYs
@@ -656,6 +713,22 @@ cdef class Message:
             self._write_close_temp_lobs_piggyback(buf)
         if self.conn_impl._session_state_desired != 0:
             self._write_session_state_piggyback(buf)
+        if self.conn_impl._sessionless_data is not None \
+                and self.conn_impl._sessionless_data.piggyback_pending:
+            self._write_sessionless_piggyback(buf)
+
+    cdef int _write_sessionless_piggyback(self, WriteBuffer buf):
+        """
+        Writes the piggyback for starting a sessionless transaction.
+        """
+        cdef:
+            _SessionlessData sessionless_data
+            TransactionSwitchMessage message
+        sessionless_data = self.conn_impl._sessionless_data
+        message = sessionless_data.create_message(self.conn_impl)
+        message.message_type = TNS_MSG_TYPE_PIGGYBACK
+        sessionless_data.piggyback_pending = False
+        message._write_message(buf)
 
     cdef int _write_session_state_piggyback(self, WriteBuffer buf) except -1:
         """
@@ -667,6 +740,13 @@ cdef class Message:
         self._write_piggyback_code(buf, TNS_FUNC_SESSION_STATE)
         buf.write_ub8(state | TNS_SESSION_STATE_EXPLICIT_BOUNDARY)
         self.conn_impl._session_state_desired = 0
+
+    cdef int on_out_of_packets(self) except -1:
+        """
+        Called when an OufOfPackets exception is raised indicating that further
+        packets are required to continue processing of this message.
+        """
+        pass
 
     cdef int postprocess(self) except -1:
         pass
@@ -765,6 +845,70 @@ cdef class MessageWithData(Message):
         self.bit_vector = <const char_type*> self.bit_vector_buf.data.as_chars
         memcpy(<void*> self.bit_vector, ptr, num_bytes)
 
+    cdef list _get_post_process_fns(self):
+        """
+        Returns a list of functions that need to be run after the database
+        response has been completely received. These functions can be
+        internally defined (for wrapping implementation objects with user
+        facing objects) or user defined (out converters). This prevents
+        multiple executions of functions (reparsing of database responses for
+        older databases without the end of response indicator) or interference
+        with any ongoing database response. Returning a list allows this
+        process to be determined commonly across sync and async in order to
+        avoid duplicating code.
+        """
+        cdef:
+            OracleMetadata metadata
+            uint32_t num_elements
+            uint8_t ora_type_num
+            ThinVarImpl var_impl
+            _PostProcessFn fn
+            list fns = []
+            bint is_async
+            object cls
+        is_async = self.conn_impl._protocol._transport._is_async
+        if self.out_var_impls is not None:
+            for var_impl in self.out_var_impls:
+                if var_impl is None:
+                    continue
+
+                # retain last raw value when not fetching Arrow (for handling
+                # duplicate rows)
+                if self.in_fetch and not self.cursor_impl.fetching_arrow:
+                    var_impl._last_raw_value = \
+                            var_impl._values[self.cursor_impl._last_row_index]
+
+                # determine the number of elements to process, if needed
+                if var_impl.is_array:
+                    num_elements = var_impl.num_elements_in_array
+                else:
+                    num_elements = self.row_index
+
+                # perform post conversion to user-facing objects, if applicable
+                if self.in_fetch:
+                    metadata = var_impl._fetch_metadata
+                else:
+                    metadata = var_impl.metadata
+                ora_type_num = metadata.dbtype._ora_type_num
+                if ora_type_num in (ORA_TYPE_NUM_CLOB,
+                                    ORA_TYPE_NUM_BLOB,
+                                    ORA_TYPE_NUM_BFILE):
+                    cls = PY_TYPE_ASYNC_LOB if is_async else PY_TYPE_LOB
+                    fn = _PostProcessFn.from_info(cls._from_impl, num_elements,
+                                                  var_impl._values)
+                    fns.append(fn)
+
+                # perform post conversion via user out converter, if applicable
+                if var_impl.outconverter is None:
+                    continue
+                fn = _PostProcessFn.from_info(var_impl.outconverter,
+                                              num_elements, var_impl._values,
+                                              var_impl.convert_nulls,
+                                              check_awaitable=True)
+                fns.append(fn)
+
+        return fns
+
     cdef bint _is_duplicate_data(self, uint32_t column_num):
         """
         Returns a boolean indicating if the given column contains data
@@ -827,14 +971,16 @@ cdef class MessageWithData(Message):
         # variables in order to take the new type handler into account
         conn = self.cursor.connection
         type_handler = cursor_impl._get_output_type_handler(&uses_metadata)
-        if type_handler is not statement._last_output_type_handler:
+        if type_handler is not statement._last_output_type_handler \
+                or cursor_impl.schema_impl is not statement._last_schema_impl:
             for i, var_impl in enumerate(cursor_impl.fetch_var_impls):
                 cursor_impl._create_fetch_var(conn, self.cursor, type_handler,
                                               uses_metadata, i,
                                               var_impl._fetch_metadata)
             statement._last_output_type_handler = type_handler
+            statement._last_schema_impl = cursor_impl.schema_impl
 
-        # Create OracleArrowArray if fetching arrow is enabled
+        # create Arrow arrays if fetching arrow is enabled
         if cursor_impl.fetching_arrow:
             cursor_impl._create_arrow_arrays()
 
@@ -910,6 +1056,10 @@ cdef class MessageWithData(Message):
             column_value = buf.read_oson()
         elif ora_type_num == ORA_TYPE_NUM_VECTOR:
             column_value = buf.read_vector()
+            if self.cursor_impl.fetching_arrow:
+                convert_vector_to_arrow(
+                    var_impl._arrow_array, column_value
+                )
         elif ora_type_num == ORA_TYPE_NUM_OBJECT:
             typ_impl = metadata.objtype
             if typ_impl is None:
@@ -924,7 +1074,10 @@ cdef class MessageWithData(Message):
                     else:
                         column_value = PY_TYPE_DB_OBJECT._from_impl(obj_impl)
         else:
-            buf.read_oracle_data(metadata, &data, from_dbobject=False)
+            column_value = buf.read_oracle_data(
+                metadata, &data, from_dbobject=False,
+                decode_str=self.cursor_impl.fetching_arrow
+            )
             if metadata.dbtype._csfrm == CS_FORM_NCHAR:
                 buf._caps._check_ncharset_id()
             if self.cursor_impl.fetching_arrow:
@@ -999,6 +1152,7 @@ cdef class MessageWithData(Message):
         stmt._fetch_var_impls = cursor_impl.fetch_var_impls
         stmt._num_columns = cursor_impl._num_columns
         stmt._last_output_type_handler = type_handler
+        stmt._last_schema_impl = cursor_impl.schema_impl
 
     cdef int _process_error_info(self, ReadBuffer buf) except -1:
         cdef:
@@ -1107,7 +1261,7 @@ cdef class MessageWithData(Message):
 
     cdef int _process_return_parameters(self, ReadBuffer buf) except -1:
         cdef:
-            uint16_t keyword_num, num_params, num_bytes
+            uint16_t num_params, num_bytes
             uint32_t num_rows, i
             uint64_t rowcount
             bytes key_value
@@ -1119,18 +1273,7 @@ cdef class MessageWithData(Message):
         if num_bytes > 0:
             buf.skip_raw_bytes(num_bytes)
         buf.read_ub2(&num_params)           # num key/value pairs
-        for i in range(num_params):
-            buf.read_ub2(&num_bytes)        # key
-            if num_bytes > 0:
-                key_value = buf.read_bytes()
-            buf.read_ub2(&num_bytes)        # value
-            if num_bytes > 0:
-                buf.skip_raw_bytes_chunked()
-            buf.read_ub2(&keyword_num)      # keyword num
-            if keyword_num == TNS_KEYWORD_NUM_CURRENT_SCHEMA:
-                self.conn_impl._current_schema = key_value.decode()
-            elif keyword_num == TNS_KEYWORD_NUM_EDITION:
-                self.conn_impl._edition = key_value.decode()
+        self._process_keyword_value_pairs(buf, num_params)
         buf.read_ub2(&num_bytes)            # registration
         if num_bytes > 0:
             buf.skip_raw_bytes(num_bytes)
@@ -1184,6 +1327,7 @@ cdef class MessageWithData(Message):
             self.cursor_impl._last_row_index = self.row_index - 1
             self.cursor_impl._buffer_rowcount = self.row_index
             self.bit_vector = NULL
+        self.on_row_completed()
 
     cdef int _process_row_header(self, ReadBuffer buf) except -1:
         cdef uint32_t num_bytes
@@ -1259,16 +1403,28 @@ cdef class MessageWithData(Message):
                 buf.write_ub4(0)            # oaccolid
 
     cdef int _write_bind_params_column(self, WriteBuffer buf,
-                                       OracleMetadata metadata,
-                                       object value) except -1:
+                                       ThinVarImpl var_impl,
+                                       uint32_t offset) except -1:
         cdef:
-            uint8_t ora_type_num = metadata.dbtype._ora_type_num
             ThinDbObjectTypeImpl typ_impl
             BaseThinCursorImpl cursor_impl
             BaseThinLobImpl lob_impl
+            OracleMetadata metadata
+            uint8_t ora_type_num
             uint32_t num_bytes
             bytes temp_bytes
-        if value is None:
+            OracleData data
+            bint is_null
+            object value
+        metadata = var_impl.metadata
+        if var_impl._arrow_array is not None:
+            value = convert_arrow_to_oracle_data(metadata, &data,
+                                                 var_impl._arrow_array, offset)
+        else:
+            value = convert_python_to_oracle_data(metadata, &data,
+                                                  var_impl._values[offset])
+        ora_type_num = metadata.dbtype._ora_type_num
+        if data.is_null:
             if ora_type_num == ORA_TYPE_NUM_BOOLEAN:
                 buf.write_uint8(TNS_ESCAPE_CHAR)
                 buf.write_uint8(1)
@@ -1281,34 +1437,25 @@ cdef class MessageWithData(Message):
                 buf.write_ub4(TNS_OBJ_TOP_LEVEL)    # flags
             else:
                 buf.write_uint8(0)
-        elif ora_type_num == ORA_TYPE_NUM_VARCHAR \
-                or ora_type_num == ORA_TYPE_NUM_CHAR \
-                or ora_type_num == ORA_TYPE_NUM_LONG:
-            if metadata.dbtype._csfrm == CS_FORM_IMPLICIT:
-                temp_bytes = (<str> value).encode()
-            else:
-                buf._caps._check_ncharset_id()
-                temp_bytes = (<str> value).encode(ENCODING_UTF16)
-            buf.write_bytes_with_length(temp_bytes)
-        elif ora_type_num == ORA_TYPE_NUM_RAW \
-                or ora_type_num == ORA_TYPE_NUM_LONG_RAW:
-            buf.write_bytes_with_length(value)
+        elif ora_type_num in (ORA_TYPE_NUM_VARCHAR,
+                              ORA_TYPE_NUM_CHAR,
+                              ORA_TYPE_NUM_LONG,
+                              ORA_TYPE_NUM_RAW,
+                              ORA_TYPE_NUM_LONG_RAW):
+            buf._write_raw_bytes_and_length(data.buffer.as_raw_bytes.ptr,
+                                            data.buffer.as_raw_bytes.num_bytes)
         elif ora_type_num == ORA_TYPE_NUM_NUMBER \
                 or ora_type_num == ORA_TYPE_NUM_BINARY_INTEGER:
-            if isinstance(value, bool):
-                temp_bytes = b'1' if value is True else b'0'
-            else:
-                temp_bytes = (<str> cpython.PyObject_Str(value)).encode()
-            buf.write_oracle_number(temp_bytes)
+            buf.write_oracle_number(value)
         elif ora_type_num == ORA_TYPE_NUM_DATE \
                 or ora_type_num == ORA_TYPE_NUM_TIMESTAMP \
                 or ora_type_num == ORA_TYPE_NUM_TIMESTAMP_TZ \
                 or ora_type_num == ORA_TYPE_NUM_TIMESTAMP_LTZ:
             buf.write_oracle_date(value, metadata.dbtype._buffer_size_factor)
         elif ora_type_num == ORA_TYPE_NUM_BINARY_DOUBLE:
-            buf.write_binary_double(value)
+            buf.write_binary_double(data.buffer.as_double)
         elif ora_type_num == ORA_TYPE_NUM_BINARY_FLOAT:
-            buf.write_binary_float(value)
+            buf.write_binary_float(data.buffer.as_float)
         elif ora_type_num == ORA_TYPE_NUM_CURSOR:
             cursor_impl = value._impl
             if cursor_impl is None:
@@ -1323,7 +1470,7 @@ cdef class MessageWithData(Message):
                 buf.write_ub4(cursor_impl._statement._cursor_id)
             cursor_impl.statement = None
         elif ora_type_num == ORA_TYPE_NUM_BOOLEAN:
-            buf.write_bool(value)
+            buf.write_bool(data.buffer.as_bool)
         elif ora_type_num == ORA_TYPE_NUM_INTERVAL_DS:
             buf.write_interval_ds(value)
         elif ora_type_num == ORA_TYPE_NUM_INTERVAL_YM:
@@ -1359,7 +1506,7 @@ cdef class MessageWithData(Message):
             OracleMetadata metadata
             ThinVarImpl var_impl
             BindInfo bind_info
-        for i, bind_info in enumerate(params):
+        for bind_info in params:
             if bind_info._is_return_bind:
                 continue
             var_impl = bind_info._bind_var_impl
@@ -1367,25 +1514,56 @@ cdef class MessageWithData(Message):
             if var_impl.is_array:
                 num_elements = var_impl.num_elements_in_array
                 buf.write_ub4(num_elements)
-                for value in var_impl._values[:num_elements]:
-                    self._write_bind_params_column(buf, metadata, value)
+                for i in range(num_elements):
+                    self._write_bind_params_column(buf, var_impl, i)
             else:
                 if not self.cursor_impl._statement._is_plsql \
                         and metadata.buffer_size > buf._caps.max_string_size:
                     found_long = True
                     continue
-                self._write_bind_params_column(buf, metadata,
-                                               var_impl._values[pos + offset])
+                self._write_bind_params_column(buf, var_impl, pos + offset)
         if found_long:
-            for i, bind_info in enumerate(params):
+            for bind_info in params:
                 if bind_info._is_return_bind:
                     continue
                 var_impl = bind_info._bind_var_impl
                 metadata = var_impl.metadata
                 if metadata.buffer_size <= buf._caps.max_string_size:
                     continue
-                self._write_bind_params_column(buf, metadata,
-                                               var_impl._values[pos + offset])
+                self._write_bind_params_column(buf, var_impl, pos + offset)
+
+    cdef int on_out_of_packets(self) except -1:
+        """
+        Called when an OufOfPackets exception is raised indicating that further
+        packets are required to continue processing of this message.
+        """
+        cdef ThinVarImpl var_impl
+
+        # when fetching Arrow data, if the column has already been processed
+        # and no saved array already exists, the array is saved so that
+        # subsequent processing will not append to the array further; once the
+        # complete row has been processed, the saved arrays are restored and
+        # processing continues
+        if self.cursor_impl.fetching_arrow:
+            for var_impl in self.cursor_impl.fetch_var_impls:
+                if var_impl._saved_arrow_array is not None:
+                    continue
+                elif var_impl._arrow_array.arrow_array.length > self.row_index:
+                    var_impl._saved_arrow_array = var_impl._arrow_array
+                    var_impl._arrow_array = None
+                    var_impl._create_arrow_array()
+
+    cdef int on_row_completed(self) except -1:
+        """
+        Called when a row has been successfully completed. This allows for any
+        saved Arrow arrays to be restored.
+        """
+        cdef ThinVarImpl var_impl
+        if self.cursor_impl.fetching_arrow:
+            for var_impl in self.cursor_impl.fetch_var_impls:
+                if var_impl._saved_arrow_array is not None:
+                    var_impl._arrow_array = var_impl._saved_arrow_array
+                    var_impl._saved_arrow_array = None
 
     cdef int postprocess(self) except -1:
         """
@@ -1395,32 +1573,21 @@ cdef class MessageWithData(Message):
         database round-trip.
         """
         cdef:
-            uint32_t i, j, num_elements
             object value, element_value
-            ThinVarImpl var_impl
-        if self.out_var_impls is None:
-            return 0
-        for var_impl in self.out_var_impls:
-            if var_impl is None or var_impl.outconverter is None:
-                continue
-            if not self.cursor_impl.fetching_arrow:
-                var_impl._last_raw_value = \
-                        var_impl._values[self.cursor_impl._last_row_index]
-            if var_impl.is_array:
-                num_elements = var_impl.num_elements_in_array
-            else:
-                num_elements = self.row_index
-            for i in range(num_elements):
-                value = var_impl._values[i]
-                if value is None and not var_impl.convert_nulls:
+            _PostProcessFn fn
+            uint32_t i, j
+        for fn in self._get_post_process_fns():
+            for i in range(fn.num_elements):
+                value = fn.values[i]
+                if value is None and not fn.convert_nulls:
                     continue
                 if isinstance(value, list):
                     for j, element_value in enumerate(value):
-                        if element_value is None:
+                        if element_value is None and not fn.convert_nulls:
                             continue
-                        value[j] = var_impl.outconverter(element_value)
+                        value[j] = fn.fn(element_value)
                 else:
-                    var_impl._values[i] = var_impl.outconverter(value)
+                    fn.values[i] = fn.fn(value)
 
     async def postprocess_async(self):
         """
@@ -1430,39 +1597,28 @@ cdef class MessageWithData(Message):
         database round-trip.
         """
         cdef:
-            object value, element_value, fn
-            uint32_t i, j, num_elements
-            ThinVarImpl var_impl
-        if self.out_var_impls is None:
-            return 0
-        for var_impl in self.out_var_impls:
-            if var_impl is None or var_impl.outconverter is None:
-                continue
-            if not self.cursor_impl.fetching_arrow:
-                var_impl._last_raw_value = \
-                        var_impl._values[self.cursor_impl._last_row_index]
-            if var_impl.is_array:
-                num_elements = var_impl.num_elements_in_array
-            else:
-                num_elements = self.row_index
-            fn = var_impl.outconverter
-            for i in range(num_elements):
-                value = var_impl._values[i]
-                if value is None and not var_impl.convert_nulls:
+            object value, element_value
+            _PostProcessFn fn
+            uint32_t i, j
+        for fn in self._get_post_process_fns():
+            for i in range(fn.num_elements):
+                value = fn.values[i]
+                if value is None and not fn.convert_nulls:
                     continue
                 if isinstance(value, list):
                     for j, element_value in enumerate(value):
-                        if element_value is None:
+                        if element_value is None and not fn.convert_nulls:
                             continue
-                        element_value = fn(element_value)
-                        if inspect.isawaitable(element_value):
+                        element_value = fn.fn(element_value)
+                        if fn.check_awaitable \
+                                and inspect.isawaitable(element_value):
                             element_value = await element_value
                         value[j] = element_value
                 else:
-                    value = fn(value)
-                    if inspect.isawaitable(value):
+                    value = fn.fn(value)
+                    if fn.check_awaitable and inspect.isawaitable(value):
                         value = await value
-                    var_impl._values[i] = value
+                    fn.values[i] = value
 
     cdef int preprocess(self) except -1:
         cdef:

@@ -1,0 +1,5273 @@
+// Arquivo mesclado automaticamente
+// Data: 2025-12-03 22:45:31.161026
+// Total de arquivos: 17
+
+// Arquivo: \oracledb_dart.dart
+
+library oracledb_dart;
+
+export 'src/thin/connection.dart';
+export 'src/thin/connect_params.dart';
+
+
+
+// Arquivo: \src\constants.dart
+
+// ignore_for_file: constant_identifier_names
+
+// mandated DB API constants
+const String API_LEVEL = "2.0";
+const int THREAD_SAFETY = 2;
+const String PARAM_STYLE = "named";
+
+// AQ dequeue wait modes
+const int DEQ_NO_WAIT = 0;
+// Note: 2**32 - 1 is the maximum value for an unsigned 32-bit integer
+const int DEQ_WAIT_FOREVER = 0xFFFFFFFF; // 4294967295
+
+// AQ other constants
+const int MSG_NO_DELAY = 0;
+const int MSG_NO_EXPIRATION = -1;
+
+// subscription quality of service (Flags - use const int)
+const int SUBSCR_QOS_BEST_EFFORT = 0x10;
+const int SUBSCR_QOS_DEFAULT = 0;
+const int SUBSCR_QOS_DEREG_NFY = 0x02;
+const int SUBSCR_QOS_QUERY = 0x08;
+const int SUBSCR_QOS_RELIABLE = 0x01;
+const int SUBSCR_QOS_ROWIDS = 0x04;
+
+// operation codes (Flags - use const int)
+const int OPCODE_ALLOPS = 0;
+const int OPCODE_ALLROWS = 0x01;
+const int OPCODE_ALTER = 0x10;
+const int OPCODE_DELETE = 0x08;
+const int OPCODE_DROP = 0x20;
+const int OPCODE_INSERT = 0x02;
+const int OPCODE_UPDATE = 0x04;
+
+// flags for tpc_begin() (Flags - use const int)
+const int TPC_BEGIN_JOIN = 0x00000002;
+const int TPC_BEGIN_NEW = 0x00000001;
+const int TPC_BEGIN_PROMOTE = 0x00000008;
+const int TPC_BEGIN_RESUME = 0x00000004;
+
+// flags for tpc_end() (Flags - use const int)
+const int TPC_END_NORMAL = 0;
+const int TPC_END_SUSPEND = 0x00100000;
+
+// vector metadata flags (Flags - use const int)
+const int VECTOR_META_FLAG_FLEXIBLE_DIM = 0x01;
+const int VECTOR_META_FLAG_SPARSE_VECTOR = 0x02;
+
+// -----------------------------------------------
+// Internal TNS Constants (from constants.pxi)
+// These might be better placed in internal implementation files (e.g., src/thin/protocol)
+// -----------------------------------------------
+
+// TNS JSON constants
+const int TNS_JSON_MAGIC_BYTE_1 = 0xff;
+const int TNS_JSON_MAGIC_BYTE_2 = 0x4a; // 'J'
+const int TNS_JSON_MAGIC_BYTE_3 = 0x5a; // 'Z'
+const int TNS_JSON_VERSION_MAX_FNAME_255 = 1;
+const int TNS_JSON_VERSION_MAX_FNAME_65535 = 3;
+const int TNS_JSON_FLAG_HASH_ID_UINT8 = 0x0100;
+const int TNS_JSON_FLAG_NUM_FNAMES_UINT16 = 0x0400;
+const int TNS_JSON_FLAG_FNAMES_SEG_UINT32 = 0x0800;
+const int TNS_JSON_FLAG_TINY_NODES_STAT = 0x2000;
+const int TNS_JSON_FLAG_TREE_SEG_UINT32 = 0x1000;
+const int TNS_JSON_FLAG_REL_OFFSET_MODE = 0x01;
+const int TNS_JSON_FLAG_INLINE_LEAF = 0x02;
+const int TNS_JSON_FLAG_LEN_IN_PCODE = 0x04;
+const int TNS_JSON_FLAG_NUM_FNAMES_UINT32 = 0x08;
+const int TNS_JSON_FLAG_IS_SCALAR = 0x10;
+const int TNS_JSON_FLAG_SEC_FNAMES_SEG_UINT16 = 0x0100;
+
+// TNS JSON data types
+const int TNS_JSON_TYPE_NULL = 0x30;
+const int TNS_JSON_TYPE_TRUE = 0x31;
+const int TNS_JSON_TYPE_FALSE = 0x32;
+const int TNS_JSON_TYPE_STRING_LENGTH_UINT8 = 0x33;
+const int TNS_JSON_TYPE_NUMBER_LENGTH_UINT8 = 0x34;
+const int TNS_JSON_TYPE_BINARY_DOUBLE = 0x36;
+const int TNS_JSON_TYPE_STRING_LENGTH_UINT16 = 0x37;
+const int TNS_JSON_TYPE_STRING_LENGTH_UINT32 = 0x38;
+const int TNS_JSON_TYPE_TIMESTAMP = 0x39;
+const int TNS_JSON_TYPE_BINARY_LENGTH_UINT16 = 0x3a;
+const int TNS_JSON_TYPE_BINARY_LENGTH_UINT32 = 0x3b;
+const int TNS_JSON_TYPE_DATE = 0x3c;
+const int TNS_JSON_TYPE_INTERVAL_YM = 0x3d;
+const int TNS_JSON_TYPE_INTERVAL_DS = 0x3e;
+const int TNS_JSON_TYPE_TIMESTAMP_TZ = 0x7c;
+const int TNS_JSON_TYPE_TIMESTAMP7 =
+    0x7d; // Timestamp with 0 fractional seconds
+const int TNS_JSON_TYPE_ID = 0x7e;
+const int TNS_JSON_TYPE_BINARY_FLOAT = 0x7f;
+const int TNS_JSON_TYPE_OBJECT = 0x84;
+const int TNS_JSON_TYPE_ARRAY = 0xc0;
+const int TNS_JSON_TYPE_EXTENDED = 0x7b;
+const int TNS_JSON_TYPE_VECTOR = 0x01; // Extended type sub-code
+
+// TNS VECTOR constants
+const int TNS_VECTOR_MAGIC_BYTE = 0xDB;
+const int TNS_VECTOR_VERSION_BASE = 0;
+const int TNS_VECTOR_VERSION_WITH_BINARY = 1;
+const int TNS_VECTOR_VERSION_WITH_SPARSE = 2;
+
+// TNS VECTOR flags
+const int TNS_VECTOR_FLAG_NORM = 0x0002;
+const int TNS_VECTOR_FLAG_NORM_RESERVED = 0x0010;
+const int TNS_VECTOR_FLAG_SPARSE = 0x0020;
+
+// TNS General constants
+const int TNS_MAX_SHORT_LENGTH = 252;
+const int TNS_DURATION_MID = 0x80000000;
+const int TNS_DURATION_OFFSET = 60;
+const int TNS_CHUNK_SIZE = 32767;
+const int TNS_HAS_REGION_ID = 0x80;
+
+// TNS Timezone offsets
+const int TZ_HOUR_OFFSET = 20;
+const int TZ_MINUTE_OFFSET = 60;
+
+// Network name chars - kept as string, might be used for validation
+const String VALID_NETWORK_NAME_CHARS =
+    "abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789\"'<>/\,.:;-_\$+*#&!%?@";
+
+// error numbers that result in DatabaseError
+// const ERR_TNS_ENTRY_NOT_FOUND = 4000;
+// const ERR_NO_CREDENTIALS = 4001;
+// const ERR_COLUMN_TRUNCATED = 4002;
+// const ERR_ORACLE_NUMBER_NO_REPR = 4003;
+// const ERR_INVALID_NUMBER = 4004;
+// const ERR_POOL_NO_CONNECTION_AVAILABLE = 4005;
+// const ERR_ARRAY_DML_ROW_COUNTS_NOT_ENABLED = 4006;
+// const ERR_INCONSISTENT_DATATYPES = 4007;
+// const ERR_INVALID_BIND_NAME = 4008;
+// const ERR_WRONG_NUMBER_OF_POSITIONAL_BINDS = 4009;
+// const ERR_MISSING_BIND_VALUE = 4010;
+// const ERR_CONNECTION_CLOSED = 4011;
+// const ERR_NUMBER_WITH_INVALID_EXPONENT = 4012;
+// const ERR_NUMBER_STRING_OF_ZERO_LENGTH = 4013;
+// const ERR_NUMBER_STRING_TOO_LONG = 4014;
+// const ERR_NUMBER_WITH_EMPTY_EXPONENT = 4015;
+// const ERR_CONTENT_INVALID_AFTER_NUMBER = 4016;
+// const ERR_INVALID_CONNECT_DESCRIPTOR = 4017;
+// const ERR_CANNOT_PARSE_CONNECT_STRING = 4018;
+// const ERR_INVALID_REDIRECT_DATA = 4019;
+// const ERR_INVALID_PROTOCOL = 4021;
+// const ERR_INVALID_ENUM_VALUE = 4022;
+// const ERR_CALL_TIMEOUT_EXCEEDED = 4024;
+// const ERR_INVALID_REF_CURSOR = 4025;
+// const ERR_MISSING_FILE = 4026;
+// const ERR_NO_CONFIG_DIR = 4027;
+// const ERR_INVALID_SERVER_TYPE = 4028;
+// const ERR_TOO_MANY_BATCH_ERRORS = 4029;
+// const ERR_IFILE_CYCLE_DETECTED = 4030;
+// const ERR_INVALID_VECTOR = 4031;
+// const ERR_INVALID_SSL_VERSION = 4032;
+// const ERR_EXCEEDED_IDLE_TIME = 4033;
+// const ERR_INVALID_PASSWORD_TYPE = 4034;
+
+
+
+// Arquivo: \src\enums.dart
+
+// ignore_for_file: camel_case_types
+
+/// AQ Delivery Modes
+enum AqDeliveryMode {
+  persistent(1),
+  buffered(2),
+  persistentOrBuffered(3);
+
+  final int value;
+  const AqDeliveryMode(this.value);
+}
+
+/// AQ Dequeue Modes
+enum AqDequeueMode {
+  browse(1),
+  locked(2),
+  remove(3),
+  removeNoData(4);
+
+  final int value;
+  const AqDequeueMode(this.value);
+}
+
+/// AQ Dequeue Navigation Modes
+enum AqNavigationMode {
+  firstMsg(1),
+  nextTransaction(2),
+  nextMsg(3);
+
+  final int value;
+  const AqNavigationMode(this.value);
+}
+
+/// AQ Visibility Modes (combines Dequeue and Enqueue)
+enum AqVisibilityMode {
+  immediate(1),
+  onCommit(2);
+
+  final int value;
+  const AqVisibilityMode(this.value);
+}
+
+/// AQ Message States
+enum AqMessageState {
+  ready(0),
+  waiting(1),
+  processed(2),
+  expired(3);
+
+  final int value;
+  const AqMessageState(this.value);
+}
+
+/// Database Shutdown Modes
+enum DbShutdownMode {
+  transactional(1),
+  transactionalLocal(2),
+  immediate(3),
+  abort(4),
+  final_(5); // Using final_ to avoid keyword conflict
+
+  final int value;
+  const DbShutdownMode(this.value);
+}
+
+/// Subscription Grouping Classes
+enum SubscrGroupingClass {
+  none(0),
+  time(1);
+
+  final int value;
+  const SubscrGroupingClass(this.value);
+}
+
+/// Subscription Grouping Types
+enum SubscrGroupingType {
+  summary(1),
+  last(2);
+
+  final int value;
+  const SubscrGroupingType(this.value);
+}
+
+/// Subscription Namespaces
+enum SubscrNamespace {
+  aq(1),
+  dbChange(2);
+
+  final int value;
+  const SubscrNamespace(this.value);
+}
+
+/// Subscription Protocols
+enum SubscrProtocol {
+  callback(0),
+  mail(1),
+  server(2),
+  http(3);
+
+  final int value;
+  const SubscrProtocol(this.value);
+}
+
+/// Event Types for Subscriptions
+enum OracleEventType {
+  none(0),
+  startup(1),
+  shutdown(2),
+  shutdownAny(3),
+  dereg(5),
+  objChange(6),
+  queryChange(7),
+  aq(100);
+
+  final int value;
+  const OracleEventType(this.value);
+}
+
+/// Authentication Modes (Mapped from Python's AuthMode IntFlag)
+/// Note: Dart enums don't directly support bit flags like Python's IntFlag.
+/// These represent individual modes. Combinations might need bitwise ops on the integer values.
+enum OracleAuthMode {
+  default_(0x0001), // base_impl.AUTH_MODE_DEFAULT = 0x0001
+  prelim(0x0008), // base_impl.AUTH_MODE_PRELIM = 0x0008
+  sysasm(0x8000), // base_impl.AUTH_MODE_SYSASM = 0x8000
+  sysbkp(0x20000), // base_impl.AUTH_MODE_SYSBKP = 0x20000
+  sysdba(0x0002), // base_impl.AUTH_MODE_SYSDBA = 0x0002
+  sysdgd(0x40000), // base_impl.AUTH_MODE_SYSDGD = 0x40000
+  syskmt(0x80000), // base_impl.AUTH_MODE_SYSKMT = 0x80000
+  sysoper(0x0004), // base_impl.AUTH_MODE_SYSOPER = 0x0004
+  sysrac(0x100000); // base_impl.AUTH_MODE_SYSRAC = 0x100000
+
+  final int value;
+  const OracleAuthMode(this.value);
+}
+
+/// Pipeline Operation Types
+enum PipelineOpType {
+  // Values seem distinct, not flags, based on Python implementation detail
+  callFunc, // = base_impl.PIPELINE_OP_TYPE_CALL_FUNC
+  callProc, // = base_impl.PIPELINE_OP_TYPE_CALL_PROC
+  commit, // = base_impl.PIPELINE_OP_TYPE_COMMIT
+  execute, // = base_impl.PIPELINE_OP_TYPE_EXECUTE
+  executeMany, // = base_impl.PIPELINE_OP_TYPE_EXECUTE_MANY
+  fetchAll, // = base_impl.PIPELINE_OP_TYPE_FETCH_ALL
+  fetchMany, // = base_impl.PIPELINE_OP_TYPE_FETCH_MANY
+  fetchOne; // = base_impl.PIPELINE_OP_TYPE_FETCH_ONE
+}
+
+/// Pool Get Modes
+enum PoolGetMode {
+  wait(0), // base_impl.POOL_GETMODE_WAIT = 0
+  noWait(1), // base_impl.POOL_GETMODE_NOWAIT = 1
+  forceGet(2), // base_impl.POOL_GETMODE_FORCEGET = 2
+  timedWait(3); // base_impl.POOL_GETMODE_TIMEDWAIT = 3
+
+  final int value;
+  const PoolGetMode(this.value);
+}
+
+/// Purity Levels for DRCP
+enum Purity {
+  default_(0), // base_impl.PURITY_DEFAULT = 0
+  new_(1), // base_impl.PURITY_NEW = 1, using new_ to avoid keyword conflict
+  self(2); // base_impl.PURITY_SELF = 2
+
+  final int value;
+  const Purity(this.value);
+}
+
+/// Vector Storage Formats
+enum VectorFormat {
+  float32(1), // base_impl.VECTOR_FORMAT_FLOAT32 = 1
+  float64(2), // base_impl.VECTOR_FORMAT_FLOAT64 = 2
+  int8(3), // base_impl.VECTOR_FORMAT_INT8 = 3
+  binary(4); // base_impl.VECTOR_FORMAT_BINARY = 4
+
+  final int value;
+  const VectorFormat(this.value);
+}
+
+// Aliases provided at the end of enums.py are now integrated into the enums/consts above.
+
+
+// Arquivo: \src\exceptions.dart
+
+// -----------------------------------------------
+// Driver-specific Error Codes (DPY-xxxx)
+// -----------------------------------------------
+
+// InterfaceError Range (1000-1999)
+const int ERR_MISSING_ERROR = 1000;
+const int ERR_NOT_CONNECTED = 1001;
+const int ERR_POOL_NOT_OPEN = 1002;
+const int ERR_NOT_A_QUERY = 1003;
+const int ERR_NO_STATEMENT_EXECUTED = 1004;
+const int ERR_POOL_HAS_BUSY_CONNECTIONS = 1005;
+const int ERR_CURSOR_NOT_OPEN = 1006;
+
+// ProgrammingError Range (2000-2999)
+const int ERR_MESSAGE_HAS_NO_PAYLOAD = 2000;
+const int ERR_NO_STATEMENT = 2001;
+const int ERR_NO_STATEMENT_PREPARED = 2002;
+const int ERR_WRONG_EXECUTE_PARAMETERS_TYPE = 2003;
+const int ERR_WRONG_EXECUTEMANY_PARAMETERS_TYPE = 2004;
+const int ERR_ARGS_AND_KEYWORD_ARGS = 2005;
+const int ERR_MIXED_POSITIONAL_AND_NAMED_BINDS = 2006;
+const int ERR_EXPECTING_TYPE = 2007;
+const int ERR_WRONG_OBJECT_TYPE = 2008;
+const int ERR_WRONG_SCROLL_MODE = 2009;
+const int ERR_MIXED_ELEMENT_TYPES = 2010;
+const int ERR_WRONG_ARRAY_DEFINITION = 2011;
+const int ERR_ARGS_MUST_BE_LIST_OR_TUPLE = 2012;
+const int ERR_KEYWORD_ARGS_MUST_BE_DICT = 2013;
+const int ERR_DUPLICATED_PARAMETER = 2014;
+const int ERR_EXPECTING_VAR = 2015;
+const int ERR_INCORRECT_VAR_ARRAYSIZE = 2016;
+const int ERR_LIBRARY_ALREADY_INITIALIZED = 2017;
+const int ERR_WALLET_FILE_MISSING = 2018;
+const int ERR_THIN_CONNECTION_ALREADY_CREATED = 2019;
+const int ERR_INVALID_MAKEDSN_ARG = 2020;
+const int ERR_INIT_ORACLE_CLIENT_NOT_CALLED = 2021;
+const int ERR_INVALID_OCI_ATTR_TYPE = 2022;
+const int ERR_INVALID_CONN_CLASS = 2023;
+const int ERR_INVALID_CONNECT_PARAMS = 2025;
+const int ERR_INVALID_POOL_CLASS = 2026;
+const int ERR_INVALID_POOL_PARAMS = 2027;
+const int ERR_EXPECTING_LIST_FOR_ARRAY_VAR = 2028;
+const int ERR_HTTPS_PROXY_REQUIRES_TCPS = 2029;
+const int ERR_INVALID_LOB_OFFSET = 2030;
+const int ERR_INVALID_ACCESS_TOKEN_PARAM = 2031;
+const int ERR_INVALID_ACCESS_TOKEN_RETURNED = 2032;
+const int ERR_EXPIRED_ACCESS_TOKEN = 2033;
+const int ERR_ACCESS_TOKEN_REQUIRES_TCPS = 2034;
+const int ERR_INVALID_OBJECT_TYPE_NAME = 2035;
+const int ERR_OBJECT_IS_NOT_A_COLLECTION = 2036;
+const int ERR_MISSING_TYPE_NAME_FOR_OBJECT_VAR = 2037;
+const int ERR_INVALID_COLL_INDEX_GET = 2038;
+const int ERR_INVALID_COLL_INDEX_SET = 2039;
+const int ERR_EXECUTE_MODE_ONLY_FOR_DML = 2040;
+const int ERR_MISSING_ENDING_SINGLE_QUOTE = 2041;
+const int ERR_MISSING_ENDING_DOUBLE_QUOTE = 2042;
+const int ERR_DBOBJECT_ATTR_MAX_SIZE_VIOLATED = 2043;
+const int ERR_DBOBJECT_ELEMENT_MAX_SIZE_VIOLATED = 2044;
+const int ERR_INVALID_ARRAYSIZE = 2045;
+const int ERR_CURSOR_HAS_BEEN_CLOSED = 2046;
+const int ERR_INVALID_LOB_AMOUNT = 2047;
+const int ERR_DML_RETURNING_DUP_BINDS = 2048;
+const int ERR_MISSING_ADDRESS = 2049;
+const int ERR_INVALID_TPC_BEGIN_FLAGS = 2050;
+const int ERR_INVALID_TPC_END_FLAGS = 2051;
+const int ERR_MISMATCHED_TOKEN = 2052;
+const int ERR_THICK_MODE_ENABLED = 2053;
+const int ERR_NAMED_POOL_MISSING = 2054;
+const int ERR_NAMED_POOL_EXISTS = 2055;
+const int ERR_PROTOCOL_HANDLER_FAILED = 2056;
+const int ERR_PASSWORD_TYPE_HANDLER_FAILED = 2057;
+const int ERR_PLAINTEXT_PASSWORD_IN_CONFIG = 2058;
+const int ERR_MISSING_CONNECT_DESCRIPTOR = 2059;
+const int ERR_ARROW_C_API_ERROR = 2060;
+const int ERR_PARAMS_HOOK_HANDLER_FAILED = 2061;
+const int ERR_PAYLOAD_CANNOT_BE_ENQUEUED = 2062;
+const int ERR_SCROLL_OUT_OF_RESULT_SET = 2063;
+
+// NotSupportedError Range (3000-3999)
+const int ERR_TIME_NOT_SUPPORTED = 3000;
+const int ERR_FEATURE_NOT_SUPPORTED = 3001;
+const int ERR_PYTHON_VALUE_NOT_SUPPORTED = 3002;
+const int ERR_PYTHON_TYPE_NOT_SUPPORTED = 3003;
+const int ERR_UNSUPPORTED_TYPE_SET = 3004;
+const int ERR_ARRAYS_OF_ARRAYS = 3005;
+const int ERR_ORACLE_TYPE_NOT_SUPPORTED = 3006;
+const int ERR_DB_TYPE_NOT_SUPPORTED = 3007;
+const int ERR_UNSUPPORTED_INBAND_NOTIFICATION = 3008;
+const int ERR_SELF_BIND_NOT_SUPPORTED = 3009;
+const int ERR_SERVER_VERSION_NOT_SUPPORTED = 3010;
+const int ERR_NCHAR_CS_NOT_SUPPORTED = 3012;
+const int ERR_UNSUPPORTED_PYTHON_TYPE_FOR_DB_TYPE = 3013;
+const int ERR_LOB_OF_WRONG_TYPE = 3014;
+const int ERR_UNSUPPORTED_VERIFIER_TYPE = 3015;
+const int ERR_NO_CRYPTOGRAPHY_PACKAGE = 3016;
+const int ERR_ORACLE_TYPE_NAME_NOT_SUPPORTED = 3017;
+const int ERR_TDS_TYPE_NOT_SUPPORTED = 3018;
+const int ERR_OSON_NODE_TYPE_NOT_SUPPORTED = 3019;
+const int ERR_OSON_FIELD_NAME_LIMITATION = 3020;
+const int ERR_OSON_VERSION_NOT_SUPPORTED = 3021;
+const int ERR_NAMED_TIMEZONE_NOT_SUPPORTED = 3022;
+const int ERR_VECTOR_VERSION_NOT_SUPPORTED = 3023;
+const int ERR_VECTOR_FORMAT_NOT_SUPPORTED = 3024;
+const int ERR_OPERATION_NOT_SUPPORTED_ON_BFILE = 3025;
+const int ERR_OPERATION_ONLY_SUPPORTED_ON_BFILE = 3026;
+const int ERR_CURSOR_DIFF_CONNECTION = 3027;
+const int ERR_UNSUPPORTED_PIPELINE_OPERATION = 3028;
+const int ERR_INVALID_NETWORK_NAME = 3029;
+const int ERR_ARROW_UNSUPPORTED_DATA_TYPE = 3030;
+
+// DatabaseError Range (4000-4999)
+const int ERR_TNS_ENTRY_NOT_FOUND = 4000;
+const int ERR_NO_CREDENTIALS = 4001;
+const int ERR_COLUMN_TRUNCATED = 4002;
+const int ERR_ORACLE_NUMBER_NO_REPR = 4003;
+const int ERR_INVALID_NUMBER = 4004;
+const int ERR_POOL_NO_CONNECTION_AVAILABLE = 4005;
+const int ERR_ARRAY_DML_ROW_COUNTS_NOT_ENABLED = 4006;
+const int ERR_INCONSISTENT_DATATYPES = 4007;
+const int ERR_INVALID_BIND_NAME = 4008;
+const int ERR_WRONG_NUMBER_OF_POSITIONAL_BINDS = 4009;
+const int ERR_MISSING_BIND_VALUE = 4010;
+const int ERR_CONNECTION_CLOSED = 4011;
+const int ERR_NUMBER_WITH_INVALID_EXPONENT = 4012;
+const int ERR_NUMBER_STRING_OF_ZERO_LENGTH = 4013;
+const int ERR_NUMBER_STRING_TOO_LONG = 4014;
+const int ERR_NUMBER_WITH_EMPTY_EXPONENT = 4015;
+const int ERR_CONTENT_INVALID_AFTER_NUMBER = 4016;
+const int ERR_INVALID_CONNECT_DESCRIPTOR = 4017;
+const int ERR_CANNOT_PARSE_CONNECT_STRING = 4018;
+const int ERR_INVALID_REDIRECT_DATA = 4019;
+const int ERR_INVALID_PROTOCOL = 4021;
+const int ERR_INVALID_ENUM_VALUE = 4022;
+const int ERR_CALL_TIMEOUT_EXCEEDED = 4024;
+const int ERR_INVALID_REF_CURSOR = 4025;
+const int ERR_MISSING_FILE = 4026;
+const int ERR_NO_CONFIG_DIR = 4027;
+const int ERR_INVALID_SERVER_TYPE = 4028;
+const int ERR_TOO_MANY_BATCH_ERRORS = 4029;
+const int ERR_IFILE_CYCLE_DETECTED = 4030;
+const int ERR_INVALID_VECTOR = 4031;
+const int ERR_INVALID_SSL_VERSION = 4032;
+const int ERR_EXCEEDED_IDLE_TIME = 4033;
+const int ERR_INVALID_PASSWORD_TYPE = 4034;
+
+// InternalError Range (5000-5999)
+const int ERR_MESSAGE_TYPE_UNKNOWN = 5000;
+const int ERR_BUFFER_LENGTH_INSUFFICIENT = 5001;
+const int ERR_INTEGER_TOO_LARGE = 5002;
+const int ERR_UNEXPECTED_NEGATIVE_INTEGER = 5003;
+const int ERR_UNEXPECTED_DATA = 5004;
+const int ERR_UNEXPECTED_REFUSE = 5005;
+const int ERR_UNEXPECTED_END_OF_DATA = 5006;
+const int ERR_UNEXPECTED_XML_TYPE = 5007;
+const int ERR_UNKNOWN_SERVER_PIGGYBACK = 5009;
+const int ERR_UNKNOWN_TRANSACTION_STATE = 5010;
+const int ERR_UNEXPECTED_PIPELINE_FAILURE = 5011;
+const int ERR_NOT_IMPLEMENTED = 5012;
+
+// OperationalError Range (6000-6999)
+const int ERR_LISTENER_REFUSED_CONNECTION = 6000;
+const int ERR_INVALID_SERVICE_NAME = 6001;
+const int ERR_INVALID_SERVER_CERT_DN = 6002;
+const int ERR_INVALID_SID = 6003;
+const int ERR_PROXY_FAILURE = 6004;
+const int ERR_CONNECTION_FAILED = 6005;
+const int ERR_INVALID_SERVER_NAME = 6006;
+
+// Warning Range (7000-7999)
+const int WRN_COMPILATION_ERROR = 7000;
+
+
+/// Base class for all Oracle DB related exceptions and warnings in Dart.
+class OracleException implements Exception {
+  /// The error message.
+  final String message;
+
+  /// The original Oracle Database error code (ORA-xxxxx), if applicable.
+  final int? code;
+
+  /// The internal driver error code (DPY-xxxx), if applicable.
+  final String? fullCode;
+
+  /// Offset within the SQL statement where the error occurred, if applicable.
+  final int? offset;
+
+  /// Indicates if the error might be recoverable (e.g., temporary network issue).
+  final bool isRecoverable;
+
+  /// Indicates if the database session is considered unusable after this error.
+  final bool isSessionDead;
+
+  /// Additional context information about the error, if available.
+  final String? context;
+
+  /// The original exception that caused this one, if any.
+  final Object? cause;
+
+  OracleException(
+    this.message, {
+    this.code,
+    this.fullCode,
+    this.offset,
+    this.isRecoverable = false,
+    this.isSessionDead = false,
+    this.context,
+    this.cause,
+  });
+
+  @override
+  String toString() {
+    final buffer = StringBuffer();
+    if (fullCode != null) {
+      buffer.write('$fullCode: ');
+    } else if (code != null) {
+      buffer.write('ORA-${code!.toString().padLeft(5, '0')}: ');
+    }
+    buffer.write(message);
+    if (context != null) {
+      buffer.write('\nContext: $context');
+    }
+    if (cause != null) {
+      buffer.write('\nCause: $cause');
+    }
+    // TODO: Implement help URL logic here if desired, using _troubleshootingAvailable
+    // if (_troubleshootingAvailable.contains(fullCode)) { ... }
+    return buffer.toString();
+  }
+}
+
+/// Represents database warnings. Base class for specific warning types if needed.
+class OracleWarning extends OracleException {
+  OracleWarning(
+    String message, {
+    int? code,
+    String? fullCode,
+    int? offset,
+    String? context,
+    Object? cause,
+  }) : super(
+          message,
+          code: code,
+          fullCode: fullCode,
+          offset: offset,
+          isRecoverable: true, // Warnings are generally recoverable
+          isSessionDead: false,
+          context: context,
+          cause: cause,
+        );
+}
+
+/// Base class for database errors. Corresponds to Python's DatabaseError.
+class OracleDatabaseError extends OracleException {
+  OracleDatabaseError(
+    String message, {
+    int? code,
+    String? fullCode,
+    int? offset,
+    bool isRecoverable = false,
+    bool isSessionDead = false,
+    String? context,
+    Object? cause,
+  }) : super(
+          message,
+          code: code,
+          fullCode: fullCode,
+          offset: offset,
+          isRecoverable: isRecoverable,
+          isSessionDead: isSessionDead,
+          context: context,
+          cause: cause,
+        );
+}
+
+/// Errors related to data processing. Corresponds to Python's DataError.
+class OracleDataError extends OracleDatabaseError {
+  OracleDataError(
+    String message, {
+    int? code,
+    String? fullCode,
+    int? offset,
+    String? context,
+    Object? cause,
+  }) : super(
+          message,
+          code: code,
+          fullCode: fullCode,
+          offset: offset,
+          context: context,
+          cause: cause,
+        );
+}
+
+/// Errors related to database integrity (e.g., constraint violations).
+/// Corresponds to Python's IntegrityError.
+class OracleIntegrityError extends OracleDatabaseError {
+  OracleIntegrityError(
+    String message, {
+    int? code,
+    String? fullCode,
+    int? offset,
+    String? context,
+    Object? cause,
+  }) : super(
+          message,
+          code: code,
+          fullCode: fullCode,
+          offset: offset,
+          context: context,
+          cause: cause,
+        );
+}
+
+/// Errors related to the driver's interface (e.g., closed connection/cursor).
+/// Corresponds to Python's InterfaceError.
+class OracleInterfaceError extends OracleException {
+  OracleInterfaceError(
+    String message, {
+    int? code,
+    String? fullCode,
+    int? offset,
+    String? context,
+    Object? cause,
+  }) : super(
+          message,
+          code: code,
+          fullCode: fullCode,
+          offset: offset,
+          context: context,
+          cause: cause,
+        );
+}
+
+/// Internal driver errors. Corresponds to Python's InternalError.
+class OracleInternalError extends OracleDatabaseError {
+  OracleInternalError(
+    String message, {
+    int? code,
+    String? fullCode,
+    int? offset,
+    String? context,
+    Object? cause,
+  }) : super(
+          message,
+          code: code,
+          fullCode: fullCode,
+          offset: offset,
+          context: context,
+          cause: cause,
+        );
+}
+
+/// Errors indicating an unsupported feature or operation.
+/// Corresponds to Python's NotSupportedError.
+class OracleNotSupportedError extends OracleDatabaseError {
+  OracleNotSupportedError(
+    String message, {
+    int? code,
+    String? fullCode,
+    int? offset,
+    String? context,
+    Object? cause,
+  }) : super(
+          message,
+          code: code,
+          fullCode: fullCode,
+          offset: offset,
+          context: context,
+          cause: cause,
+        );
+}
+
+/// Errors related to database operations (e.g., connection loss).
+/// Corresponds to Python's OperationalError.
+class OracleOperationalError extends OracleDatabaseError {
+  OracleOperationalError(
+    String message, {
+    int? code,
+    String? fullCode,
+    int? offset,
+    bool isRecoverable = false,
+    bool isSessionDead = false,
+    String? context,
+    Object? cause,
+  }) : super(
+          message,
+          code: code,
+          fullCode: fullCode,
+          offset: offset,
+          isRecoverable: isRecoverable,
+          isSessionDead: isSessionDead,
+          context: context,
+          cause: cause,
+        );
+}
+
+/// Errors related to programming mistakes (e.g., wrong parameters).
+/// Corresponds to Python's ProgrammingError.
+class OracleProgrammingError extends OracleDatabaseError {
+  OracleProgrammingError(
+    String message, {
+    int? code,
+    String? fullCode,
+    int? offset,
+    String? context,
+    Object? cause,
+  }) : super(
+          message,
+          code: code,
+          fullCode: fullCode,
+          offset: offset,
+          context: context,
+          cause: cause,
+        );
+}
+
+// -----------------------------------------------
+// Error Handling Internals (Maps, Helper)
+// -----------------------------------------------
+
+const String _errPrefix = "DPY";
+
+// Map internal DPY error numbers to their corresponding exception types
+final Map<int, Type> _exceptionTypeMap = {
+  1: OracleInterfaceError,
+  2: OracleProgrammingError,
+  3: OracleNotSupportedError,
+  4: OracleDatabaseError,
+  5: OracleInternalError,
+  6: OracleOperationalError,
+  7: OracleWarning,
+};
+
+// Map internal DPY error numbers to their message formats
+// (Placeholders like {name} would be replaced during error creation)
+final Map<int, String> _errorMessageFormats = {
+  1000: "missing error {error_num}", // ERR_MISSING_ERROR
+  1001: "not connected to database", // ERR_NOT_CONNECTED
+  // ... (rest of the messages copied from the previous response) ...
+   ERR_ACCESS_TOKEN_REQUIRES_TCPS: (
+        "access_token requires use of the tcps protocol"
+    ),
+    ERR_ARGS_MUST_BE_LIST_OR_TUPLE: "arguments must be a list or tuple",
+    ERR_ARGS_AND_KEYWORD_ARGS: (
+        "expecting positional arguments or keyword arguments, not both"
+    ),
+    ERR_ARRAY_DML_ROW_COUNTS_NOT_ENABLED: (
+        "array DML row counts mode is not enabled"
+    ),
+    ERR_ARRAYS_OF_ARRAYS: "arrays of arrays are not supported",
+    ERR_BUFFER_LENGTH_INSUFFICIENT: (
+        "internal error: buffer of length {actual_buffer_len} "
+        "insufficient to hold {required_buffer_len} bytes"
+    ),
+    ERR_CALL_TIMEOUT_EXCEEDED: "call timeout of {timeout} ms exceeded",
+    ERR_CANNOT_PARSE_CONNECT_STRING: 'cannot parse connect string "{data}"',
+    ERR_COLUMN_TRUNCATED: (
+        "column truncated to {col_value_len} {unit}. "
+        "Untruncated was {actual_len}"
+    ),
+    ERR_CONNECTION_FAILED: (
+        "cannot connect to database (CONNECTION_ID={connection_id})."
+    ),
+    ERR_CONTENT_INVALID_AFTER_NUMBER: "invalid number (content after number)",
+    ERR_CURSOR_DIFF_CONNECTION: (
+        "binding a cursor from a different connection is not supported"
+    ),
+    ERR_CURSOR_NOT_OPEN: "cursor is not open",
+    ERR_CURSOR_HAS_BEEN_CLOSED: "cursor has been closed by the database",
+    ERR_DBOBJECT_ATTR_MAX_SIZE_VIOLATED: (
+        "attribute {attr_name} of type {type_name} exceeds its maximum size "
+        "(actual: {actual_size}, maximum: {max_size})"
+    ),
+    ERR_DBOBJECT_ELEMENT_MAX_SIZE_VIOLATED: (
+        "element {index} of type {type_name} exceeds its maximum size "
+        "(actual: {actual_size}, maximum: {max_size})"
+    ),
+    ERR_DB_TYPE_NOT_SUPPORTED: 'database type "{name}" is not supported',
+    ERR_DML_RETURNING_DUP_BINDS: (
+        'the bind variable placeholder ":{name}" cannot be used both before '
+        "and after the RETURNING clause in a DML RETURNING statement"
+    ),
+    ERR_DUPLICATED_PARAMETER: (
+        '"{deprecated_name}" and "{new_name}" cannot be specified together'
+    ),
+    ERR_EXCEEDED_IDLE_TIME: (
+        "the database closed the connection because the connection's idle "
+        "time has been exceeded"
+    ),
+    ERR_EXECUTE_MODE_ONLY_FOR_DML: (
+        'parameters "batcherrors" and "arraydmlrowcounts" may only be '
+        "true when used with insert, update, delete and merge statements"
+    ),
+    ERR_EXPECTING_LIST_FOR_ARRAY_VAR: (
+        "expecting list when setting array variables"
+    ),
+    ERR_EXPECTING_TYPE: "expected a type",
+    ERR_EXPECTING_VAR: (
+        "type handler should return None or the value returned by a call "
+        "to cursor.var()"
+    ),
+    ERR_EXPIRED_ACCESS_TOKEN: "access token has expired",
+    ERR_FEATURE_NOT_SUPPORTED: (
+        "{feature} is only supported in python-oracledb {driver_type} mode"
+    ),
+    ERR_HTTPS_PROXY_REQUIRES_TCPS: (
+        "https_proxy requires use of the tcps protocol"
+    ),
+    ERR_IFILE_CYCLE_DETECTED: (
+        "file '{including_file_name}' includes file '{included_file_name}', "
+        "which forms a cycle"
+    ),
+    ERR_INCONSISTENT_DATATYPES: (
+        "cannot convert from data type {input_type} to {output_type}"
+    ),
+    ERR_INCORRECT_VAR_ARRAYSIZE: (
+        "variable array size of {var_arraysize} is "
+        "too small (should be at least {required_arraysize})"
+    ),
+    ERR_INIT_ORACLE_CLIENT_NOT_CALLED: (
+        "init_oracle_client() must be called first"
+    ),
+    ERR_INTEGER_TOO_LARGE: (
+        "internal error: read integer of length {length} when expecting "
+        "integer of no more than length {max_length}"
+    ),
+    ERR_INVALID_ACCESS_TOKEN_PARAM: (
+        "invalid access token: value must be a string (for OAuth), a "
+        "2-tuple containing the token and private key strings (for IAM), "
+        "or a callable that returns a string or 2-tuple"
+    ),
+    ERR_INVALID_ACCESS_TOKEN_RETURNED: (
+        "invalid access token returned from callable: value must be a "
+        "string (for OAuth) or a 2-tuple containing the token and private "
+        "key strings (for IAM)"
+    ),
+    ERR_INVALID_ARRAYSIZE: "arraysize must be an integer greater than zero",
+    ERR_INVALID_BIND_NAME: (
+        'no bind placeholder named ":{name}" was found in the SQL text'
+    ),
+    ERR_INVALID_CONN_CLASS: "invalid connection class",
+    ERR_INVALID_CONNECT_DESCRIPTOR: 'invalid connect descriptor "{data}"',
+    ERR_INVALID_CONNECT_PARAMS: "invalid connection params",
+    ERR_INVALID_COLL_INDEX_GET: "element at index {index} does not exist",
+    ERR_INVALID_COLL_INDEX_SET: (
+        "given index {index} must be in the range of {min_index} to "
+        "{max_index}"
+    ),
+    ERR_INVALID_ENUM_VALUE: "invalid value for enumeration {name}: {value}",
+    ERR_INVALID_LOB_AMOUNT: "LOB amount must be greater than zero",
+    ERR_INVALID_LOB_OFFSET: "LOB offset must be greater than zero",
+    ERR_INVALID_MAKEDSN_ARG: '"{name}" argument contains invalid values',
+    ERR_INVALID_NUMBER: "invalid number",
+    ERR_INVALID_OBJECT_TYPE_NAME: 'invalid object type name: "{name}"',
+    ERR_INVALID_OCI_ATTR_TYPE: "invalid OCI attribute type {attr_type}",
+    ERR_INVALID_PASSWORD_TYPE: 'invalid password type "{password_type}"',
+    ERR_INVALID_POOL_CLASS: "invalid connection pool class",
+    ERR_INVALID_POOL_PARAMS: "invalid pool params",
+    ERR_INVALID_PROTOCOL: 'invalid protocol "{protocol}"',
+    ERR_INVALID_REDIRECT_DATA: "invalid redirect data {data}",
+    ERR_INVALID_REF_CURSOR: "invalid REF CURSOR: never opened in PL/SQL",
+    ERR_INVALID_SERVER_CERT_DN: (
+        "The distinguished name (DN) on the server certificate does not "
+        "match the expected value: {expected_dn}"
+    ),
+    ERR_INVALID_SERVER_NAME: (
+        "The name on the server certificate does not match the expected "
+        'value: "{expected_name}"'
+    ),
+    ERR_INVALID_SERVER_TYPE: "invalid server_type: {server_type}",
+    ERR_INVALID_SERVICE_NAME: (
+        'Service "{service_name}" is not registered with the listener at '
+        'host "{host}" port {port}. (Similar to ORA-12514)'
+    ),
+    ERR_INVALID_SID: (
+        'SID "{sid}" is not registered with the listener at host "{host}" '
+        "port {port}. (Similar to ORA-12505)"
+    ),
+    ERR_INVALID_SSL_VERSION: 'invalid value for ssl_version: "{ssl_version}"',
+    ERR_INVALID_TPC_BEGIN_FLAGS: "invalid flags for tpc_begin()",
+    ERR_INVALID_TPC_END_FLAGS: "invalid flags for tpc_end()",
+    ERR_INVALID_VECTOR: "vector cannot contain zero dimensions",
+    ERR_KEYWORD_ARGS_MUST_BE_DICT: (
+        '"keyword_parameters" argument must be a dict'
+    ),
+    ERR_LIBRARY_ALREADY_INITIALIZED: (
+        "init_oracle_client() was already called with different arguments"
+    ),
+    ERR_LISTENER_REFUSED_CONNECTION: (
+        "Listener refused connection. (Similar to ORA-{error_code})"
+    ),
+    ERR_LOB_OF_WRONG_TYPE: (
+        "LOB is of type {actual_type_name} but must be of type "
+        "{expected_type_name}"
+    ),
+    ERR_MESSAGE_HAS_NO_PAYLOAD: "message has no payload",
+    ERR_MESSAGE_TYPE_UNKNOWN: (
+        "internal error: unknown protocol message type {message_type} "
+        "at position {position}"
+    ),
+    ERR_MISMATCHED_TOKEN: (
+        "internal error: pipeline token number {token_num} does not match "
+        "expected token number {expected_token_num}"
+    ),
+    ERR_MISSING_ADDRESS: (
+        "no addresses are defined in connect descriptor: {connect_string}"
+    ),
+    ERR_MISSING_BIND_VALUE: (
+        'a bind variable replacement value for placeholder ":{name}" was '
+        "not provided"
+    ),
+    ERR_MISSING_CONNECT_DESCRIPTOR: (
+        '"connect_descriptor" key missing from configuration'
+    ),
+    ERR_MISSING_FILE: "file '{file_name}' is missing or unreadable",
+    ERR_MISSING_ENDING_DOUBLE_QUOTE: 'missing ending quote (")',
+    ERR_MISSING_ENDING_SINGLE_QUOTE: "missing ending quote (')",
+    ERR_MISSING_TYPE_NAME_FOR_OBJECT_VAR: (
+        "no object type specified for object variable"
+    ),
+    ERR_MIXED_ELEMENT_TYPES: (
+        "element {element} is not the same data type as previous elements"
+    ),
+    ERR_MIXED_POSITIONAL_AND_NAMED_BINDS: (
+        "positional and named binds cannot be intermixed"
+    ),
+    ERR_NAMED_POOL_EXISTS: (
+        'connection pool with alias "{alias}" already exists'
+    ),
+    ERR_NAMED_POOL_MISSING: (
+        'connection pool with alias "{alias}" does not exist'
+    ),
+    ERR_NAMED_TIMEZONE_NOT_SUPPORTED: (
+        "named time zones are not supported in thin mode"
+    ),
+    ERR_NCHAR_CS_NOT_SUPPORTED: (
+        "national character set id {charset_id} is not supported by "
+        "python-oracledb in thin mode"
+    ),
+    ERR_NO_CONFIG_DIR: "no configuration directory specified",
+    ERR_NO_CREDENTIALS: "no credentials specified",
+    ERR_NO_CRYPTOGRAPHY_PACKAGE: (
+        "python-oracledb thin mode cannot be used because the "
+        "cryptography package cannot be imported"
+    ),
+    ERR_NO_STATEMENT: "no statement specified and no prior statement prepared",
+    ERR_NO_STATEMENT_EXECUTED: "no statement executed",
+    ERR_NO_STATEMENT_PREPARED: "statement must be prepared first",
+    ERR_NOT_A_QUERY: "the executed statement does not return rows",
+    //ERR_NOT_CONNECTED: "not connected to database",
+    ERR_NOT_IMPLEMENTED: "not implemented",
+    ERR_NUMBER_STRING_OF_ZERO_LENGTH: "invalid number: zero length string",
+    ERR_NUMBER_STRING_TOO_LONG: "invalid number: string too long",
+    ERR_NUMBER_WITH_EMPTY_EXPONENT: "invalid number: empty exponent",
+    ERR_NUMBER_WITH_INVALID_EXPONENT: "invalid number: invalid exponent",
+    ERR_OBJECT_IS_NOT_A_COLLECTION: "object {name} is not a collection",
+    ERR_OPERATION_NOT_SUPPORTED_ON_BFILE: (
+        "operation is not supported on BFILE LOBs"
+    ),
+    ERR_OPERATION_ONLY_SUPPORTED_ON_BFILE: (
+        "operation is only supported on BFILE LOBs"
+    ),
+    ERR_ORACLE_NUMBER_NO_REPR: (
+        "value cannot be represented as an Oracle number"
+    ),
+    ERR_ORACLE_TYPE_NAME_NOT_SUPPORTED: (
+        'Oracle data type name "{name}" is not supported'
+    ),
+    ERR_ORACLE_TYPE_NOT_SUPPORTED: "Oracle data type {num} is not supported",
+    ERR_OSON_FIELD_NAME_LIMITATION: (
+        "OSON field names may not exceed {max_fname_size} UTF-8 encoded bytes"
+    ),
+    ERR_OSON_NODE_TYPE_NOT_SUPPORTED: (
+        "OSON node type 0x{node_type:x} is not supported"
+    ),
+    ERR_OSON_VERSION_NOT_SUPPORTED: "OSON version {version} is not supported",
+    ERR_PARAMS_HOOK_HANDLER_FAILED: (
+        "registered handler for params hook failed"
+    ),
+    ERR_PASSWORD_TYPE_HANDLER_FAILED: (
+        'registered handler for password type "{password_type}" failed'
+    ),
+    ERR_PAYLOAD_CANNOT_BE_ENQUEUED: (
+        "payload cannot be enqueued since it does not match the payload type "
+        "supported by the queue"
+    ),
+    ERR_PLAINTEXT_PASSWORD_IN_CONFIG: (
+        "password in configuration must specify a type"
+    ),
+    ERR_POOL_HAS_BUSY_CONNECTIONS: (
+        "connection pool cannot be closed because connections are busy"
+    ),
+    ERR_POOL_NO_CONNECTION_AVAILABLE: (
+        "timed out waiting for the connection pool to return a connection"
+    ),
+    ERR_POOL_NOT_OPEN: "connection pool is not open",
+    ERR_PROTOCOL_HANDLER_FAILED: (
+        'registered handler for protocol "{protocol}" failed for arg "{arg}"'
+    ),
+    ERR_PROXY_FAILURE: "network proxy failed: response was {response}",
+    ERR_PYTHON_TYPE_NOT_SUPPORTED: "Python type {typ} is not supported",
+    ERR_PYTHON_VALUE_NOT_SUPPORTED: (
+        'Python value of type "{type_name}" is not supported'
+    ),
+    ERR_SCROLL_OUT_OF_RESULT_SET: (
+        "scroll operation would go out of the result set"
+    ),
+    ERR_SELF_BIND_NOT_SUPPORTED: "binding to self is not supported",
+    ERR_CONNECTION_CLOSED: "the database or network closed the connection",
+    ERR_SERVER_VERSION_NOT_SUPPORTED: (
+        "connections to this database server version are not supported "
+        "by python-oracledb in thin mode"
+    ),
+    ERR_TDS_TYPE_NOT_SUPPORTED: "Oracle TDS data type {num} is not supported",
+    ERR_THICK_MODE_ENABLED: (
+        "python-oracledb thin mode cannot be used because thick mode has "
+        "already been enabled"
+    ),
+    ERR_THIN_CONNECTION_ALREADY_CREATED: (
+        "python-oracledb thick mode cannot be used because thin mode has "
+        "already been enabled or a thin mode connection has already been "
+        "created"
+    ),
+    ERR_TIME_NOT_SUPPORTED: (
+        "Oracle Database does not support time only variables"
+    ),
+    ERR_TNS_ENTRY_NOT_FOUND: 'unable to find "{name}" in {file_name}',
+    ERR_TOO_MANY_BATCH_ERRORS: (
+        "the number of batch errors from executemany() exceeds 65535"
+    ),
+    ERR_UNEXPECTED_PIPELINE_FAILURE: "unexpected pipeline failure",
+    ERR_UNEXPECTED_DATA: "unexpected data received: {data}",
+    ERR_UNEXPECTED_END_OF_DATA: (
+        "unexpected end of data: want {num_bytes_wanted} bytes but "
+        "only {num_bytes_available} bytes are available"
+    ),
+    ERR_UNEXPECTED_NEGATIVE_INTEGER: (
+        "internal error: read a negative integer when expecting a "
+        "positive integer"
+    ),
+    ERR_UNEXPECTED_REFUSE: (
+        "the listener refused the connection but an unexpected error "
+        "format was returned"
+    ),
+    ERR_UNEXPECTED_XML_TYPE: "unexpected XMLType with flag {flag}",
+    ERR_UNKNOWN_SERVER_PIGGYBACK: (
+        "internal error: unknown server side piggyback opcode {opcode}"
+    ),
+    ERR_UNKNOWN_TRANSACTION_STATE: (
+        "internal error: unknown transaction state {state}"
+    ),
+    ERR_UNSUPPORTED_PIPELINE_OPERATION: (
+        "unsupported pipeline operation type: {op_type}"
+    ),
+    ERR_UNSUPPORTED_INBAND_NOTIFICATION: (
+        "unsupported in-band notification with error number {err_num}"
+    ),
+    ERR_UNSUPPORTED_PYTHON_TYPE_FOR_DB_TYPE: (
+        "unsupported Python type {py_type_name} for database type "
+        "{db_type_name}"
+    ),
+    ERR_UNSUPPORTED_TYPE_SET: "type {db_type_name} does not support being set",
+    ERR_UNSUPPORTED_VERIFIER_TYPE: (
+        "password verifier type 0x{verifier_type:x} is not supported by "
+        "python-oracledb in thin mode"
+    ),
+    ERR_VECTOR_FORMAT_NOT_SUPPORTED: (
+        "VECTOR type {vector_format} is not supported"
+    ),
+    ERR_VECTOR_VERSION_NOT_SUPPORTED: (
+        "VECTOR version {version} is not supported"
+    ),
+    ERR_WALLET_FILE_MISSING: "wallet file {name} was not found",
+    ERR_WRONG_ARRAY_DEFINITION: (
+        "expecting a list of two elements [type, numelems]"
+    ),
+    ERR_WRONG_EXECUTE_PARAMETERS_TYPE: (
+        "expecting a dictionary, list or tuple, or keyword args"
+    ),
+    ERR_WRONG_EXECUTEMANY_PARAMETERS_TYPE: (
+        '"parameters" argument should be a list of sequences or '
+        "dictionaries, or an integer specifying the number of "
+        "times to execute the statement"
+    ),
+    ERR_WRONG_NUMBER_OF_POSITIONAL_BINDS: (
+        "{expected_num} positional bind values are required but "
+        "{actual_num} were provided"
+    ),
+    ERR_WRONG_OBJECT_TYPE: (
+        'found object of type "{actual_schema}.{actual_name}" when '
+        'expecting object of type "{expected_schema}.{expected_name}"'
+    ),
+    ERR_WRONG_SCROLL_MODE: (
+        "scroll mode must be relative, absolute, first or last"
+    ),
+    WRN_COMPILATION_ERROR: "creation succeeded with compilation errors",
+    ERR_INVALID_NETWORK_NAME: (
+        '"{name}" includes characters that are not allowed'
+    ),
+    ERR_ARROW_UNSUPPORTED_DATA_TYPE: (
+        "conversion from Oracle Database type {db_type_name} to Apache "
+        "Arrow format is not supported"
+    ),
+    ERR_ARROW_C_API_ERROR: (
+        "Arrow C Data Interface operation failed with error code {code}"
+    ),
+  // Add the rest of the DPY messages here...
+};
+
+// Map Oracle ORA codes to Dart exception types (if different from default DatabaseError)
+final Map<int, Type> _oraCodeExceptionTypeMap = {
+  // Integrity Errors
+  1: OracleIntegrityError,
+  1400: OracleIntegrityError,
+  1438: OracleIntegrityError,
+  2290: OracleIntegrityError,
+  2291: OracleIntegrityError,
+  2292: OracleIntegrityError,
+  21525: OracleIntegrityError,
+  40479: OracleIntegrityError,
+
+  // Interface Errors
+  24422: OracleInterfaceError,
+
+  // Operational Errors
+  22: OracleOperationalError,
+  378: OracleOperationalError,
+  600: OracleOperationalError,
+  602: OracleOperationalError,
+  603: OracleOperationalError,
+  604: OracleOperationalError,
+  609: OracleOperationalError,
+  1012: OracleOperationalError,
+  1013: OracleOperationalError,
+  1033: OracleOperationalError,
+  1034: OracleOperationalError,
+  1041: OracleOperationalError,
+  1043: OracleOperationalError,
+  1089: OracleOperationalError,
+  1090: OracleOperationalError,
+  1092: OracleOperationalError,
+  3111: OracleOperationalError,
+  3113: OracleOperationalError,
+  3114: OracleOperationalError,
+  3122: OracleOperationalError,
+  3135: OracleOperationalError,
+  12153: OracleOperationalError,
+  12203: OracleOperationalError,
+  12500: OracleOperationalError,
+  12571: OracleOperationalError,
+  27146: OracleOperationalError,
+  28511: OracleOperationalError,
+
+  // Warnings
+  24344: OracleWarning,
+};
+
+// Map DPY codes to session dead status
+final Set<int> _sessionDeadDpyCodes = {
+  ERR_CONNECTION_CLOSED,
+};
+
+// Map ORA codes to session dead status
+final Set<int> _sessionDeadOraCodes = {
+  22, 28, 31, 45, 378, 600, 602, 603, 609, 1012, 1041, 1043, 1089, 1092,
+  2396, 3113, 3114, 3122, 3135, 12153, 12537, 12547, 12570, 12583,
+  27146, 28511, 56600,
+};
+
+/*
+// Map full codes (DPY-xxxx) to troubleshooting availability (Commented out as unused currently)
+final Set<String> _troubleshootingAvailable = {
+  "DPI-1047", // Oracle Client library cannot be loaded
+  "DPI-1072", // Oracle Client library version is unsupported
+  "DPY-3010", // connections to Oracle Database version not supported
+  "DPY-3015", // password verifier type is not supported
+  "DPY-4011", // the database or network closed the connection
+};
+*/
+
+// Internal helper to create exceptions (example, likely part of error handling logic)
+OracleException createOracleException(
+    {required String message,
+    int? oraCode,
+    int? dpyCode,
+    int? offset,
+    bool isRecoverable = false,
+    String? context,
+    Object? cause}) {
+
+  String? fullCode;
+  Type exceptionType = OracleDatabaseError; // Default
+  bool isSessionDead = false;
+
+  if (dpyCode != null) {
+    fullCode = '$_errPrefix-${dpyCode.toString().padLeft(4, '0')}';
+    exceptionType = _exceptionTypeMap[dpyCode ~/ 1000] ?? OracleDatabaseError;
+    isSessionDead = _sessionDeadDpyCodes.contains(dpyCode);
+    final format = _errorMessageFormats[dpyCode];
+    if (format != null) {
+      // Basic placeholder replacement (real implementation needs more robust formatting)
+      var formattedMessage =
+          format.replaceAll('{error_num}', dpyCode.toString());
+      // Add more replacements as needed based on args in the Python version
+      message = '$formattedMessage\n$message';
+    } else {
+      final fallbackFormat =
+          _errorMessageFormats[ERR_MISSING_ERROR] ?? 'missing error {error_num}';
+      message =
+          '${fallbackFormat.replaceAll('{error_num}', dpyCode.toString())}\n$message';
+    }
+  } else if (oraCode != null) {
+    exceptionType = _oraCodeExceptionTypeMap[oraCode] ?? OracleDatabaseError;
+    isSessionDead = _sessionDeadOraCodes.contains(oraCode);
+  }
+
+  // Determine the final class to instantiate
+  OracleException instance;
+  if (exceptionType == OracleIntegrityError) {
+    instance = OracleIntegrityError(message, code: oraCode, fullCode: fullCode, offset: offset, context: context, cause: cause);
+  } else if (exceptionType == OracleInterfaceError) {
+     instance = OracleInterfaceError(message, code: oraCode, fullCode: fullCode, offset: offset, context: context, cause: cause);
+  } else if (exceptionType == OracleOperationalError) {
+     instance = OracleOperationalError(message, code: oraCode, fullCode: fullCode, offset: offset, isRecoverable: isRecoverable, isSessionDead: isSessionDead, context: context, cause: cause);
+  } else if (exceptionType == OracleInternalError) {
+     instance = OracleInternalError(message, code: oraCode, fullCode: fullCode, offset: offset, context: context, cause: cause);
+  } else if (exceptionType == OracleNotSupportedError) {
+     instance = OracleNotSupportedError(message, code: oraCode, fullCode: fullCode, offset: offset, context: context, cause: cause);
+  } else if (exceptionType == OracleProgrammingError) {
+     instance = OracleProgrammingError(message, code: oraCode, fullCode: fullCode, offset: offset, context: context, cause: cause);
+  } else if (exceptionType == OracleDataError) {
+     instance = OracleDataError(message, code: oraCode, fullCode: fullCode, offset: offset, context: context, cause: cause);
+  } else if (exceptionType == OracleWarning) {
+    instance = OracleWarning(message, code: oraCode, fullCode: fullCode, offset: offset, context: context, cause: cause);
+  } else { // Default to OracleDatabaseError
+    instance = OracleDatabaseError(message, code: oraCode, fullCode: fullCode, offset: offset, isRecoverable: isRecoverable, isSessionDead: isSessionDead, context: context, cause: cause);
+  }
+
+  return instance;
+}
+
+
+
+// Arquivo: \src\thin\connection.dart
+
+import 'dart:io';
+import 'dart:typed_data';
+
+import '../exceptions.dart';
+import 'connect_params.dart';
+import 'debug/auth_logger.dart';
+import 'protocol/capabilities.dart';
+import 'protocol/constants.dart';
+import 'protocol/messages/base.dart';
+import 'protocol/messages/connect.dart';
+import 'protocol/messages/protocol.dart';
+import 'protocol/messages/data_types.dart';
+import 'protocol/messages/auth.dart';
+import 'protocol/packet.dart';
+import 'protocol/transport.dart';
+
+/// Thin connection stub. Opens a socket and prepares transport; handshake/login
+/// is still to be implemented.
+class ThinConnection {
+  ThinConnection(this.params)
+      : _transport = Transport(),
+        capabilities = Capabilities();
+
+  final ConnectParams params;
+  final Transport _transport;
+  final Capabilities capabilities;
+  bool _connected = false;
+  Packet? _pendingPacket;
+  Uint8List? comboKey; // combo key derived during auth
+  Uint8List? sessionKey; // session key from verifier negotiation
+  String? sessionSignature;
+  Uint8List? ltxid;
+  Map<String, String> sessionData = {};
+  int? sessionId;
+  int? serialNum;
+  String? dbDomain;
+  String? dbName;
+  int? maxOpenCursors;
+  String? serviceFromServer;
+  String? instanceName;
+  int? maxIdentifierLength;
+  List<int>? serverVersion;
+  bool supportsBool = false;
+  String? edition;
+
+  bool get isConnected => _connected && _transport.isConnected;
+
+  /// Establish a TCP connection to the Oracle listener. Handshake/login TODO.
+  Future<void> connect() async {
+    final socket = await Socket.connect(
+      params.host,
+      params.port,
+      timeout: const Duration(seconds: 5),
+    );
+    _transport.setFromSocket(socket);
+    // Build connect descriptor string
+    final connectString =
+        "(DESCRIPTION=(ADDRESS=(PROTOCOL=TCP)(HOST=${params.host})(PORT=${params.port}))"
+        "(CONNECT_DATA=(SERVICE_NAME=${params.serviceName})))";
+    final connectMsg = ConnectMessage(
+      connectStringBytes: connectString.codeUnits,
+      host: params.host,
+      port: params.port,
+      sdu: capabilities.sdu,
+    )..initialize(this);
+    print('DEBUG: needsConnectData=${connectMsg.needsConnectData}');
+
+    final packetBytes = connectMsg.buildPacket();
+    await _transport.sendRaw(packetBytes);
+    final connectDataPacket = connectMsg.buildConnectDataPacket();
+    if (connectDataPacket != null) {
+      await _transport.sendRaw(connectDataPacket);
+    }
+
+    // Wait for ACCEPT/REFUSE/REDIRECT
+    var packet = await _transport.readPacket();
+    print('DEBUG: Initial response packet type ${packet.packetType}');
+    if (packet.packetType == TNS_PACKET_TYPE_RESEND) {
+      print('DEBUG: Server requested CONNECT resend');
+      await _transport.sendRaw(packetBytes);
+      if (connectDataPacket != null) {
+        await _transport.sendRaw(connectDataPacket);
+      }
+      packet = await _transport.readPacket();
+      print('DEBUG: Response after resend packet type ${packet.packetType}');
+    }
+    final body =
+        Uint8List.sublistView(packet.buf, packetHeaderSize, packet.packetSize);
+    final buf = ReadBuffer(body);
+    connectMsg.process(buf, packet.packetType);
+
+    // Disable end-of-response for Protocol and DataTypes messages
+    // as the server doesn't send it for these messages
+    final savedSupportsEOR = capabilities.supportsEndOfResponse;
+    capabilities.supportsEndOfResponse = false;
+
+    // Send Protocol message
+    print('DEBUG: Sending Protocol message...');
+    final protocolMsg = ProtocolMessage()..initialize(this);
+    final protocolPkt = protocolMsg.buildRequest();
+    print('DEBUG: Protocol packet (${protocolPkt.length} bytes): ${protocolPkt.take(50).map((b) => b.toRadixString(16).padLeft(2, '0')).join(' ')}');
+    await _transport.sendRaw(protocolPkt);
+    print('DEBUG: Receiving Protocol response...');
+    await _receiveMessage(protocolMsg);
+    print('DEBUG: Protocol message complete');
+
+    // Send DataTypes message
+    print('DEBUG: Sending DataTypes message...');
+    final dataTypesMsg = DataTypesMessage()..initialize(this);
+    final dataTypesPkt = dataTypesMsg.buildRequest();
+    print('DEBUG: DataTypes packet (${dataTypesPkt.length} bytes):');
+    _printHexDump(dataTypesPkt);
+    await _transport.sendRaw(dataTypesPkt);
+    print('DEBUG: Receiving DataTypes response...');
+    await _receiveMessage(dataTypesMsg);
+    print('DEBUG: DataTypes message complete');
+    print('DEBUG: ttcFieldVersion after negotiation: ${capabilities.ttcFieldVersion}');
+
+    // Restore end-of-response support
+    capabilities.supportsEndOfResponse = savedSupportsEOR;
+
+    // AUTH phase 1: request session data (no password)
+    print('DEBUG: Sending AUTH phase 1...');
+    final authPhase1 = AuthMessage(
+      user: params.user,
+      password: params.password,
+      serviceName: params.serviceName,
+      charsetId: capabilities.charsetId,
+      ncharsetId: capabilities.ncharsetId,
+      capabilities: capabilities,
+      includePassword: false,
+    )..initialize(this);
+    final pkt1 = authPhase1.buildRequest();
+    AuthPacketLogger.logSend(authPhase1.traceLabel, pkt1);
+    print('DEBUG: AUTH phase 1 packet (${pkt1.length} bytes):');
+    _printHexDump(pkt1);
+    await _transport.sendRaw(pkt1);
+    print('DEBUG: Receiving AUTH phase 1 response...');
+    await _receiveMessage(authPhase1);
+    sessionData = {...sessionData, ...authPhase1.sessionData};
+
+    // AUTH phase 2: send verifier using session data
+    final authPhase2 = AuthMessage(
+      user: params.user,
+      password: params.password,
+      serviceName: params.serviceName,
+      charsetId: capabilities.charsetId,
+      ncharsetId: capabilities.ncharsetId,
+      capabilities: capabilities,
+      includePassword: true,
+      initialSessionData: sessionData,
+    )..initialize(this);
+    final pkt2 = authPhase2.buildRequest();
+    AuthPacketLogger.logSend(authPhase2.traceLabel, pkt2);
+    await _transport.sendRaw(pkt2);
+    await _receiveMessage(authPhase2);
+    sessionData = {...sessionData, ...authPhase2.sessionData};
+
+    // Ensure session keys are available; otherwise fail fast.
+    if (comboKey == null || sessionKey == null) {
+      throw createOracleException(
+        dpyCode: ERR_CONNECTION_FAILED,
+        message:
+            'AUTH did not yield session keys; TTC login is not complete yet.',
+      );
+    }
+
+    _connected = true;
+  }
+
+  Future<void> close() async {
+    await _transport.disconnect();
+    _connected = false;
+  }
+
+  Transport get transport => _transport;
+
+  Future<void> _receiveMessage(Message message) async {
+    message.endOfResponse = false;
+    message.errorOccurred = false;
+    print('DEBUG: _receiveMessage starting, supportsEOR=${capabilities.supportsEndOfResponse}');
+    while (!message.endOfResponse) {
+      print('DEBUG: Reading packet...');
+      final packet = await _nextPacket();
+      
+      // IGNORA marker packets por enquanto - responder incorretamente causa TNS-12592
+      // TODO: implementar BREAK/RESET corretamente quando necessário
+      if (packet.packetType == TNS_PACKET_TYPE_MARKER) {
+        print('DEBUG: Received marker packet (IGNORING for now)');
+        continue;
+      }
+      
+      if (message is AuthMessage && AuthPacketLogger.enabled) {
+        final packetBytes =
+            Uint8List.fromList(packet.buf.sublist(0, packet.packetSize));
+        AuthPacketLogger.logReceive(message.traceLabel, packetBytes);
+      }
+      print('DEBUG: Got packet type=${packet.packetType}, size=${packet.packetSize}, hasEOR=${packet.hasEndOfResponse}');
+      final bodyOffset = packet.packetType == TNS_PACKET_TYPE_DATA
+          ? packetHeaderSize + 2
+          : packetHeaderSize;
+      if (packet.packetSize > bodyOffset) {
+        final body =
+            Uint8List.sublistView(packet.buf, bodyOffset, packet.packetSize);
+        final buf = ReadBuffer(body);
+        message.processBuffer(buf);
+        print('DEBUG: After processBuffer, endOfResponse=${message.endOfResponse}');
+      }
+      if (packet.hasEndOfResponse ||
+          packet.packetType != TNS_PACKET_TYPE_DATA) {
+        message.endOfResponse = true;
+        print('DEBUG: Set endOfResponse=true due to packet');
+      }
+    }
+    print('DEBUG: _receiveMessage complete');
+    message.checkAndRaiseException();
+  }
+
+  Future<Packet> _nextPacket() async {
+    if (_pendingPacket != null) {
+      final packet = _pendingPacket!;
+      _pendingPacket = null;
+      return packet;
+    }
+    return _transport.readPacket();
+  }
+
+  // TODO: Implementar BREAK/RESET corretamente quando necessário
+  // Por enquanto, marker packets são ignorados em _receiveMessage
+  // para evitar TNS-12592 "bad packet"
+  /*
+  Future<void> _handleMarkerPacket(Packet packet) async {
+    final markerType = _markerTypeFromPacket(packet);
+    print('DEBUG: Marker type=$markerType, sending RESET');
+    await _sendMarker(TNS_MARKER_TYPE_RESET);
+    Packet? nextPacket;
+    while (true) {
+      nextPacket = await _transport.readPacket();
+      if (nextPacket.packetType != TNS_PACKET_TYPE_MARKER) {
+        break;
+      }
+      final nextMarkerType = _markerTypeFromPacket(nextPacket);
+      if (nextMarkerType == TNS_MARKER_TYPE_RESET) {
+        print('DEBUG: Received RESET marker ack');
+        continue;
+      }
+    }
+    _pendingPacket = nextPacket;
+  }
+
+  int _markerTypeFromPacket(Packet packet) {
+    if (packet.packetSize < packetHeaderSize + 3) {
+      return -1;
+    }
+    return packet.buf[packetHeaderSize + 2];
+  }
+
+  Future<void> _sendMarker(int markerType) async {
+    final body = Uint8List.fromList([1, 0, markerType & 0xFF]);
+    final packet = buildTnsPacket(
+      bodyBytes: body,
+      packetType: TNS_PACKET_TYPE_MARKER,
+      useLargeSdu:
+          capabilities.protocolVersion >= TNS_VERSION_MIN_LARGE_SDU,
+    );
+    await _transport.sendRaw(packet);
+  }
+  */
+
+  void _printHexDump(Uint8List data) {
+    final sb = StringBuffer();
+    for (var i = 0; i < data.length; i += 16) {
+      final end = (i + 16).clamp(0, data.length);
+      final bytes = data.sublist(i, end);
+      final hex = bytes.map((b) => b.toRadixString(16).padLeft(2, '0')).join(' ');
+      final ascii = bytes.map((b) => (b >= 32 && b < 127) ? String.fromCharCode(b) : '.').join();
+      sb.writeln('  ${i.toRadixString(16).padLeft(4, '0')}: ${hex.padRight(48)} $ascii');
+    }
+    print(sb.toString());
+  }
+}
+
+
+
+// Arquivo: \src\thin\connect_params.dart
+
+/// Basic connection parameters for thin mode.
+class ConnectParams {
+  ConnectParams({
+    required this.host,
+    required this.port,
+    required this.serviceName,
+    required this.user,
+    required this.password,
+  });
+
+  final String host;
+  final int port;
+  final String serviceName;
+  final String user;
+  final String password;
+
+  factory ConnectParams.fromEnv(Map<String, String> env) {
+    return ConnectParams(
+      host: env['ORACLE_HOST'] ?? 'localhost',
+      port: int.tryParse(env['ORACLE_PORT'] ?? '1521') ?? 1521,
+      serviceName: env['ORACLE_SERVICE'] ?? 'XEPDB1',
+      user: env['ORACLE_USER'] ?? 'dart_user',
+      password: env['ORACLE_PASSWORD'] ?? 'dart',
+    );
+  }
+}
+
+
+
+// Arquivo: \src\thin\crypto.dart
+
+import 'dart:math';
+import 'dart:typed_data';
+
+import 'package:pointycastle/api.dart';
+import 'package:pointycastle/block/aes.dart';
+import 'package:pointycastle/block/modes/cbc.dart';
+import 'package:pointycastle/digests/md5.dart';
+import 'package:pointycastle/digests/sha1.dart';
+import 'package:pointycastle/digests/sha512.dart';
+import 'package:pointycastle/key_derivators/pbkdf2.dart' as pbkdf2;
+import 'package:pointycastle/key_derivators/api.dart' show Pbkdf2Parameters;
+import 'package:pointycastle/macs/hmac.dart';
+import 'package:pointycastle/padded_block_cipher/padded_block_cipher_impl.dart';
+import 'package:pointycastle/paddings/pkcs7.dart';
+
+Uint8List pbkdf2Sha512({
+  required Uint8List password,
+  required Uint8List salt,
+  required int iterations,
+  required int keyLength,
+}) {
+  if (iterations <= 0) {
+    throw ArgumentError.value(iterations, 'iterations', 'must be positive');
+  }
+  if (keyLength <= 0) {
+    throw ArgumentError.value(keyLength, 'keyLength', 'must be positive');
+  }
+  final derivator = pbkdf2.PBKDF2KeyDerivator(
+    HMac(SHA512Digest(), 128),
+  )..init(Pbkdf2Parameters(salt, iterations, keyLength));
+  return derivator.process(password);
+}
+
+Uint8List pbkdf2Sha1({
+  required Uint8List password,
+  required Uint8List salt,
+  required int iterations,
+  required int keyLength,
+}) {
+  if (iterations <= 0) {
+    throw ArgumentError.value(iterations, 'iterations', 'must be positive');
+  }
+  if (keyLength <= 0) {
+    throw ArgumentError.value(keyLength, 'keyLength', 'must be positive');
+  }
+  final derivator = pbkdf2.PBKDF2KeyDerivator(
+    HMac(SHA1Digest(), 64),
+  )..init(Pbkdf2Parameters(salt, iterations, keyLength));
+  return derivator.process(password);
+}
+
+Uint8List aesCbcEncrypt({
+  required Uint8List key,
+  required Uint8List iv,
+  required Uint8List plaintext,
+  bool zeroPadding = false,
+}) {
+  final padding = zeroPadding ? _ZeroPadding() : PKCS7Padding();
+  final cipher = PaddedBlockCipherImpl(padding, CBCBlockCipher(AESEngine()));
+  cipher.init(
+    true,
+    PaddedBlockCipherParameters<ParametersWithIV<KeyParameter>, CipherParameters>(
+      ParametersWithIV<KeyParameter>(KeyParameter(key), iv),
+      null,
+    ),
+  );
+  return cipher.process(plaintext);
+}
+
+Uint8List aesCbcDecrypt({
+  required Uint8List key,
+  required Uint8List iv,
+  required Uint8List ciphertext,
+  bool zeroPadding = false,
+}) {
+  final padding = zeroPadding ? _ZeroPadding() : PKCS7Padding();
+  final cipher = PaddedBlockCipherImpl(padding, CBCBlockCipher(AESEngine()));
+  cipher.init(
+    false,
+    PaddedBlockCipherParameters<ParametersWithIV<KeyParameter>, CipherParameters>(
+      ParametersWithIV<KeyParameter>(KeyParameter(key), iv),
+      null,
+    ),
+  );
+  return cipher.process(ciphertext);
+}
+
+Uint8List concat(List<Uint8List> parts) {
+  final total = parts.fold<int>(0, (sum, p) => sum + p.length);
+  final out = Uint8List(total);
+  var offset = 0;
+  for (final p in parts) {
+    out.setRange(offset, offset + p.length, p);
+    offset += p.length;
+  }
+  return out;
+}
+
+Uint8List hexToBytes(String hex) {
+  final clean = hex.replaceAll(RegExp(r'[^0-9a-fA-F]'), '');
+  final len = clean.length ~/ 2;
+  final out = Uint8List(len);
+  for (var i = 0; i < len; i++) {
+    out[i] = int.parse(clean.substring(i * 2, i * 2 + 2), radix: 16);
+  }
+  return out;
+}
+
+String bytesToHex(Uint8List bytes) =>
+    bytes.map((b) => b.toRadixString(16).padLeft(2, '0')).join().toUpperCase();
+
+Uint8List sha1Bytes(Uint8List data) => SHA1Digest().process(data);
+
+Uint8List sha512Bytes(Uint8List data) => SHA512Digest().process(data);
+
+Uint8List md5Bytes(Uint8List data) => MD5Digest().process(data);
+
+Uint8List randomBytes(int length) {
+  final rnd = Random.secure();
+  final out = Uint8List(length);
+  for (var i = 0; i < length; i++) {
+    out[i] = rnd.nextInt(256);
+  }
+  return out;
+}
+
+class _ZeroPadding implements Padding {
+  @override
+  String get algorithmName => 'ZeroPadding';
+
+  @override
+  void init([CipherParameters? params]) {}
+
+  @override
+  int addPadding(Uint8List data, int offset) {
+    final padCount = data.length - offset;
+    for (var i = offset; i < data.length; i++) {
+      data[i] = 0;
+    }
+    return padCount;
+  }
+
+  @override
+  int padCount(Uint8List data) {
+    var count = 0;
+    for (var i = data.length - 1; i >= 0; i--) {
+      if (data[i] == 0) {
+        count++;
+      } else {
+        break;
+      }
+    }
+    return count == 0 ? data.length : count;
+  }
+
+  @override
+  Uint8List process(bool pad, Uint8List data) {
+    if (pad) {
+      final out = Uint8List.fromList(data);
+      addPadding(out, data.length);
+      return out;
+    } else {
+      final padCount = this.padCount(data);
+      return Uint8List.fromList(data.sublist(0, data.length - padCount));
+    }
+  }
+}
+
+
+
+// Arquivo: \src\thin\debug\auth_logger.dart
+
+import 'dart:io';
+import 'dart:typed_data';
+
+/// Utilitário simples para registrar pacotes AUTH em hex para depuração.
+class AuthPacketLogger {
+  static final bool _enabled =
+      (Platform.environment['DART_AUTH_TRACE'] == '1') ||
+          Platform.environment.containsKey('DART_AUTH_TRACE_FILE');
+  static final String _logPath =
+      Platform.environment['DART_AUTH_TRACE_FILE'] ?? 'auth_dart_packets.log';
+  static IOSink? _sink;
+
+  static bool get enabled => _enabled;
+
+  static void logSend(String phase, Uint8List bytes) {
+    _log('SEND', phase, bytes);
+  }
+
+  static void logReceive(String phase, Uint8List bytes) {
+    _log('RECV', phase, bytes);
+  }
+
+  static void _log(String direction, String phase, Uint8List data) {
+    if (!enabled) return;
+    final sink = _sink ??= File(_logPath).openWrite(mode: FileMode.append);
+    final timestamp = DateTime.now().toIso8601String();
+    sink.writeln('[$timestamp] $direction $phase len=${data.length}');
+    sink.writeln(_formatHex(data));
+    sink.writeln('');
+    sink.flush();
+  }
+
+  static String _formatHex(Uint8List data) {
+    final buffer = StringBuffer();
+    for (var i = 0; i < data.length; i += 16) {
+      final end = (i + 16).clamp(0, data.length);
+      final chunk = data.sublist(i, end);
+      final hex = chunk
+          .map((b) => b.toRadixString(16).padLeft(2, '0'))
+          .join(' ')
+          .padRight(16 * 3 - 1);
+      final ascii = chunk
+          .map((b) => (b >= 32 && b < 127) ? String.fromCharCode(b) : '.')
+          .join();
+      buffer.writeln('${i.toRadixString(16).padLeft(4, '0')}: $hex  $ascii');
+    }
+    return buffer.toString().trimRight();
+  }
+}
+
+
+
+// Arquivo: \src\thin\protocol\capabilities.dart
+
+// lib/src/thin/protocol/capabilities.dart
+
+import 'dart:typed_data';
+import 'package:oracledb_dart/src/exceptions.dart';
+import 'constants.dart';
+
+/// Represents the negotiated capabilities between the client and server.
+/// This class holds information about supported features, protocol versions,
+/// character sets, and other parameters determined during the connection handshake.
+class Capabilities {
+  late int protocolVersion;
+  late int ttcFieldVersion;
+  int charsetId = TNS_CHARSET_UTF8; // default UTF-8
+  int ncharsetId = TNS_CHARSET_UTF16; // default UTF-16
+  late Uint8List compileCaps;
+  late Uint8List runtimeCaps;
+  late int maxStringSize;
+  bool supportsFastAuth = false;
+  bool supportsOob = false;
+  bool supportsOobCheck = false;
+  bool supportsEndOfResponse = false;
+  bool supportsPipelining = false;
+  bool supportsRequestBoundaries = false;
+  int sdu = 8192; // initial value to use
+  int _seqNum = 0; // TTC sequence number for function code messages
+
+  /// Returns the next sequence number for TTC messages.
+  /// Sequence numbers range from 1-255, wrapping around after 255.
+  int getNextSeqNum() {
+    _seqNum += 1;
+    if (_seqNum > 255) {
+      _seqNum = 1;
+    }
+    return _seqNum;
+  }
+
+  Capabilities() {
+    _initCompileCaps();
+    _initRuntimeCaps();
+  }
+
+  /// Adjusts protocol capabilities based on the server's initial response.
+  void adjustForProtocol(int protocolVersion, int protocolOptions, int flags) {
+    this.protocolVersion = protocolVersion;
+    supportsOob = (protocolOptions & TNS_GSO_CAN_RECV_ATTENTION) != 0;
+    if ((flags & TNS_ACCEPT_FLAG_FAST_AUTH) != 0) {
+      supportsFastAuth = true;
+    }
+    if ((flags & TNS_ACCEPT_FLAG_CHECK_OOB) != 0) {
+      supportsOobCheck = true;
+    }
+    if (protocolVersion >= TNS_VERSION_MIN_END_OF_RESPONSE) {
+      if ((flags & TNS_ACCEPT_FLAG_HAS_END_OF_RESPONSE) != 0) {
+        compileCaps[TNS_CCAP_TTC4] |= TNS_CCAP_END_OF_RESPONSE;
+        supportsEndOfResponse = true;
+        supportsPipelining = true;
+      }
+    }
+  }
+
+  /// Adjusts capabilities based on the server's reported compile-time capabilities.
+  void adjustForServerCompileCaps(Uint8List serverCaps) {
+    if (serverCaps[TNS_CCAP_FIELD_VERSION] < ttcFieldVersion) {
+      ttcFieldVersion = serverCaps[TNS_CCAP_FIELD_VERSION];
+      compileCaps[TNS_CCAP_FIELD_VERSION] = ttcFieldVersion;
+    }
+    if ((serverCaps[TNS_CCAP_TTC4] & TNS_CCAP_EXPLICIT_BOUNDARY) != 0) {
+      supportsRequestBoundaries = true;
+    }
+  }
+
+  /// Adjusts capabilities based on the server's reported run-time capabilities.
+  void adjustForServerRuntimeCaps(Uint8List serverCaps) {
+    if ((serverCaps[TNS_RCAP_TTC] & TNS_RCAP_TTC_32K) != 0) {
+      maxStringSize = 32767;
+    } else {
+      maxStringSize = 4000;
+    }
+    if ((serverCaps[TNS_RCAP_TTC] & TNS_RCAP_TTC_SESSION_STATE_OPS) == 0) {
+      supportsRequestBoundaries = false;
+    }
+  }
+
+  /// Checks if the national character set ID is supported (currently only UTF16).
+  /// Throws [OracleNotSupportedError] if not supported.
+  void checkNCharsetId() {
+    if (ncharsetId != TNS_CHARSET_UTF16) {
+      throw createOracleException(
+        dpyCode: ERR_NCHAR_CS_NOT_SUPPORTED,
+        message: 'National character set id $ncharsetId is not supported',
+        context: 'The thin driver currently only supports AL16UTF16',
+      );
+    }
+  }
+
+  /// Initializes the client's compile-time capabilities array.
+  void _initCompileCaps() {
+    ttcFieldVersion = TNS_CCAP_FIELD_VERSION_MAX;
+    compileCaps = Uint8List(TNS_CCAP_MAX); // Dart equivalent of bytearray
+
+    compileCaps[TNS_CCAP_SQL_VERSION] = TNS_CCAP_SQL_VERSION_MAX;
+    compileCaps[TNS_CCAP_LOGON_TYPES] = TNS_CCAP_O5LOGON |
+        TNS_CCAP_O5LOGON_NP |
+        TNS_CCAP_O7LOGON |
+        TNS_CCAP_O8LOGON_LONG_IDENTIFIER |
+        TNS_CCAP_O9LOGON_LONG_PASSWORD;
+    compileCaps[TNS_CCAP_FEATURE_BACKPORT] = TNS_CCAP_CTB_IMPLICIT_POOL;
+    compileCaps[TNS_CCAP_FIELD_VERSION] = ttcFieldVersion;
+    compileCaps[TNS_CCAP_SERVER_DEFINE_CONV] = 1;
+    compileCaps[TNS_CCAP_DEQUEUE_WITH_SELECTOR] = 1;
+    compileCaps[TNS_CCAP_TTC1] = TNS_CCAP_FAST_BVEC |
+        TNS_CCAP_END_OF_CALL_STATUS |
+        TNS_CCAP_IND_RCD;
+    compileCaps[TNS_CCAP_OCI1] = TNS_CCAP_FAST_SESSION_PROPAGATE |
+        TNS_CCAP_APP_CTX_PIGGYBACK;
+    compileCaps[TNS_CCAP_TDS_VERSION] = TNS_CCAP_TDS_VERSION_MAX;
+    compileCaps[TNS_CCAP_RPC_VERSION] = TNS_CCAP_RPC_VERSION_MAX;
+    compileCaps[TNS_CCAP_RPC_SIG] = TNS_CCAP_RPC_SIG_VALUE;
+    compileCaps[TNS_CCAP_DBF_VERSION] = TNS_CCAP_DBF_VERSION_MAX;
+    compileCaps[TNS_CCAP_LOB] = TNS_CCAP_LOB_UB8_SIZE |
+        TNS_CCAP_LOB_ENCS |
+        TNS_CCAP_LOB_PREFETCH_LENGTH |
+        TNS_CCAP_LOB_TEMP_SIZE |
+        TNS_CCAP_LOB_12C |
+        TNS_CCAP_LOB_PREFETCH_DATA;
+    compileCaps[TNS_CCAP_UB2_DTY] = 1;
+    compileCaps[TNS_CCAP_LOB2] = TNS_CCAP_LOB2_QUASI |
+        TNS_CCAP_LOB2_2GB_PREFETCH;
+    compileCaps[TNS_CCAP_TTC3] = TNS_CCAP_IMPLICIT_RESULTS |
+        TNS_CCAP_BIG_CHUNK_CLR |
+        TNS_CCAP_KEEP_OUT_ORDER |
+        TNS_CCAP_LTXID;
+    compileCaps[TNS_CCAP_TTC2] = TNS_CCAP_ZLNP;
+    compileCaps[TNS_CCAP_OCI2] = TNS_CCAP_DRCP;
+    compileCaps[TNS_CCAP_CLIENT_FN] = TNS_CCAP_CLIENT_FN_MAX;
+    compileCaps[TNS_CCAP_SESS_SIGNATURE_VERSION] = TNS_CCAP_FIELD_VERSION_12_2;
+    compileCaps[TNS_CCAP_TTC4] = TNS_CCAP_INBAND_NOTIFICATION |
+        TNS_CCAP_EXPLICIT_BOUNDARY;
+    compileCaps[TNS_CCAP_TTC5] = TNS_CCAP_VECTOR_SUPPORT |
+        TNS_CCAP_TOKEN_SUPPORTED |
+        TNS_CCAP_PIPELINING_SUPPORT |
+        TNS_CCAP_PIPELINING_BREAK;
+    compileCaps[TNS_CCAP_VECTOR_FEATURES] = TNS_CCAP_VECTOR_FEATURE_BINARY |
+        TNS_CCAP_VECTOR_FEATURE_SPARSE;
+  }
+
+  /// Initializes the client's run-time capabilities array.
+  void _initRuntimeCaps() {
+    runtimeCaps = Uint8List(TNS_RCAP_MAX); // Dart equivalent of bytearray
+
+    runtimeCaps[TNS_RCAP_COMPAT] = TNS_RCAP_COMPAT_81;
+    runtimeCaps[TNS_RCAP_TTC] = TNS_RCAP_TTC_ZERO_COPY | TNS_RCAP_TTC_32K;
+  }
+}
+
+
+
+// Arquivo: \src\thin\protocol\constants.dart
+
+// lib/src/thin/protocol/constants.dart
+
+// ignore_for_file: constant_identifier_names
+
+// packet types
+const int TNS_PACKET_TYPE_CONNECT = 1;
+const int TNS_PACKET_TYPE_ACCEPT = 2;
+const int TNS_PACKET_TYPE_REFUSE = 4;
+const int TNS_PACKET_TYPE_DATA = 6;
+const int TNS_PACKET_TYPE_RESEND = 11;
+const int TNS_PACKET_TYPE_MARKER = 12;
+const int TNS_PACKET_TYPE_CONTROL = 14;
+const int TNS_PACKET_TYPE_REDIRECT = 5;
+
+// packet flags
+const int TNS_PACKET_FLAG_REDIRECT = 0x04;
+const int TNS_PACKET_FLAG_TLS_RENEG = 0x08;
+
+// data flags
+const int TNS_DATA_FLAGS_BEGIN_PIPELINE = 0x1000;
+const int TNS_DATA_FLAGS_END_OF_REQUEST = 0x800;
+const int TNS_DATA_FLAGS_END_OF_RESPONSE = 0x2000;
+const int TNS_DATA_FLAGS_EOF = 0x0040;
+
+// marker types
+const int TNS_MARKER_TYPE_BREAK = 1;
+const int TNS_MARKER_TYPE_RESET = 2;
+const int TNS_MARKER_TYPE_INTERRUPT = 3;
+
+// AQ delivery modes
+const int TNS_AQ_MSG_BUFFERED = 2;
+const int TNS_AQ_MSG_PERSISTENT = 1;
+const int TNS_AQ_MSG_PERSISTENT_OR_BUFFERED = 3;
+
+// AQ dequeue modes
+const int TNS_AQ_DEQ_BROWSE = 1;
+const int TNS_AQ_DEQ_LOCKED = 2;
+const int TNS_AQ_DEQ_REMOVE = 3;
+const int TNS_AQ_DEQ_REMOVE_NODATA = 4;
+
+// AQ dequeue navigation modes
+const int TNS_AQ_DEQ_FIRST_MSG = 1;
+const int TNS_AQ_DEQ_NEXT_MSG = 3;
+const int TNS_AQ_DEQ_NEXT_TRANSACTION = 2;
+
+// AQ dequeue visibility modes
+const int TNS_AQ_DEQ_IMMEDIATE = 1;
+const int TNS_AQ_DEQ_ON_COMMIT = 2;
+
+// AQ dequeue wait modes
+const int TNS_AQ_DEQ_NO_WAIT = 0;
+const int TNS_AQ_DEQ_WAIT_FOREVER = 0xFFFFFFFF; // 4294967295
+
+// AQ enqueue visibility modes
+const int TNS_AQ_ENQ_IMMEDIATE = 1;
+const int TNS_AQ_ENQ_ON_COMMIT = 2;
+
+// AQ message states
+const int TNS_AQ_MSG_EXPIRED = 3;
+const int TNS_AQ_MSG_PROCESSED = 2;
+const int TNS_AQ_MSG_READY = 0;
+const int TNS_AQ_MSG_WAITING = 1;
+
+// AQ other constants
+const int TNS_AQ_MSG_NO_DELAY = 0;
+const int TNS_AQ_MSG_NO_EXPIRATION = -1;
+const int TNS_AQ_ARRAY_ENQ = 0x01;
+const int TNS_AQ_ARRAY_DEQ = 0x02;
+const int TNS_AQ_ARRAY_FLAGS_RETURN_MESSAGE_ID = 0x01;
+const int TNS_TTC_ENQ_STREAMING_ENABLED = 0x00000001;
+const int TNS_TTC_ENQ_STREAMING_DISABLED = 0x00000000;
+
+// AQ flags
+const int TNS_KPD_AQ_BUFMSG = 0x02;
+const int TNS_KPD_AQ_EITHER = 0x10;
+
+// errors (internal TNS codes, not usually exposed directly as exceptions)
+const int TNS_ERR_INCONSISTENT_DATA_TYPES = 932;
+const int TNS_ERR_VAR_NOT_IN_SELECT_LIST = 1007;
+const int TNS_ERR_INBAND_MESSAGE = 12573;
+const int TNS_ERR_INVALID_SERVICE_NAME = 12514;
+const int TNS_ERR_INVALID_SID = 12505;
+const int TNS_ERR_NO_DATA_FOUND = 1403;
+const int TNS_ERR_SESSION_SHUTDOWN = 12572;
+const int TNS_ERR_ARRAY_DML_ERRORS = 24381;
+const int TNS_ERR_EXCEEDED_IDLE_TIME = 2396;
+const int TNS_ERR_NO_MESSAGES_FOUND = 25228;
+
+// message types
+const int TNS_MSG_TYPE_PROTOCOL = 1;
+const int TNS_MSG_TYPE_DATA_TYPES = 2;
+const int TNS_MSG_TYPE_FUNCTION = 3;
+const int TNS_MSG_TYPE_ERROR = 4;
+const int TNS_MSG_TYPE_ROW_HEADER = 6;
+const int TNS_MSG_TYPE_ROW_DATA = 7;
+const int TNS_MSG_TYPE_PARAMETER = 8;
+const int TNS_MSG_TYPE_STATUS = 9;
+const int TNS_MSG_TYPE_IO_VECTOR = 11;
+const int TNS_MSG_TYPE_LOB_DATA = 14;
+const int TNS_MSG_TYPE_WARNING = 15;
+const int TNS_MSG_TYPE_DESCRIBE_INFO = 16;
+const int TNS_MSG_TYPE_PIGGYBACK = 17;
+const int TNS_MSG_TYPE_FLUSH_OUT_BINDS = 19;
+const int TNS_MSG_TYPE_BIT_VECTOR = 21;
+const int TNS_MSG_TYPE_SERVER_SIDE_PIGGYBACK = 23;
+const int TNS_MSG_TYPE_ONEWAY_FN = 26;
+const int TNS_MSG_TYPE_IMPLICIT_RESULTSET = 27;
+const int TNS_MSG_TYPE_RENEGOTIATE = 28;
+const int TNS_MSG_TYPE_END_OF_RESPONSE = 29;
+const int TNS_MSG_TYPE_TOKEN = 33;
+const int TNS_MSG_TYPE_FAST_AUTH = 34;
+
+// length markers
+const int TNS_LONG_LENGTH_INDICATOR = 0xFE;
+
+// protocol versions
+const int TNS_VERSION_DESIRED = 319;
+const int TNS_VERSION_MINIMUM = 300;
+const int TNS_VERSION_MIN_ACCEPTED = 315;
+const int TNS_VERSION_MIN_LARGE_SDU = 315;
+const int TNS_VERSION_MIN_OOB_CHECK = 318;
+const int TNS_VERSION_MIN_END_OF_RESPONSE = 319;
+
+// connect flags and characteristics
+const int TNS_GSO_DONT_CARE = 0x0001;
+const int TNS_GSO_CAN_RECV_ATTENTION = 0x0400;
+const int TNS_NSI_NA_REQUIRED = 0x10;
+const int TNS_NSI_DISABLE_NA = 0x04;
+const int TNS_NSI_SUPPORT_SECURITY_RENEG = 0x80;
+const int TNS_PROTOCOL_CHARACTERISTICS = 0x4f98;
+const int TNS_CHECK_OOB = 0x01;
+const int TNS_CHUNK_SIZE = 32767;
+
+// parameter keyword numbers
+const int TNS_KEYWORD_NUM_CURRENT_SCHEMA = 168;
+const int TNS_KEYWORD_NUM_EDITION = 172;
+
+// bind flags
+const int TNS_BIND_USE_INDICATORS = 0x0001;
+const int TNS_BIND_ARRAY = 0x0040;
+
+// bind directions
+const int TNS_BIND_DIR_OUTPUT = 16;
+const int TNS_BIND_DIR_INPUT = 32;
+const int TNS_BIND_DIR_INPUT_OUTPUT = 48;
+
+// database object image flags
+const int TNS_OBJ_IS_VERSION_81 = 0x80;
+const int TNS_OBJ_IS_DEGENERATE = 0x10;
+const int TNS_OBJ_IS_COLLECTION = 0x08;
+const int TNS_OBJ_NO_PREFIX_SEG = 0x04;
+const int TNS_OBJ_IMAGE_VERSION = 1;
+
+// database object flags
+const int TNS_OBJ_MAX_SHORT_LENGTH = 245;
+const int TNS_OBJ_ATOMIC_NULL = 253;
+const int TNS_OBJ_NON_NULL_OID = 0x02;
+const int TNS_OBJ_HAS_EXTENT_OID = 0x08;
+const int TNS_OBJ_TOP_LEVEL = 0x01;
+const int TNS_OBJ_HAS_INDEXES = 0x10;
+
+// database object collection types
+const int TNS_OBJ_PLSQL_INDEX_TABLE = 1;
+const int TNS_OBJ_NESTED_TABLE = 2;
+const int TNS_OBJ_VARRAY = 3;
+
+// database object TDS type codes
+const int TNS_OBJ_TDS_TYPE_CHAR = 1;
+const int TNS_OBJ_TDS_TYPE_DATE = 2;
+const int TNS_OBJ_TDS_TYPE_FLOAT = 5;
+const int TNS_OBJ_TDS_TYPE_NUMBER = 6;
+const int TNS_OBJ_TDS_TYPE_VARCHAR = 7;
+const int TNS_OBJ_TDS_TYPE_BOOLEAN = 8;
+const int TNS_OBJ_TDS_TYPE_RAW = 19;
+const int TNS_OBJ_TDS_TYPE_TIMESTAMP = 21;
+const int TNS_OBJ_TDS_TYPE_TIMESTAMP_TZ = 23;
+const int TNS_OBJ_TDS_TYPE_OBJ = 27;
+const int TNS_OBJ_TDS_TYPE_COLL = 28;
+const int TNS_OBJ_TDS_TYPE_CLOB = 29;
+const int TNS_OBJ_TDS_TYPE_BLOB = 30;
+const int TNS_OBJ_TDS_TYPE_TIMESTAMP_LTZ = 33;
+const int TNS_OBJ_TDS_TYPE_BINARY_FLOAT = 37;
+const int TNS_OBJ_TDS_TYPE_START_EMBED_ADT = 39;
+const int TNS_OBJ_TDS_TYPE_END_EMBED_ADT = 40;
+const int TNS_OBJ_TDS_TYPE_SUBTYPE_MARKER = 43;
+const int TNS_OBJ_TDS_TYPE_EMBED_ADT_INFO = 44;
+const int TNS_OBJ_TDS_TYPE_BINARY_DOUBLE = 45;
+
+// xml type constants
+const int TNS_XML_TYPE_LOB = 0x0001;
+const int TNS_XML_TYPE_STRING = 0x0004;
+const int TNS_XML_TYPE_FLAG_SKIP_NEXT_4 = 0x100000;
+
+// execute options
+const int TNS_EXEC_OPTION_PARSE = 0x01;
+const int TNS_EXEC_OPTION_BIND = 0x08;
+const int TNS_EXEC_OPTION_DEFINE = 0x10;
+const int TNS_EXEC_OPTION_EXECUTE = 0x20;
+const int TNS_EXEC_OPTION_FETCH = 0x40;
+const int TNS_EXEC_OPTION_COMMIT = 0x100;
+const int TNS_EXEC_OPTION_COMMIT_REEXECUTE = 0x1;
+const int TNS_EXEC_OPTION_PLSQL_BIND = 0x400;
+const int TNS_EXEC_OPTION_NOT_PLSQL = 0x8000;
+const int TNS_EXEC_OPTION_DESCRIBE = 0x20000;
+const int TNS_EXEC_OPTION_NO_COMPRESSED_FETCH = 0x40000;
+const int TNS_EXEC_OPTION_BATCH_ERRORS = 0x80000;
+
+// execute flags
+const int TNS_EXEC_FLAGS_DML_ROWCOUNTS = 0x4000;
+const int TNS_EXEC_FLAGS_IMPLICIT_RESULTSET = 0x8000;
+const int TNS_EXEC_FLAGS_SCROLLABLE = 0x02;
+
+// fetch orientations
+const int TNS_FETCH_ORIENTATION_ABSOLUTE = 0x20;
+const int TNS_FETCH_ORIENTATION_CURRENT = 0x01;
+const int TNS_FETCH_ORIENTATION_FIRST = 0x04;
+const int TNS_FETCH_ORIENTATION_LAST = 0x08;
+const int TNS_FETCH_ORIENTATION_NEXT = 0x02;
+const int TNS_FETCH_ORIENTATION_PRIOR = 0x10;
+const int TNS_FETCH_ORIENTATION_RELATIVE = 0x40;
+
+// server side piggyback op codes
+const int TNS_SERVER_PIGGYBACK_QUERY_CACHE_INVALIDATION = 1;
+const int TNS_SERVER_PIGGYBACK_OS_PID_MTS = 2;
+const int TNS_SERVER_PIGGYBACK_TRACE_EVENT = 3;
+const int TNS_SERVER_PIGGYBACK_SESS_RET = 4;
+const int TNS_SERVER_PIGGYBACK_SYNC = 5;
+const int TNS_SERVER_PIGGYBACK_LTXID = 7;
+const int TNS_SERVER_PIGGYBACK_AC_REPLAY_CONTEXT = 8;
+const int TNS_SERVER_PIGGYBACK_EXT_SYNC = 9;
+const int TNS_SERVER_PIGGYBACK_SESS_SIGNATURE = 10;
+
+// session return constants
+const int TNS_SESSGET_SESSION_CHANGED = 4;
+
+// LOB operations
+const int TNS_LOB_OP_GET_LENGTH = 0x0001;
+const int TNS_LOB_OP_READ = 0x0002;
+const int TNS_LOB_OP_TRIM = 0x0020;
+const int TNS_LOB_OP_WRITE = 0x0040;
+const int TNS_LOB_OP_GET_CHUNK_SIZE = 0x4000;
+const int TNS_LOB_OP_CREATE_TEMP = 0x0110;
+const int TNS_LOB_OP_FREE_TEMP = 0x0111;
+const int TNS_LOB_OP_OPEN = 0x8000;
+const int TNS_LOB_OP_CLOSE = 0x10000;
+const int TNS_LOB_OP_IS_OPEN = 0x11000;
+const int TNS_LOB_OP_ARRAY = 0x80000;
+const int TNS_LOB_OP_FILE_EXISTS = 0x0800;
+const int TNS_LOB_OP_FILE_OPEN = 0x0100;
+const int TNS_LOB_OP_FILE_CLOSE = 0x0200;
+const int TNS_LOB_OP_FILE_ISOPEN = 0x0400;
+
+// LOB locator constants
+const int TNS_LOB_LOC_OFFSET_FLAG_1 = 4;
+const int TNS_LOB_LOC_OFFSET_FLAG_3 = 6;
+const int TNS_LOB_LOC_OFFSET_FLAG_4 = 7;
+const int TNS_LOB_QLOCATOR_VERSION = 4;
+const int TNS_LOB_LOC_FIXED_OFFSET = 16;
+
+// LOB locator flags (byte 1)
+const int TNS_LOB_LOC_FLAGS_BLOB = 0x01;
+const int TNS_LOB_LOC_FLAGS_VALUE_BASED = 0x20;
+const int TNS_LOB_LOC_FLAGS_ABSTRACT = 0x40;
+
+// LOB locator flags (byte 2)
+const int TNS_LOB_LOC_FLAGS_INIT = 0x08;
+
+// LOB locator flags (byte 4)
+const int TNS_LOB_LOC_FLAGS_TEMP = 0x01;
+const int TNS_LOB_LOC_FLAGS_VAR_LENGTH_CHARSET = 0x80;
+
+// other LOB constants
+const int TNS_LOB_OPEN_READ_WRITE = 2;
+const int TNS_LOB_OPEN_READ_ONLY = 11;
+const int TNS_LOB_PREFETCH_FLAG = 0x2000000;
+
+// end-to-end metrics
+const int TNS_END_TO_END_ACTION = 0x0010;
+const int TNS_END_TO_END_CLIENT_IDENTIFIER = 0x0001;
+const int TNS_END_TO_END_CLIENT_INFO = 0x0100;
+const int TNS_END_TO_END_DBOP = 0x0200;
+const int TNS_END_TO_END_MODULE = 0x0008;
+
+// control packet types
+const int TNS_CONTROL_TYPE_INBAND_NOTIFICATION = 8;
+const int TNS_CONTROL_TYPE_RESET_OOB = 9;
+
+// auth function codes
+const int TNS_FUNC_AUTH_PHASE_ONE = 118;
+const int TNS_FUNC_AUTH_PHASE_TWO = 115;
+
+// TTC functions
+const int TNS_FUNC_CLOSE_CURSORS = 105;
+const int TNS_FUNC_COMMIT = 14;
+const int TNS_FUNC_EXECUTE = 94;
+const int TNS_FUNC_FETCH = 5;
+const int TNS_FUNC_LOB_OP = 96;
+const int TNS_FUNC_AQ_ENQ = 121;
+const int TNS_FUNC_AQ_DEQ = 122;
+const int TNS_FUNC_ARRAY_AQ = 145;
+const int TNS_FUNC_LOGOFF = 9;
+const int TNS_FUNC_PING = 147;
+const int TNS_FUNC_PIPELINE_BEGIN = 199;
+const int TNS_FUNC_PIPELINE_END = 200;
+const int TNS_FUNC_ROLLBACK = 15;
+const int TNS_FUNC_SET_END_TO_END_ATTR = 135;
+const int TNS_FUNC_REEXECUTE = 4;
+const int TNS_FUNC_REEXECUTE_AND_FETCH = 78;
+const int TNS_FUNC_SESSION_GET = 162;
+const int TNS_FUNC_SESSION_RELEASE = 163;
+const int TNS_FUNC_SESSION_STATE = 176;
+const int TNS_FUNC_SET_SCHEMA = 152;
+const int TNS_FUNC_TPC_TXN_SWITCH = 103;
+const int TNS_FUNC_TPC_TXN_CHANGE_STATE = 104;
+
+// TTC authentication modes
+const int TNS_AUTH_MODE_LOGON = 0x00000001;
+const int TNS_AUTH_MODE_CHANGE_PASSWORD = 0x00000002;
+const int TNS_AUTH_MODE_SYSDBA = 0x00000020;
+const int TNS_AUTH_MODE_SYSOPER = 0x00000040;
+const int TNS_AUTH_MODE_WITH_PASSWORD = 0x00000100;
+const int TNS_AUTH_MODE_SYSASM = 0x00400000;
+const int TNS_AUTH_MODE_SYSBKP = 0x01000000;
+const int TNS_AUTH_MODE_SYSDGD = 0x02000000;
+const int TNS_AUTH_MODE_SYSKMT = 0x04000000;
+const int TNS_AUTH_MODE_SYSRAC = 0x08000000;
+const int TNS_AUTH_MODE_IAM_TOKEN = 0x20000000;
+
+// character sets and encodings
+const int TNS_CHARSET_UTF8 = 873;
+const int TNS_CHARSET_UTF16 = 2000;
+const int TNS_ENCODING_MULTI_BYTE = 0x01;
+const int TNS_ENCODING_CONV_LENGTH = 0x02;
+
+// compile time capability indices
+const int TNS_CCAP_SQL_VERSION = 0;
+const int TNS_CCAP_LOGON_TYPES = 4;
+const int TNS_CCAP_FEATURE_BACKPORT = 5;
+const int TNS_CCAP_FIELD_VERSION = 7;
+const int TNS_CCAP_SERVER_DEFINE_CONV = 8;
+const int TNS_CCAP_DEQUEUE_WITH_SELECTOR = 9;
+const int TNS_CCAP_TTC1 = 15;
+const int TNS_CCAP_OCI1 = 16;
+const int TNS_CCAP_TDS_VERSION = 17;
+const int TNS_CCAP_RPC_VERSION = 18;
+const int TNS_CCAP_RPC_SIG = 19;
+const int TNS_CCAP_DBF_VERSION = 21;
+const int TNS_CCAP_LOB = 23;
+const int TNS_CCAP_TTC2 = 26;
+const int TNS_CCAP_UB2_DTY = 27;
+const int TNS_CCAP_OCI2 = 31;
+const int TNS_CCAP_CLIENT_FN = 34;
+const int TNS_CCAP_TTC3 = 37;
+const int TNS_CCAP_SESS_SIGNATURE_VERSION = 39;
+const int TNS_CCAP_TTC4 = 40;
+const int TNS_CCAP_LOB2 = 42;
+const int TNS_CCAP_TTC5 = 44;
+const int TNS_CCAP_VECTOR_FEATURES = 52;
+const int TNS_CCAP_MAX = 53;
+
+// compile time capability values
+const int TNS_CCAP_SQL_VERSION_MAX = 6;
+const int TNS_CCAP_FIELD_VERSION_11_2 = 6;
+const int TNS_CCAP_FIELD_VERSION_12_1 = 7;
+const int TNS_CCAP_FIELD_VERSION_12_2 = 8;
+const int TNS_CCAP_FIELD_VERSION_12_2_EXT1 = 9;
+const int TNS_CCAP_FIELD_VERSION_18_1 = 10;
+const int TNS_CCAP_FIELD_VERSION_18_1_EXT_1 = 11;
+const int TNS_CCAP_FIELD_VERSION_19_1 = 12;
+const int TNS_CCAP_FIELD_VERSION_19_1_EXT_1 = 13;
+const int TNS_CCAP_FIELD_VERSION_20_1 = 14;
+const int TNS_CCAP_FIELD_VERSION_20_1_EXT_1 = 15;
+const int TNS_CCAP_FIELD_VERSION_21_1 = 16;
+const int TNS_CCAP_FIELD_VERSION_23_1 = 17;
+const int TNS_CCAP_FIELD_VERSION_23_1_EXT_1 = 18;
+const int TNS_CCAP_FIELD_VERSION_23_1_EXT_2 = 19;
+const int TNS_CCAP_FIELD_VERSION_23_1_EXT_3 = 20;
+const int TNS_CCAP_FIELD_VERSION_23_1_EXT_4 = 21;
+const int TNS_CCAP_FIELD_VERSION_23_1_EXT_5 = 22;
+const int TNS_CCAP_FIELD_VERSION_23_3_EXT_6 = 23;
+const int TNS_CCAP_FIELD_VERSION_23_4 = 24;
+const int TNS_CCAP_FIELD_VERSION_MAX = 24;
+const int TNS_CCAP_O5LOGON = 8;
+const int TNS_CCAP_O5LOGON_NP = 2;
+const int TNS_CCAP_O7LOGON = 32;
+const int TNS_CCAP_O8LOGON_LONG_IDENTIFIER = 64;
+const int TNS_CCAP_O9LOGON_LONG_PASSWORD = 0x80;
+const int TNS_CCAP_CTB_IMPLICIT_POOL = 0x08;
+const int TNS_CCAP_END_OF_CALL_STATUS = 0x01;
+const int TNS_CCAP_IND_RCD = 0x08;
+const int TNS_CCAP_FAST_BVEC = 0x20;
+const int TNS_CCAP_FAST_SESSION_PROPAGATE = 0x10;
+const int TNS_CCAP_APP_CTX_PIGGYBACK = 0x80;
+const int TNS_CCAP_TDS_VERSION_MAX = 3;
+const int TNS_CCAP_RPC_VERSION_MAX = 7;
+const int TNS_CCAP_RPC_SIG_VALUE = 3;
+const int TNS_CCAP_DBF_VERSION_MAX = 1;
+const int TNS_CCAP_LTXID = 0x08;
+const int TNS_CCAP_IMPLICIT_RESULTS = 0x10;
+const int TNS_CCAP_BIG_CHUNK_CLR = 0x20;
+const int TNS_CCAP_KEEP_OUT_ORDER = 0x80;
+const int TNS_CCAP_LOB_UB8_SIZE = 0x01;
+const int TNS_CCAP_LOB_ENCS = 0x02;
+const int TNS_CCAP_LOB_PREFETCH_DATA = 0x04;
+const int TNS_CCAP_LOB_TEMP_SIZE = 0x08;
+const int TNS_CCAP_LOB_PREFETCH_LENGTH = 0x40;
+const int TNS_CCAP_LOB_12C = 0x80;
+const int TNS_CCAP_LOB2_QUASI = 0x01;
+const int TNS_CCAP_LOB2_2GB_PREFETCH = 0x04;
+const int TNS_CCAP_DRCP = 0x10;
+const int TNS_CCAP_ZLNP = 0x04;
+const int TNS_CCAP_INBAND_NOTIFICATION = 0x04;
+const int TNS_CCAP_EXPLICIT_BOUNDARY = 0x40;
+const int TNS_CCAP_END_OF_RESPONSE = 0x20;
+const int TNS_CCAP_CLIENT_FN_MAX = 12;
+const int TNS_CCAP_VECTOR_SUPPORT = 0x08;
+const int TNS_CCAP_TOKEN_SUPPORTED = 0x02;
+const int TNS_CCAP_PIPELINING_SUPPORT = 0x04;
+const int TNS_CCAP_PIPELINING_BREAK = 0x10;
+const int TNS_CCAP_VECTOR_FEATURE_BINARY = 0x01;
+const int TNS_CCAP_VECTOR_FEATURE_SPARSE = 0x02;
+
+// runtime capability indices
+const int TNS_RCAP_COMPAT = 0;
+const int TNS_RCAP_TTC = 6;
+const int TNS_RCAP_MAX = 11;
+
+// runtime capability values
+const int TNS_RCAP_COMPAT_81 = 2;
+const int TNS_RCAP_TTC_ZERO_COPY = 0x01;
+const int TNS_RCAP_TTC_32K = 0x04;
+const int TNS_RCAP_TTC_SESSION_STATE_OPS = 0x10;
+
+// verifier types
+const int TNS_VERIFIER_TYPE_11G_1 = 0xb152;
+const int TNS_VERIFIER_TYPE_11G_2 = 0x1b25;
+const int TNS_VERIFIER_TYPE_12C = 0x4815;
+const int TNS_VERIFIER_TYPE_11G = TNS_VERIFIER_TYPE_11G_1;
+
+// UDS flags
+const int TNS_UDS_FLAGS_IS_JSON = 0x00000100;
+const int TNS_UDS_FLAGS_IS_OSON = 0x00000800;
+
+// end of call status flags
+const int TNS_EOCS_FLAGS_TXN_IN_PROGRESS = 0x00000002;
+const int TNS_EOCS_FLAGS_SESS_RELEASE = 0x00008000;
+
+// accept flags
+const int TNS_ACCEPT_FLAG_CHECK_OOB = 0x00000001;
+const int TNS_ACCEPT_FLAG_FAST_AUTH = 0x10000000;
+const int TNS_ACCEPT_FLAG_HAS_END_OF_RESPONSE = 0x02000000;
+
+// transaction switching op codes
+const int TNS_TPC_TXN_START = 0x01;
+const int TNS_TPC_TXN_DETACH = 0x02;
+
+// transaction change state op codes
+const int TNS_TPC_TXN_COMMIT = 0x01;
+const int TNS_TPC_TXN_ABORT = 0x02;
+const int TNS_TPC_TXN_PREPARE = 0x03;
+const int TNS_TPC_TXN_FORGET = 0x04;
+
+// transaction states
+const int TNS_TPC_TXN_STATE_PREPARE = 0;
+const int TNS_TPC_TXN_STATE_REQUIRES_COMMIT = 1;
+const int TNS_TPC_TXN_STATE_COMMITTED = 2;
+const int TNS_TPC_TXN_STATE_ABORTED = 3;
+const int TNS_TPC_TXN_STATE_READ_ONLY = 4;
+const int TNS_TPC_TXN_STATE_FORGOTTEN = 5;
+
+// pipeline modes
+const int TNS_PIPELINE_MODE_CONTINUE_ON_ERROR = 1;
+const int TNS_PIPELINE_MODE_ABORT_ON_ERROR = 2;
+
+// AQ extension keywords
+const int TNS_AQ_EXT_KEYWORD_AGENT_NAME = 64;
+const int TNS_AQ_EXT_KEYWORD_AGENT_ADDRESS = 65;
+const int TNS_AQ_EXT_KEYWORD_AGENT_PROTOCOL = 66;
+const int TNS_AQ_EXT_KEYWORD_ORIGINAL_MSGID = 69;
+
+// session state flags
+const int TNS_SESSION_STATE_REQUEST_BEGIN = 0x04;
+const int TNS_SESSION_STATE_REQUEST_END = 0x08;
+const int TNS_SESSION_STATE_EXPLICIT_BOUNDARY = 0x40;
+
+// other constants
+const int TNS_ESCAPE_CHAR = 253;
+const int TNS_MAX_ROWID_LENGTH = 18;
+const int TNS_DURATION_SESSION = 10;
+const int TNS_MAX_LONG_LENGTH = 0x7fffffff; // 2147483647
+const int TNS_MAX_CONNECT_DATA = 230;
+const int TNS_MAX_UROWID_LENGTH = 5267;
+const int TNS_SERVER_CONVERTS_CHARS = 0x01;
+const int TNS_JSON_MAX_LENGTH = 32 * 1024 * 1024; // 33554432
+const int TNS_VECTOR_MAX_LENGTH = 1 * 1024 * 1024; // 1048576
+const int TNS_AQ_MESSAGE_ID_LENGTH = 16;
+const int TNS_AQ_MESSAGE_VERSION = 1;
+
+// base 64 encoding alphabet (as List<int> for direct use)
+final List<int> TNS_BASE64_ALPHABET_ARRAY =
+    'ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789+/'.codeUnits;
+// final Uint8List TNS_EXTENT_OID = Uint8List.fromList(
+//    [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1, 0, 1]); // Hex '00000000000000000000000000010001'
+
+// drcp release mode
+const int DRCP_DEAUTHENTICATE = 0x00000002;
+
+
+
+// Arquivo: \src\thin\protocol\messages\auth.dart
+
+import 'dart:convert';
+import 'dart:io';
+import 'dart:typed_data';
+
+import '../../../exceptions.dart';
+import '../constants.dart';
+import '../packet.dart';
+import '../../crypto.dart';
+import 'base.dart';
+
+const _clientDriverName = 'oracledb_dart thin dev';
+const _clientVersion = '0.0.1';
+const _defaultProgramName = 'oracledb_dart';
+
+class AuthMessage extends Message {
+  AuthMessage({
+    required this.user,
+    required this.password,
+    required this.serviceName,
+    required this.charsetId,
+    required this.ncharsetId,
+    required this.capabilities,
+    this.includePassword = true,
+    this.verifierType = TNS_VERIFIER_TYPE_11G,
+    this.initialSessionData,
+  });
+
+  final String user;
+  final String password;
+  final String serviceName;
+  final int charsetId;
+  final int ncharsetId;
+  final dynamic capabilities;
+  final bool includePassword;
+  int verifierType;
+  final Map<String, String>? initialSessionData;
+
+  Uint8List? _comboKey;
+  Uint8List? _sessionKey;
+  Map<String, String> sessionData = {};
+
+  String get traceLabel => includePassword ? 'auth-phase2' : 'auth-phase1';
+
+  @override
+  void initializeHook() {
+    sessionData = initialSessionData != null
+        ? Map<String, String>.from(initialSessionData!)
+        : <String, String>{};
+    functionCode = includePassword
+        ? TNS_FUNC_AUTH_PHASE_TWO
+        : TNS_FUNC_AUTH_PHASE_ONE;
+  }
+
+  Uint8List buildRequest() {
+    final phaseCode = includePassword
+        ? TNS_FUNC_AUTH_PHASE_TWO
+        : TNS_FUNC_AUTH_PHASE_ONE;
+    final body = WriteBuffer();
+    body.writeUint8(TNS_MSG_TYPE_FUNCTION);
+    body.writeUint8(phaseCode);
+    // Write sequence number (1 byte, increments per message)
+    final seqNum = connImpl?.capabilities?.getNextSeqNum() ?? 1;
+    body.writeUint8(seqNum);
+    // Write token_num if TTC field version >= 18 (TNS_CCAP_FIELD_VERSION_23_1_EXT_1)
+    final ttcFieldVersion = connImpl?.capabilities?.ttcFieldVersion ?? 0;
+    if (ttcFieldVersion >= TNS_CCAP_FIELD_VERSION_23_1_EXT_1) {
+      body.writeUB8(0); // token_num = 0
+    }
+
+    final userBytes = Uint8List.fromList(utf8.encode(user));
+    final authMode = includePassword
+        ? (TNS_AUTH_MODE_LOGON | TNS_AUTH_MODE_WITH_PASSWORD)
+        : TNS_AUTH_MODE_LOGON;
+    final keyValues = includePassword
+        ? _buildPhaseTwoKeyValues()
+        : _buildPhaseOneKeyValues();
+
+    final hasUser = userBytes.isNotEmpty ? 1 : 0;
+    body.writeUint8(hasUser);
+    body.writeUB4(userBytes.length);
+    body.writeUB4(authMode);
+    body.writeUint8(1); // pointer (authivl)
+    body.writeUB4(keyValues.length);
+    body.writeUint8(1); // pointer (authovl)
+    body.writeUint8(1); // pointer (authovln)
+    if (hasUser == 1) {
+      body.writeBytesWithLength(userBytes);
+    }
+
+    for (final entry in keyValues) {
+      _writeKeyValue(body, entry.key, entry.value, entry.flags);
+    }
+
+    final bodyBytes = body.toBytes();
+    return buildTnsPacket(
+      bodyBytes: bodyBytes,
+      packetType: TNS_PACKET_TYPE_DATA,
+      includeDataFlags: true,
+      useLargeSdu: useLargeSdu,
+    );
+  }
+
+  @override
+  void processReturnParameters(ReadBuffer buf) {
+    if (buf.isEOF) {
+      throw createOracleException(
+        dpyCode: ERR_CONNECTION_FAILED,
+        message: 'Empty AUTH response',
+      );
+    }
+
+    final parsed = <String, String>{};
+    final raw = <String>[];
+    final numParams = buf.readUB2();
+    for (var i = 0; i < numParams; i++) {
+      final key = buf.readStringWithLength();
+      final value = buf.readStringWithLength();
+      if (key.isEmpty) {
+        buf.skipUB4();
+        continue;
+      }
+      if (key == 'AUTH_VFR_DATA') {
+        final type = buf.readUB4();
+        parsed[key] = value;
+        raw.add('$key=$value');
+        sessionData['AUTH_VFR_DATA'] = value;
+        sessionData['AUTH_VFR_TYPE'] = type.toString();
+        verifierType = type;
+        continue;
+      }
+      parsed[key] = value;
+      raw.add('$key=$value');
+      buf.skipUB4();
+    }
+
+    if (raw.isNotEmpty) {
+      parsed['AUTH_RAW_FIELDS'] = raw.join(';');
+    }
+
+    sessionData.addAll(parsed);
+    connImpl?.sessionData = {...connImpl?.sessionData ?? {}, ...sessionData};
+
+    final statusStr = sessionData['AUTH_STATUS'];
+    if (statusStr != null && statusStr != '0') {
+      throw createOracleException(
+        dpyCode: ERR_CONNECTION_FAILED,
+        message: 'AUTH failed with status $statusStr',
+      );
+    }
+
+    if (includePassword) {
+      _applySessionMetadata();
+    }
+
+    if (_comboKey != null) connImpl?.comboKey = _comboKey;
+    if (_sessionKey != null) connImpl?.sessionKey = _sessionKey;
+  }
+
+  List<_AuthKeyValue> _buildPhaseOneKeyValues() {
+    return [
+      _AuthKeyValue('AUTH_TERMINAL', _clientTerminal()),
+      _AuthKeyValue('AUTH_PROGRAM_NM', _clientProgramName()),
+      _AuthKeyValue('AUTH_MACHINE', _clientMachine()),
+      _AuthKeyValue('AUTH_PID', _clientPid()),
+      _AuthKeyValue('AUTH_SID', _clientOsUser()),
+    ];
+  }
+
+  List<_AuthKeyValue> _buildPhaseTwoKeyValues() {
+    if (!sessionData.containsKey('AUTH_VFR_DATA')) {
+      throw createOracleException(
+        dpyCode: ERR_CONNECTION_FAILED,
+        message: 'Missing verifier data in AUTH session response',
+      );
+    }
+
+    final verifier = _generateVerifierPayload();
+    final values = <_AuthKeyValue>[
+      _AuthKeyValue('AUTH_SESSKEY', verifier.sessionKeyHex, flags: 1),
+      _AuthKeyValue('AUTH_PASSWORD', verifier.encryptedPasswordHex),
+      _AuthKeyValue('SESSION_CLIENT_CHARSET', charsetId.toString()),
+      _AuthKeyValue(
+        'SESSION_CLIENT_DRIVER_NAME',
+        _clientDriverName,
+      ),
+      _AuthKeyValue('SESSION_CLIENT_VERSION', _clientVersion),
+      _AuthKeyValue('AUTH_ALTER_SESSION', _alterSessionStatement(), flags: 1),
+    ];
+
+    if (verifier.speedyKeyHex != null) {
+      values.add(_AuthKeyValue('AUTH_PBKDF2_SPEEDY_KEY', verifier.speedyKeyHex!));
+    }
+
+    return values;
+  }
+
+  _VerifierResult _generateVerifierPayload() {
+    String requireField(String name) {
+      final value = sessionData[name] ?? connImpl?.sessionData?[name];
+      if (value == null) {
+        throw createOracleException(
+          dpyCode: ERR_NOT_IMPLEMENTED,
+          message: 'Missing $name in AUTH session data',
+        );
+      }
+      return value;
+    }
+
+    final verifierData = hexToBytes(requireField('AUTH_VFR_DATA'));
+    final passwordBytes = Uint8List.fromList(utf8.encode(password));
+    Uint8List passwordHash;
+    Uint8List? passwordKey;
+    int keyLength;
+
+    if (verifierType == TNS_VERIFIER_TYPE_12C) {
+      keyLength = 32;
+      final iterations =
+          int.tryParse(requireField('AUTH_PBKDF2_VGEN_COUNT')) ?? 4096;
+      final salt = concat([
+        verifierData,
+        Uint8List.fromList('AUTH_PBKDF2_SPEEDY_KEY'.codeUnits),
+      ]);
+      passwordKey = pbkdf2Sha512(
+        password: passwordBytes,
+        salt: salt,
+        iterations: iterations,
+        keyLength: 64,
+      );
+      final hInput = concat([passwordKey, verifierData]);
+      passwordHash = sha512Bytes(hInput).sublist(0, 32);
+    } else {
+      keyLength = 24;
+      final sha = sha1Bytes(passwordBytes);
+      final hInput = concat([sha, verifierData]);
+      final h = sha1Bytes(hInput);
+      passwordHash = concat([h, Uint8List(4)]);
+    }
+
+    final encodedServerKey = hexToBytes(requireField('AUTH_SESSKEY'));
+    final sessionKeyPartA = aesCbcDecrypt(
+      key: passwordHash,
+      iv: Uint8List(16),
+      ciphertext: encodedServerKey,
+      zeroPadding: true,
+    );
+    final sessionKeyPartB = randomBytes(sessionKeyPartA.length);
+    final encodedClientKey = aesCbcEncrypt(
+      key: passwordHash,
+      iv: Uint8List(16),
+      plaintext: sessionKeyPartB,
+      zeroPadding: true,
+    );
+
+    Uint8List comboKey;
+    String sessionKeyHex;
+    if (sessionKeyPartA.length == 48) {
+      sessionKeyHex = bytesToHex(encodedClientKey).substring(0, 96);
+      final xorBuf = Uint8List(24);
+      for (var i = 16; i < 40; i++) {
+        xorBuf[i - 16] = sessionKeyPartA[i] ^ sessionKeyPartB[i];
+      }
+      final part1 = md5Bytes(xorBuf.sublist(0, 16));
+      final part2 = md5Bytes(xorBuf.sublist(16));
+      comboKey = concat([part1, part2]).sublist(0, keyLength);
+    } else {
+      sessionKeyHex = bytesToHex(encodedClientKey).substring(0, 64);
+      final salt = hexToBytes(requireField('AUTH_PBKDF2_CSK_SALT'));
+      final iterations =
+          int.tryParse(requireField('AUTH_PBKDF2_SDER_COUNT')) ?? 4096;
+      final tempKey = concat([
+        sessionKeyPartB.sublist(0, keyLength),
+        sessionKeyPartA.sublist(0, keyLength),
+      ]);
+      final tempKeyHexBytes =
+          Uint8List.fromList(bytesToHex(tempKey).codeUnits);
+      comboKey = pbkdf2Sha512(
+        password: tempKeyHexBytes,
+        salt: salt,
+        iterations: iterations,
+        keyLength: keyLength,
+      );
+    }
+
+    String? speedyKeyHex;
+    if (verifierType == TNS_VERIFIER_TYPE_12C && passwordKey != null) {
+      final speedyPayload = concat([randomBytes(16), passwordKey]);
+      final speedyKey = aesCbcEncrypt(
+        key: comboKey,
+        iv: Uint8List(16),
+        plaintext: speedyPayload,
+        zeroPadding: true,
+      );
+      speedyKeyHex = bytesToHex(speedyKey.sublist(0, 80));
+    }
+
+    final encryptedPassword = _encryptPassword(comboKey);
+
+    _comboKey = comboKey;
+    _sessionKey = hexToBytes(sessionKeyHex);
+    sessionData['AUTH_SESSION_KEY'] = sessionKeyHex;
+    sessionData['AUTH_ENC_PWD'] = bytesToHex(encryptedPassword);
+
+    return _VerifierResult(
+      sessionKeyHex: sessionKeyHex,
+      encryptedPasswordHex: bytesToHex(encryptedPassword),
+      speedyKeyHex: speedyKeyHex,
+    );
+  }
+
+  Uint8List _encryptPassword(Uint8List comboKey) {
+    final salt = randomBytes(16);
+    final pwdBytes = Uint8List.fromList(utf8.encode(password));
+    final payload = concat([salt, pwdBytes]);
+    return aesCbcEncrypt(
+      key: comboKey,
+      iv: Uint8List(16),
+      plaintext: payload,
+      zeroPadding: true,
+    );
+  }
+
+  void _applySessionMetadata() {
+    final conn = connImpl;
+    if (conn == null) {
+      return;
+    }
+    conn.sessionData = {...conn.sessionData, ...sessionData};
+
+    conn.sessionId = int.tryParse(sessionData['AUTH_SESSION_ID'] ?? '');
+    conn.serialNum = int.tryParse(sessionData['AUTH_SERIAL_NUM'] ?? '');
+    conn.dbDomain = sessionData['AUTH_SC_DB_DOMAIN'] ?? conn.dbDomain;
+    conn.dbName = sessionData['AUTH_SC_DBUNIQUE_NAME'] ?? conn.dbName;
+    conn.maxOpenCursors =
+        int.tryParse(sessionData['AUTH_MAX_OPEN_CURSORS'] ?? '') ??
+            conn.maxOpenCursors;
+    conn.serviceFromServer =
+        sessionData['AUTH_SC_SERVICE_NAME'] ?? conn.serviceFromServer;
+    conn.instanceName = sessionData['AUTH_INSTANCENAME'] ?? conn.instanceName;
+    conn.maxIdentifierLength =
+        int.tryParse(sessionData['AUTH_MAX_IDEN_LENGTH'] ?? '') ??
+            conn.maxIdentifierLength;
+
+    final versionRaw = sessionData['AUTH_VERSION_NO'];
+    if (versionRaw != null) {
+      final parsedVersion = _getVersionTuple(int.tryParse(versionRaw));
+      if (parsedVersion != null) {
+        conn.serverVersion = parsedVersion;
+      }
+    }
+
+    conn.supportsBool =
+        capabilities.ttcFieldVersion >= TNS_CCAP_FIELD_VERSION_23_1;
+    conn.edition ??= sessionData['AUTH_ORA_EDITION'];
+
+    final ltxid = sessionData['AUTH_LTXID'];
+    if (ltxid != null && ltxid.isNotEmpty) {
+      conn.ltxid = hexToBytes(ltxid);
+    }
+
+    conn.sessionSignature =
+        sessionData['AUTH_SESSKEY'] ?? conn.sessionSignature;
+  }
+
+  List<int>? _getVersionTuple(int? fullVersionNum) {
+    if (fullVersionNum == null) {
+      return null;
+    }
+    if (capabilities.ttcFieldVersion >= TNS_CCAP_FIELD_VERSION_18_1_EXT_1) {
+      return [
+        (fullVersionNum >> 24) & 0xFF,
+        (fullVersionNum >> 16) & 0xFF,
+        (fullVersionNum >> 12) & 0x0F,
+        (fullVersionNum >> 4) & 0xFF,
+        fullVersionNum & 0x0F,
+      ];
+    }
+    return [
+      (fullVersionNum >> 24) & 0xFF,
+      (fullVersionNum >> 20) & 0x0F,
+      (fullVersionNum >> 12) & 0x0F,
+      (fullVersionNum >> 8) & 0x0F,
+      fullVersionNum & 0x0F,
+    ];
+  }
+
+  void _writeKeyValue(WriteBuffer buf, String key, String value,
+      int flags) {
+    final keyBytes = utf8.encode(key);
+    final valueBytes = utf8.encode(value);
+    buf.writeUB4(keyBytes.length);
+    buf.writeBytesWithLength(keyBytes);
+    buf.writeUB4(valueBytes.length);
+    if (valueBytes.isNotEmpty) {
+      buf.writeBytesWithLength(valueBytes);
+    }
+    buf.writeUB4(flags);
+  }
+}
+
+class _AuthKeyValue {
+  const _AuthKeyValue(this.key, this.value, {this.flags = 0});
+
+  final String key;
+  final String value;
+  final int flags;
+}
+
+class _VerifierResult {
+  const _VerifierResult({
+    required this.sessionKeyHex,
+    required this.encryptedPasswordHex,
+    this.speedyKeyHex,
+  });
+
+  final String sessionKeyHex;
+  final String encryptedPasswordHex;
+  final String? speedyKeyHex;
+}
+
+String _clientProgramName() {
+  final exe = _sanitizeClientString(Platform.resolvedExecutable);
+  return exe.isNotEmpty ? exe : _defaultProgramName;
+}
+
+String _clientOsUser() {
+  final user = Platform.environment['USERNAME'] ??
+      Platform.environment['USER'];
+  final sanitized = _sanitizeClientString(user ?? '');
+  return sanitized.isNotEmpty ? sanitized : 'dart';
+}
+
+String _clientMachine() {
+  try {
+    final host = Platform.localHostname;
+    final sanitized = _sanitizeClientString(host);
+    if (sanitized.isNotEmpty) {
+      return sanitized;
+    }
+  } catch (_) {
+    // ignore and fall back
+  }
+  return 'localhost';
+}
+
+String _clientTerminal() {
+  final terminal = Platform.environment['ORACLE_TERMINAL'];
+  final sanitized = _sanitizeClientString(terminal ?? '');
+  if (sanitized.isNotEmpty) {
+    return sanitized;
+  }
+  return 'unknown';
+}
+
+String _clientPid() => pid.toString();
+
+String _alterSessionStatement() {
+  final envTz = Platform.environment['ORA_SDTZ'];
+  if (envTz != null && envTz.isNotEmpty) {
+    return "ALTER SESSION SET TIME_ZONE='$envTz'\x00";
+  }
+  final offset = DateTime.now().timeZoneOffset;
+  final sign = offset.isNegative ? '-' : '+';
+  final absMinutes = offset.inMinutes.abs();
+  final hours = (absMinutes ~/ 60).clamp(0, 23);
+  final minutes = absMinutes % 60;
+  final tz =
+      '$sign${hours.toString().padLeft(2, '0')}:${minutes.toString().padLeft(2, '0')}';
+  return "ALTER SESSION SET TIME_ZONE='$tz'\x00";
+}
+
+String _sanitizeClientString(String value) {
+  final sb = StringBuffer();
+  for (final code in value.codeUnits) {
+    if (code >= 32 && code <= 126) {
+      sb.writeCharCode(code);
+    }
+  }
+  return sb.toString();
+}
+
+
+// Arquivo: \src\thin\protocol\messages\base.dart
+
+// Base thin message scaffolding. This is an incremental port of
+// python-oracledb's base.pyx; many parts are still TODO.
+
+import '../../../exceptions.dart';
+import '../constants.dart';
+import '../packet.dart';
+
+/// Internal representation of error information received from the database.
+class OracleErrorInfo {
+  int num = 0; // ORA- or internal error number
+  int cursorId = 0;
+  int pos = 0; // Position offset in SQL for error
+  int rowcount = 0; // Row count or row number for PL/SQL errors
+  String? message;
+  Rowid? rowid; // Rowid components
+  List<OracleException>? batchErrors; // Batch errors, if any
+}
+
+/// Base class for all messages sent to and received from the Oracle database
+/// in thin mode. Concrete message classes should override the parsing logic.
+abstract class Message {
+  /// Connection implementation (kept dynamic until the connection layer is ported).
+  late final dynamic connImpl;
+
+  /// Object type cache; dynamic placeholder for now.
+  dynamic typeCache;
+
+  /// Pipeline operation result; dynamic placeholder for now.
+  dynamic pipelineResultImpl;
+
+  late OracleErrorInfo errorInfo;
+
+  int messageType = TNS_MSG_TYPE_FUNCTION;
+  int functionCode = 0; // Set by subclasses
+  int callStatus = 0; // Received from server
+  int endToEndSeqNum = 0; // Received from server
+  int tokenNum = 0; // Used for pipeline operations
+
+  bool endOfResponse = false; // Flag indicating end of server response
+  bool errorOccurred = false; // Flag indicating if an error was received
+  bool flushOutBinds = false; // Flag indicating out binds need flushing
+  bool resend = false; // Flag indicating message needs to be resent (e.g., define phase)
+  bool retry = false; // Flag indicating execution should be retried (e.g., datatype change)
+  OracleWarning? warning; // Any warning received
+
+  bool get useLargeSdu {
+    final version = connImpl?.capabilities.protocolVersion ?? 0;
+    return version >= TNS_VERSION_MIN_LARGE_SDU;
+  }
+
+  /// Initializes the base message fields.
+  /// Must be called by concrete message constructors or initialization methods.
+  void initialize(dynamic connImpl) {
+    this.connImpl = connImpl;
+    errorInfo = OracleErrorInfo();
+    initializeHook(); // Call subclass specific initialization
+  }
+
+  /// Hook for subclasses to perform specific initialization.
+  void initializeHook() {}
+
+  /// Checks if an error occurred during processing and throws the appropriate
+  /// Dart exception. Forces connection closure for session dead errors.
+  void checkAndRaiseException() {
+    if (!errorOccurred) return;
+
+    final isRecoverable = _recoverableOraCodes.contains(errorInfo.num);
+
+    final OracleException error = createOracleException(
+      message: errorInfo.message ?? "Unknown database error",
+      oraCode: errorInfo.num,
+      offset: errorInfo.pos,
+      isRecoverable: isRecoverable,
+    );
+
+    if (error.isSessionDead) {
+      try {
+        // Best-effort: some connection implementations expose protocol control.
+        connImpl?.protocol?._forceClose();
+      } catch (_) {
+        // ignore: best effort close
+      }
+    }
+    throw error;
+  }
+
+  /// Processes the error information part of a response packet.
+  /// This is a partial port; detailed batch/warning parsing still TODO.
+  void processErrorInfo(ReadBuffer buf) {
+    final info = errorInfo;
+    info.batchErrors = null; // Reset batch errors
+
+    callStatus = buf.readUint32(); // end of call status
+    endToEndSeqNum = buf.readUint16(); // end to end seq# (ignored here)
+    buf.skipUint32(); // current row number
+    buf.skipUint16(); // error number (older format)
+    buf.skipUint16(); // array elem error (older format)
+    buf.skipUint16(); // array elem error (older format)
+    info.cursorId = buf.readUint16(); // cursor id
+    info.pos = buf.readInt16(); // error position
+    buf.skipUint8(); // sql type (19c and earlier)
+    buf.skipUint8(); // fatal?
+    final flags = buf.readUint8(); // flags
+    buf.skipUint8(); // user cursor options
+    buf.skipUint8(); // UPI parameter
+
+    if ((flags & 0x20) != 0) {
+      warning = createOracleException(
+        message: 'Compilation warning',
+        dpyCode: WRN_COMPILATION_ERROR,
+      ) as OracleWarning;
+    }
+
+    // Rowid
+    info.rowid = buf.readRowid();
+    buf.skipUint32(); // OS error
+    buf.skipUint8(); // statement number
+    buf.skipUint8(); // call number
+    buf.skipUint16(); // padding
+    buf.skipUint32(); // success iters
+
+    final numBytes = buf.readUint32(); // oerrdd (logical rowid) length
+    if (numBytes > 0) {
+      buf.skipRawBytesChunked();
+    }
+
+    // Batch errors: codes
+    final numErrors = buf.readUint16();
+    if (numErrors > 0) {
+      info.batchErrors = <OracleException>[];
+      final firstByte = buf.readUint8();
+      for (var i = 0; i < numErrors; i++) {
+        if (firstByte == TNS_LONG_LENGTH_INDICATOR) {
+          buf.skipUint32(); // chunk length ignored
+        }
+        final code = buf.readUint16();
+        info.batchErrors!.add(
+          createOracleException(message: 'Batch error $code', oraCode: code),
+        );
+      }
+      if (firstByte == TNS_LONG_LENGTH_INDICATOR) {
+        buf.skipBytes(1); // end marker
+      }
+    }
+
+    // Batch errors: offsets
+    final numOffsets = buf.readUint32();
+    if (numOffsets > 0) {
+      if (numOffsets > 65535) {
+        throw createOracleException(
+          dpyCode: ERR_TOO_MANY_BATCH_ERRORS,
+          message: 'Too many batch errors returned ($numOffsets)',
+        );
+      }
+      final firstByte = buf.readUint8();
+      for (var i = 0; i < numOffsets; i++) {
+        if (firstByte == TNS_LONG_LENGTH_INDICATOR) {
+          buf.skipUint32();
+        }
+        final offset = buf.readUint32();
+        if (i < (info.batchErrors?.length ?? 0)) {
+          info.batchErrors![i] = createOracleException(
+            message: info.batchErrors![i].message,
+            oraCode: info.batchErrors![i].code,
+            offset: offset,
+          );
+        }
+      }
+      if (firstByte == TNS_LONG_LENGTH_INDICATOR) {
+        buf.skipBytes(1); // end marker
+      }
+    }
+  }
+
+  /// Process a single message segment from the server.
+  /// This covers common message types and marks end-of-response when needed.
+  void processMessage(ReadBuffer buf, int messageType) {
+    if (messageType == TNS_MSG_TYPE_ERROR) {
+      processErrorInfo(buf);
+    } else if (messageType == TNS_MSG_TYPE_WARNING) {
+      _processWarningInfo(buf);
+    } else if (messageType == TNS_MSG_TYPE_SERVER_SIDE_PIGGYBACK) {
+      _processServerSidePiggyback(buf);
+    } else if (messageType == TNS_MSG_TYPE_PARAMETER) {
+      processReturnParameters(buf);
+    } else if (messageType == TNS_MSG_TYPE_TOKEN) {
+      final token = buf.readUint64();
+      if (token != tokenNum) {
+        throw createOracleException(
+          dpyCode: ERR_MISMATCHED_TOKEN,
+          message: 'Token mismatch: got $token expected $tokenNum',
+        );
+      }
+    } else if (messageType == TNS_MSG_TYPE_STATUS) {
+      callStatus = buf.readUint32();
+      endToEndSeqNum = buf.readUint16();
+      endOfResponse = true; // conservative; refined once caps are threaded
+    } else if (messageType == TNS_MSG_TYPE_END_OF_RESPONSE) {
+      endOfResponse = true;
+    } else {
+      throw createOracleException(
+        dpyCode: ERR_MESSAGE_TYPE_UNKNOWN,
+        message: 'Unknown message type $messageType at position ${buf.remaining}',
+      );
+    }
+  }
+
+  /// Process all message chunks contained in the supplied buffer until the
+  /// server signals the end of response or the buffer is exhausted.
+  void processBuffer(ReadBuffer buf) {
+    while (!buf.isEOF && !endOfResponse) {
+      final messageType = buf.readUint8();
+      processMessage(buf, messageType);
+    }
+  }
+
+  /// Hook for subclasses that expect parameter payloads (for example AUTH).
+  void processReturnParameters(ReadBuffer buf) {
+    if (buf.remaining > 0) {
+      buf.skipBytes(buf.remaining);
+    }
+  }
+
+  void _processWarningInfo(ReadBuffer buf) {
+    // Minimal warning handling: consume status and create a warning object.
+    callStatus = buf.readUint32();
+    warning = createOracleException(
+      dpyCode: WRN_COMPILATION_ERROR,
+      message: 'Server returned warning (status=$callStatus)',
+    ) as OracleWarning;
+  }
+
+  void _processServerSidePiggyback(ReadBuffer buf) {
+    if (buf.remaining == 0) return;
+    final opcode = buf.readUint8();
+    if (opcode == TNS_SERVER_PIGGYBACK_LTXID) {
+      final ltxid = buf.readBytesWithLength();
+      try {
+        connImpl?._ltxid = ltxid;
+      } catch (_) {
+        // ignore if connection impl not wired yet
+      }
+      return;
+    }
+    // For other opcodes, consume the remaining payload to keep stream aligned.
+    if (buf.remaining > 0) {
+      buf.skipBytes(buf.remaining);
+    }
+  }
+}
+
+const Set<int> _recoverableOraCodes = {
+  28,
+  31,
+  376,
+  603,
+  1012,
+  1033,
+  1034,
+  1089,
+  1090,
+  1092,
+  1115,
+  2396,
+  3113,
+  3114,
+  3135,
+  12153,
+  12514,
+  12537,
+  12547,
+  12570,
+  12571,
+  12583,
+  12757,
+  16456,
+};
+//      buf.skipUint8(); // user cursor options
+//      buf.skipUint8(); // UPI parameter
+//      int flags = buf.readUint8();
+//      if ((flags & 0x20) != 0) {
+//         warning = _createOracleException( // Use helper to create warnings too
+//           dpyCode: WRN_COMPILATION_ERROR, // Need this const defined
+//           message: 'Creation succeeded with compilation errors',
+//         ) as OracleWarning?;
+//      }
+//      info.rowid = buf.readRowid(); // rowid
+//      buf.skipUint32(); // OS error
+//      buf.skipUint8(); // statement number
+//      buf.skipUint8(); // call number
+//      buf.skipUint16(); // padding
+//      buf.skipUint32(); // success iters
+//      int numBytes = buf.readUint32(); // oerrdd (logical rowid) length
+//      if (numBytes > 0) {
+//        buf.skipRawBytesChunked();
+//      }
+
+//      // batch error codes
+//      int numErrors = buf.readUint16(); // batch error codes array
+//      if (numErrors > 0) {
+//        info.batchErrors = List<OracleException>.filled(numErrors, OracleDatabaseError("")); // Pre-fill list
+//        int firstByte = buf.readUint8();
+//        for (int i = 0; i < numErrors; i++) {
+//          if (firstByte == TNS_LONG_LENGTH_INDICATOR) {
+//            buf.skipUint32(); // chunk length ignored
+//          }
+//          int errorCode = buf.readUint16();
+//          // Create a basic error, message will be filled later if available
+//          info.batchErrors![i] = _createOracleException(oraCode: errorCode, message: 'Batch error code $errorCode');
+//        }
+//        if (firstByte == TNS_LONG_LENGTH_INDICATOR) {
+//          buf.skipBytes(1); // ignore end marker
+//        }
+//      }
+
+//      // batch error offsets
+//      int numOffsets = buf.readUint32(); // batch error row offset array
+//      if (numOffsets > 0) {
+//        if (numOffsets > 65535) {
+//           throw _createOracleException(dpyCode: ERR_TOO_MANY_BATCH_ERRORS, message: 'Too many batch errors');
+//        }
+//        int firstByte = buf.readUint8();
+//        for (int i = 0; i < numOffsets; i++) {
+//          if (firstByte == TNS_LONG_LENGTH_INDICATOR) {
+//            buf.skipUint32(); // chunk length ignored
+//          }
+//          int offset = buf.readUint32();
+//          if (info.batchErrors != null && i < info.batchErrors!.length) {
+//             // Directly modifying the object might be complex in Dart if immutable.
+//             // Consider creating new instances or using mutable error objects.
+//             // This is a direct translation approach:
+//             var originalError = info.batchErrors![i];
+//             info.batchErrors![i] = _createOracleException(
+//               message: originalError.message, // Keep original message for now
+//               oraCode: originalError.code,
+//               dpyCode: int.tryParse(originalError.fullCode?.substring(4) ?? ''),
+//               offset: offset, // Set the offset
+//               context: originalError.context,
+//               cause: originalError.cause,
+//             );
+//          }
+//        }
+//        if (firstByte == TNS_LONG_LENGTH_INDICATOR) {
+//          buf.skipBytes(1); // ignore end marker
+//        }
+//      }
+
+//      // batch error messages
+//      int numMessages = buf.readUint16(); // batch error messages array
+//      if (numMessages > 0) {
+//        buf.skipBytes(1); // ignore packed size
+//        for (int i = 0; i < numMessages; i++) {
+//          buf.skipUint16(); // skip chunk length
+//          String errorMessage = buf.readString(CS_FORM_IMPLICIT)?.trim() ?? '';
+//          if (info.batchErrors != null && i < info.batchErrors!.length) {
+//            // Update the message of the existing error object
+//            var originalError = info.batchErrors![i];
+//            info.batchErrors![i] = _createOracleException(
+//              message: errorMessage, // Set the actual message
+//              oraCode: originalError.code,
+//              dpyCode: int.tryParse(originalError.fullCode?.substring(4) ?? ''),
+//              offset: originalError.offset,
+//              context: originalError.context,
+//              cause: originalError.cause,
+//            );
+//            // Potentially call a method similar to _make_adjustments here
+//          }
+//          buf.skipBytes(2); // ignore end marker
+//        }
+//      }
+
+//      info.num = buf.readUint32(); // error number (extended)
+//      info.rowcount = buf.readUint64(); // row number (extended)
+
+//      // fields added in Oracle Database 20c
+//      if (buf.caps.ttcFieldVersion >= TNS_CCAP_FIELD_VERSION_20_1) {
+//        buf.skipUint32(); // sql type
+//        buf.skipUint32(); // server checksum
+//      }
+
+//      // error message
+//      if (info.num != 0) {
+//        errorOccurred = true;
+//        if (info.pos < 0) info.pos = 0; // Error pos is sb2, adjust if needed
+//        info.message = buf.readString(CS_FORM_IMPLICIT)?.trim();
+//      }
+
+//      // an error message marks the end of a response if no explicit end of
+//      // response is available
+//      if (!buf.caps.supportsEndOfResponse) {
+//        endOfResponse = true;
+//      }
+//   }
+
+
+//   /// Processes a single message type received from the buffer.
+//   void _processMessage(ReadBuffer buf, int messageType) {
+//     if (messageType == TNS_MSG_TYPE_ERROR) {
+//       _processErrorInfo(buf);
+//     } else if (messageType == TNS_MSG_TYPE_WARNING) {
+//       _processWarningInfo(buf);
+//     } else if (messageType == TNS_MSG_TYPE_TOKEN) {
+//       int receivedTokenNum = buf.readUint64();
+//       if (receivedTokenNum != tokenNum) {
+//          throw _createOracleException(
+//             dpyCode: ERR_MISMATCHED_TOKEN,
+//             message: 'Token mismatch', // Arguments need formatting
+//             // token_num: receivedTokenNum,
+//             // expected_token_num: tokenNum,
+//          );
+//       }
+//     } else if (messageType == TNS_MSG_TYPE_STATUS) {
+//       callStatus = buf.readUint32();
+//       endToEndSeqNum = buf.readUint16();
+//       if (!buf.caps.supportsEndOfResponse) {
+//         endOfResponse = true;
+//       }
+//     } else if (messageType == TNS_MSG_TYPE_PARAMETER) {
+//       _processReturnParameters(buf);
+//     } else if (messageType == TNS_MSG_TYPE_SERVER_SIDE_PIGGYBACK) {
+//       _processServerSidePiggyback(buf);
+//     } else if (messageType == TNS_MSG_TYPE_END_OF_RESPONSE) {
+//       endOfResponse = true;
+//     } else {
+//        throw _createOracleException(
+//           dpyCode: ERR_MESSAGE_TYPE_UNKNOWN,
+//           message: 'Unknown message type', // Arguments need formatting
+//           // message_type: messageType,
+//           // position: buf.pos - 1,
+//        );
+//     }
+//   }
+
+
+//   /// Processes the return parameters section of a response.
+//   /// Must be implemented by subclasses that expect return parameters.
+//   void _processReturnParameters(ReadBuffer buf) {
+//     throw OracleInternalError("Subclass must implement _processReturnParameters");
+//   }
+
+//   /// Processes a server-side piggyback message.
+//   void _processServerSidePiggyback(ReadBuffer buf) {
+//     int opcode = buf.readUint8();
+//     switch (opcode) {
+//       case TNS_SERVER_PIGGYBACK_LTXID:
+//         connImpl.ltxid = buf.readBytesWithLength();
+//         break;
+//       case TNS_SERVER_PIGGYBACK_QUERY_CACHE_INVALIDATION:
+//       case TNS_SERVER_PIGGYBACK_TRACE_EVENT:
+//         // Currently ignored
+//         break;
+//       case TNS_SERVER_PIGGYBACK_OS_PID_MTS:
+//         buf.skipUint16();
+//         buf.skipRawBytesChunked();
+//         break;
+//       case TNS_SERVER_PIGGYBACK_SYNC:
+//         buf.skipUint16(); // num DTYs
+//         buf.skipUint8(); // length DTYs
+//         int numElements = buf.readUint16();
+//         buf.skipUint8(); // length
+//         for (int i = 0; i < numElements; i++) {
+//           int temp16 = buf.readUint16();
+//           if (temp16 > 0) buf.skipRawBytesChunked(); // key
+//           temp16 = buf.readUint16();
+//           if (temp16 > 0) buf.skipRawBytesChunked(); // value
+//           buf.skipUint16(); // flags
+//         }
+//         buf.skipUint32(); // overall flags
+//         break;
+//       case TNS_SERVER_PIGGYBACK_EXT_SYNC:
+//         buf.skipUint16(); // num DTYs
+//         buf.skipUint8(); // length DTYs
+//         break;
+//       case TNS_SERVER_PIGGYBACK_AC_REPLAY_CONTEXT:
+//         buf.skipUint16(); // num DTYs
+//         buf.skipUint8(); // length DTYs
+//         buf.skipUint32(); // flags
+//         buf.skipUint32(); // error code
+//         buf.skipUint8(); // queue
+//         int numBytes = buf.readUint32(); // replay context len
+//         if (numBytes > 0) buf.skipRawBytesChunked();
+//         break;
+//       case TNS_SERVER_PIGGYBACK_SESS_RET:
+//          buf.skipUint16();
+//          buf.skipUint8();
+//          int numElements = buf.readUint16();
+//          if (numElements > 0) {
+//            buf.skipUint8();
+//            for (int i = 0; i < numElements; i++) {
+//              int temp16 = buf.readUint16();
+//              if (temp16 > 0) buf.skipRawBytesChunked(); // key
+//              temp16 = buf.readUint16();
+//              if (temp16 > 0) buf.skipRawBytesChunked(); // value
+//              buf.skipUint16(); // flags
+//            }
+//          }
+//          int flags = buf.readUint32(); // session flags
+//          if ((flags & TNS_SESSGET_SESSION_CHANGED) != 0) {
+//            if (connImpl.drcpEstablishSession) {
+//               connImpl.statementCache?.clearOpenCursors(); // Need null check
+//            }
+//          }
+//          connImpl.drcpEstablishSession = false;
+//          connImpl.sessionId = buf.readUint32();
+//          connImpl.serialNum = buf.readUint16();
+//          break;
+//       case TNS_SERVER_PIGGYBACK_SESS_SIGNATURE:
+//         buf.skipUint16(); // num dtys
+//         buf.skipUint8(); // length dty
+//         buf.skipUint64(); // signature flags
+//         buf.skipUint64(); // client signature
+//         buf.skipUint64(); // server signature
+//         break;
+//       default:
+//          throw _createOracleException(
+//             dpyCode: ERR_UNKNOWN_SERVER_PIGGYBACK,
+//             message: 'Unknown piggyback opcode', // Args need formatting
+//             // opcode: opcode,
+//          );
+//     }
+//   }
+
+
+//   /// Processes the warning information part of a response packet.
+//   void _processWarningInfo(ReadBuffer buf) {
+//      int errorNum = buf.readUint16();
+//      int numBytes = buf.readUint16();
+//      buf.skipUint16(); // flags
+//      if (errorNum != 0 && numBytes > 0) {
+//        String message = buf.readString(CS_FORM_IMPLICIT)?.trim() ?? '';
+//        warning = _createOracleException(
+//           oraCode: errorNum,
+//           message: message,
+//        ) as OracleWarning?;
+//      }
+//   }
+
+//   // --- Piggyback Writing Methods (Internal Helpers) ---
+
+//   /// Writes the piggyback header for starting a pipeline.
+//   void _writeBeginPipelinePiggyback(WriteBuffer buf) {
+//     buf.dataFlags |= TNS_DATA_FLAGS_BEGIN_PIPELINE;
+//     _writePiggybackCode(buf, TNS_FUNC_PIPELINE_BEGIN);
+//     buf.writeUint16(0); // error set ID
+//     buf.writeUint8(0); // error set mode
+//     buf.writeUint8(connImpl.pipelineMode);
+//   }
+
+//   /// Writes the piggyback header to close cursors.
+//   void _writeCloseCursorsPiggyback(WriteBuffer buf) {
+//     _writePiggybackCode(buf, TNS_FUNC_CLOSE_CURSORS);
+//     buf.writeUint8(1); // pointer
+//     connImpl.statementCache?.writeCursorsToClose(buf); // Need null check
+//   }
+
+//   /// Writes the piggyback header to set the current schema.
+//   void _writeCurrentSchemaPiggyback(WriteBuffer buf) {
+//     _writePiggybackCode(buf, TNS_FUNC_SET_SCHEMA);
+//     buf.writeUint8(1); // pointer
+//     final schemaBytes = connImpl.currentSchema?.codeUnits ?? Uint8List(0);
+//     buf.writeUint32(schemaBytes.length);
+//     buf.writeBytesWithLength(schemaBytes);
+//   }
+
+//    /// Writes the piggyback to close temporary LOBs.
+//   void _writeCloseTempLobsPiggyback(WriteBuffer buf) {
+//      final lobsToClose = connImpl.tempLobsToClose;
+//      if (lobsToClose == null || lobsToClose.isEmpty) return;
+
+//      _writePiggybackCode(buf, TNS_FUNC_LOB_OP);
+//      const int opCode = TNS_LOB_OP_FREE_TEMP | TNS_LOB_OP_ARRAY;
+
+//      // Temp lob data header
+//      buf.writeUint8(1); // pointer
+//      buf.writeUint32(connImpl.tempLobsTotalSize);
+//      buf.writeUint8(0); // dest lob locator pointer
+//      buf.writeUint32(0); // dest lob locator length
+//      buf.writeUint32(0); // source lob locator pointer (unused for free)
+//      buf.writeUint32(0); // source lob locator length (unused for free)
+//      buf.writeUint8(0); // source lob offset
+//      buf.writeUint8(0); // dest lob offset
+//      buf.writeUint8(0); // charset
+//      buf.writeUint32(opCode);
+//      buf.writeUint8(0); // scn
+//      buf.writeUint32(0); // losbscn
+//      buf.writeUint64(0); // lobscnl
+//      buf.writeUint64(0);
+//      buf.writeUint8(0);
+
+//      // Array lob fields (unused for free)
+//      buf.writeUint8(0);
+//      buf.writeUint32(0);
+//      buf.writeUint8(0);
+//      buf.writeUint32(0);
+//      buf.writeUint8(0);
+//      buf.writeUint32(0);
+
+//      // Write the actual LOB locators
+//      for (final locator in lobsToClose) {
+//        buf.writeBytes(locator);
+//      }
+
+//      // Reset connection state
+//      connImpl.tempLobsToClose = null;
+//      connImpl.tempLobsTotalSize = 0;
+//    }
+
+
+//    /// Writes the piggyback for end-to-end attributes.
+//   void _writeEndToEndPiggyback(WriteBuffer buf) {
+//     int flags = 0;
+//     Uint8List? actionBytes;
+//     Uint8List? clientIdBytes;
+//     Uint8List? clientInfoBytes;
+//     Uint8List? moduleBytes;
+//     Uint8List? dbopBytes;
+
+//     // Determine flags and encode strings
+//     if (connImpl.actionModified) {
+//       flags |= TNS_END_TO_END_ACTION;
+//       actionBytes = connImpl.action?.codeUnits;
+//     }
+//     if (connImpl.clientIdentifierModified) {
+//       flags |= TNS_END_TO_END_CLIENT_IDENTIFIER;
+//       clientIdBytes = connImpl.clientIdentifier?.codeUnits;
+//     }
+//     if (connImpl.clientInfoModified) {
+//       flags |= TNS_END_TO_END_CLIENT_INFO;
+//       clientInfoBytes = connImpl.clientInfo?.codeUnits;
+//     }
+//     if (connImpl.moduleModified) {
+//       flags |= TNS_END_TO_END_MODULE;
+//       moduleBytes = connImpl.module?.codeUnits;
+//     }
+//     if (connImpl.dbopModified) {
+//       flags |= TNS_END_TO_END_DBOP;
+//       dbopBytes = connImpl.dbop?.codeUnits;
+//     }
+
+//     // Write initial packet data
+//     _writePiggybackCode(buf, TNS_FUNC_SET_END_TO_END_ATTR);
+//     buf.writeUint8(0); // pointer (cidnam)
+//     buf.writeUint8(0); // pointer (cidser)
+//     buf.writeUint32(flags);
+
+//     // Write headers (pointers and lengths)
+//     buf.writeUint8(connImpl.clientIdentifierModified ? 1 : 0);
+//     buf.writeUint32(clientIdBytes?.length ?? 0);
+//     buf.writeUint8(connImpl.moduleModified ? 1 : 0);
+//     buf.writeUint32(moduleBytes?.length ?? 0);
+//     buf.writeUint8(connImpl.actionModified ? 1 : 0);
+//     buf.writeUint32(actionBytes?.length ?? 0);
+//     buf.writeUint8(0); buf.writeUint32(0); // cideci
+//     buf.writeUint8(0); buf.writeUint32(0); // cidcct, cidecs
+//     buf.writeUint8(connImpl.clientInfoModified ? 1 : 0);
+//     buf.writeUint32(clientInfoBytes?.length ?? 0);
+//     buf.writeUint8(0); buf.writeUint32(0); // cidkstk
+//     buf.writeUint8(0); buf.writeUint32(0); // cidktgt
+//     buf.writeUint8(connImpl.dbopModified ? 1 : 0);
+//     buf.writeUint32(dbopBytes?.length ?? 0);
+
+//     // Write actual string values if they exist
+//     if (connImpl.clientIdentifierModified && clientIdBytes != null) {
+//         buf.writeBytesWithLength(clientIdBytes);
+//     }
+//     if (connImpl.moduleModified && moduleBytes != null) {
+//         buf.writeBytesWithLength(moduleBytes);
+//     }
+//     if (connImpl.actionModified && actionBytes != null) {
+//         buf.writeBytesWithLength(actionBytes);
+//     }
+//     if (connImpl.clientInfoModified && clientInfoBytes != null) {
+//         buf.writeBytesWithLength(clientInfoBytes);
+//     }
+//     if (connImpl.dbopModified && dbopBytes != null) {
+//         buf.writeBytesWithLength(dbopBytes);
+//     }
+
+//     // Reset flags and values on connection
+//     connImpl.actionModified = false;
+//     connImpl.action = null;
+//     connImpl.clientIdentifierModified = false;
+//     connImpl.clientIdentifier = null;
+//     connImpl.clientInfoModified = false;
+//     connImpl.clientInfo = null;
+//     connImpl.dbopModified = false;
+//     connImpl.dbop = null;
+//     connImpl.moduleModified = false;
+//     connImpl.module = null;
+//   }
+
+//   /// Writes the function code header, including any necessary piggybacks.
+//   void _writeFunctionCode(WriteBuffer buf) {
+//     _writePiggybacks(buf); // Write piggybacks first
+//     buf.writeUint8(messageType);
+//     buf.writeUint8(functionCode);
+//     buf.writeSeqNum(); // Assuming WriteBuffer has this method
+//     if (buf.caps.ttcFieldVersion >= TNS_CCAP_FIELD_VERSION_23_1_EXT_1) {
+//       buf.writeUint64(tokenNum);
+//     }
+//   }
+
+//   /// Abstract method for subclasses to implement writing their specific message payload.
+//   void _writeMessage(WriteBuffer buf);
+
+
+//   /// Writes the header for a piggyback message.
+//   void _writePiggybackCode(WriteBuffer buf, int code) {
+//     buf.writeUint8(TNS_MSG_TYPE_PIGGYBACK);
+//     buf.writeUint8(code);
+//     buf.writeSeqNum(); // Assuming WriteBuffer has this method
+//     if (buf.caps.ttcFieldVersion >= TNS_CCAP_FIELD_VERSION_23_1_EXT_1) {
+//       buf.writeUint64(tokenNum);
+//     }
+//   }
+
+//   /// Writes all pending piggyback messages before the main message.
+//   void _writePiggybacks(WriteBuffer buf) {
+//     if (connImpl.pipelineMode != 0) {
+//       _writeBeginPipelinePiggyback(buf);
+//       connImpl.pipelineMode = 0;
+//     }
+//     if (connImpl.currentSchemaModified) {
+//       _writeCurrentSchemaPiggyback(buf);
+//       // Reset flag after writing
+//       connImpl.currentSchemaModified = false;
+//     }
+//     if (connImpl.statementCache != null &&
+//         connImpl.statementCache!.numCursorsToClose > 0 &&
+//         !connImpl.drcpEstablishSession) {
+//       _writeCloseCursorsPiggyback(buf);
+//     }
+//     if (connImpl.actionModified ||
+//         connImpl.clientIdentifierModified ||
+//         connImpl.clientInfoModified ||
+//         connImpl.dbopModified ||
+//         connImpl.moduleModified) {
+//       _writeEndToEndPiggyback(buf);
+//     }
+//      if (connImpl.tempLobsTotalSize > 0) {
+//        _writeCloseTempLobsPiggyback(buf);
+//      }
+//     if (connImpl.sessionStateDesired != 0) {
+//       _writeSessionStatePiggyback(buf);
+//     }
+//   }
+
+//   /// Writes the session state piggyback message.
+//   void _writeSessionStatePiggyback(WriteBuffer buf) {
+//      int state = connImpl.sessionStateDesired;
+//      _writePiggybackCode(buf, TNS_FUNC_SESSION_STATE);
+//      buf.writeUint64(state | TNS_SESSION_STATE_EXPLICIT_BOUNDARY);
+//      connImpl.sessionStateDesired = 0; // Reset after writing
+//   }
+
+
+//   /// Hook for subclasses to perform actions after processing the response.
+//   void postprocess() {
+//     // Default: no-op
+//   }
+
+//   /// Async version of postprocess.
+//   Future<void> postprocessAsync() async {
+//     // Default: no-op
+//   }
+
+//   /// Hook for subclasses to perform actions before sending the message.
+//   void preprocess() {
+//     // Default: no-op
+//   }
+
+//   /// Processes the entire response from the ReadBuffer for this message.
+//   void process(ReadBuffer buf) {
+//     endOfResponse = false;
+//     flushOutBinds = false;
+//     while (!endOfResponse) {
+//       buf.savePoint(); // Save position in case of needing more data (async)
+//       int messageType = buf.readUint8();
+//       _processMessage(buf, messageType);
+//     }
+//   }
+
+//   /// Sends the message using the WriteBuffer.
+//   void send(WriteBuffer buf) {
+//     buf.startRequest(TNS_PACKET_TYPE_DATA);
+//     _writeMessage(buf);
+//     if (pipelineResultImpl != null) {
+//       buf.dataFlags |= TNS_DATA_FLAGS_END_OF_REQUEST;
+//     }
+//     buf.endRequest();
+//   }
+// }
+
+
+// /// Base class for messages that handle column data (like execute and fetch).
+// abstract class MessageWithData extends Message {
+//    BaseThinCursorImpl? cursorImpl; // Associated cursor implementation
+//    Uint8List? bitVectorBuf; // Buffer for the bit vector (null indicators)
+//    // Pointer equivalent - in Dart, maybe just use bitVectorBuf directly with offsets
+//    // const char_type *bit_vector;
+//    bool arraydmlrowcounts = false;
+//    int row_index = 0; // Current row index being processed in the buffer
+//    int num_execs = 1; // Number of executions (for executeMany)
+//    int num_columns_sent = 0; // Columns sent in bit vector case
+//    List<int>? dmlrowcounts; // DML row counts for array DML
+//    bool batcherrors = false;
+//    List<ThinVarImpl>? out_var_impls; // Variables for OUT binds (PL/SQL)
+//    bool in_fetch = false; // Flag indicating if currently processing fetch data
+//    bool parse_only = false;
+//    dynamic cursor; // Reference to the public Cursor object
+//    int offset = 0; // Offset for executeMany
+
+//    /// Adjusts metadata if server returns a different type than expected
+//    /// (e.g., CLOB data when expecting VARCHAR).
+//    void _adjustMetadata(ThinVarImpl prevVarImpl, OracleMetadata metadata) {
+//      int typeNum = metadata.dbType.oraTypeNum;
+//      int prevTypeNum = prevVarImpl.fetchMetadata!.dbType.oraTypeNum; // Add null check
+
+//      if (typeNum == ORA_TYPE_NUM_CLOB &&
+//          const {
+//            ORA_TYPE_NUM_CHAR,
+//            ORA_TYPE_NUM_LONG,
+//            ORA_TYPE_NUM_VARCHAR
+//          }.contains(prevTypeNum)) {
+//        int csfrm = prevVarImpl.fetchMetadata!.dbType.csfrm; // Add null check
+//        metadata.dbType = DbType.fromOraTypeAndCsfrm(ORA_TYPE_NUM_LONG, csfrm);
+//      } else if (typeNum == ORA_TYPE_NUM_BLOB &&
+//          const {ORA_TYPE_NUM_RAW, ORA_TYPE_NUM_LONG_RAW}.contains(prevTypeNum)) {
+//        metadata.dbType = DbType.fromOraTypeAndCsfrm(ORA_TYPE_NUM_LONG_RAW, 0);
+//      }
+//    }
+
+//    /// Creates a cursor instance based on describe information received.
+//    dynamic /* BaseThinCursor */ _createCursorFromDescribe(ReadBuffer buf, [dynamic cursor]) {
+//      // Needs implementation detail for cursor creation in Dart
+//      throw UnimplementedError();
+//    }
+
+
+//    /// Reads and stores the bit vector for null/duplicate handling.
+//    void _getBitVector(ReadBuffer buf, int numBytes) {
+//       Uint8List ptr = buf.readBytes(numBytes); // Assumes readBytes returns Uint8List
+//       if (bitVectorBuf == null || bitVectorBuf!.length < numBytes) {
+//         bitVectorBuf = Uint8List(numBytes);
+//       }
+//       bitVectorBuf!.setRange(0, numBytes, ptr);
+//       // Note: Dart doesn't have a direct pointer equivalent for `bit_vector`.
+//       // Logic using it will need to access `bitVectorBuf` directly.
+//    }
+
+
+//    /// Checks the bit vector to see if data for a column is duplicated.
+//    bool _isDuplicateData(int columnNum) {
+//      if (bitVectorBuf == null) {
+//        return false;
+//      }
+//      int byteNum = columnNum ~/ 8;
+//      int bitNum = columnNum % 8;
+//      if (byteNum >= bitVectorBuf!.length) {
+//          // Avoid out-of-bounds access if bit vector is shorter than expected
+//          return false;
+//      }
+//      return (bitVectorBuf![byteNum] & (1 << bitNum)) == 0;
+//    }
+
+//   /// Writes column metadata for bind variables.
+//   void _writeColumnMetadata(WriteBuffer buf, List<ThinVarImpl> bindVarImpls) {
+//     for (final varImpl in bindVarImpls) {
+//       final metadata = varImpl.metadata!; // Add null check
+//       int oraTypeNum = metadata.dbType.oraTypeNum;
+//       int bufferSize = metadata.bufferSize;
+//       if (const {ORA_TYPE_NUM_ROWID, ORA_TYPE_NUM_UROWID}.contains(oraTypeNum)) {
+//         oraTypeNum = ORA_TYPE_NUM_VARCHAR;
+//         bufferSize = TNS_MAX_UROWID_LENGTH;
+//       }
+//       int flag = TNS_BIND_USE_INDICATORS;
+//       if (varImpl.isArray) {
+//         flag |= TNS_BIND_ARRAY;
+//       }
+//       int contFlag = 0;
+//       int lobPrefetchLength = 0;
+//       if (const {ORA_TYPE_NUM_BLOB, ORA_TYPE_NUM_CLOB}.contains(oraTypeNum)) {
+//         contFlag = TNS_LOB_PREFETCH_FLAG;
+//       } else if (oraTypeNum == ORA_TYPE_NUM_JSON) {
+//         contFlag = TNS_LOB_PREFETCH_FLAG;
+//         bufferSize = lobPrefetchLength = TNS_JSON_MAX_LENGTH;
+//       } else if (oraTypeNum == ORA_TYPE_NUM_VECTOR) {
+//         contFlag = TNS_LOB_PREFETCH_FLAG;
+//         bufferSize = lobPrefetchLength = TNS_VECTOR_MAX_LENGTH;
+//       }
+//       buf.writeUint8(oraTypeNum);
+//       buf.writeUint8(flag);
+//       buf.writeUint8(0); // Precision
+//       buf.writeUint8(0); // Scale
+//       buf.writeUint32(bufferSize);
+//       buf.writeUint32(varImpl.isArray ? varImpl.numElements : 0); // Max array elements
+//       buf.writeUint64(contFlag);
+//       if (metadata.objType != null) {
+//         final typImpl = metadata.objType as ThinDbObjectTypeImpl; // Needs cast
+//         buf.writeUint32(typImpl.oid.length);
+//         buf.writeBytesWithLength(typImpl.oid);
+//         buf.writeUint32(typImpl.version);
+//       } else {
+//         buf.writeUint32(0); // OID length
+//         buf.writeUint16(0); // version
+//       }
+//       buf.writeUint16(metadata.dbType.csfrm != 0 ? TNS_CHARSET_UTF8 : 0);
+//       buf.writeUint8(metadata.dbType.csfrm);
+//       buf.writeUint32(lobPrefetchLength); // max chars (LOB prefetch)
+//       if (buf.caps.ttcFieldVersion >= TNS_CCAP_FIELD_VERSION_12_2) {
+//         buf.writeUint32(0); // oaccolid
+//       }
+//     }
+//   }
+
+//   /// Writes a single column's value for a bind parameter row.
+//   void _writeBindParamsColumn(WriteBuffer buf, OracleMetadata metadata, dynamic value) {
+//       final oraTypeNum = metadata.dbType.oraTypeNum;
+//       // ... (Implementation needs to translate the Cython _write_bind_params_column logic) ...
+//       // This involves checking the type of 'value' and writing the corresponding
+//       // TNS representation using buf.write* methods.
+//       // Example for string:
+//       if (value == null) {
+//         buf.writeUint8(0); // Null indicator
+//       } else if (const {
+//             ORA_TYPE_NUM_VARCHAR, ORA_TYPE_NUM_CHAR, ORA_TYPE_NUM_LONG
+//           }.contains(oraTypeNum)) {
+//           Uint8List tempBytes;
+//           if (metadata.dbType.csfrm == CS_FORM_IMPLICIT) {
+//               tempBytes = (value as String).codeUnits as Uint8List; // Or utf8.encode
+//           } else {
+//               buf.caps.checkNCharsetId();
+//               tempBytes = /* encode value as UTF16 */ throw UnimplementedError();
+//           }
+//           buf.writeBytesWithLength(tempBytes);
+//       } else if (oraTypeNum == ORA_TYPE_NUM_NUMBER || oraTypeNum == ORA_TYPE_NUM_BINARY_INTEGER) {
+//           Uint8List tempBytes;
+//           if (value is bool) {
+//               tempBytes = value ? Uint8List.fromList([49]) /* '1' */ : Uint8List.fromList([48]) /* '0' */;
+//           } else {
+//               tempBytes = value.toString().codeUnits as Uint8List; // Or utf8.encode
+//           }
+//           buf.writeOracleNumber(tempBytes); // Assuming WriteBuffer has this method
+//       }
+//       // ... handle other types (NUMBER, DATE, LOB, OBJECT, JSON, VECTOR etc.) ...
+//        else {
+//           throw _createOracleException(
+//               dpyCode: ERR_DB_TYPE_NOT_SUPPORTED,
+//               message: 'DB Type ${metadata.dbType.name} not supported for writing',
+//               // name: metadata.dbType.name,
+//           );
+//        }
+//     }
+
+//   /// Writes a full row of bind parameters.
+//   void _writeBindParamsRow(WriteBuffer buf, List<BindInfo> params, int pos) {
+//     bool foundLong = false;
+//     // Write non-LONG values first
+//     for (final bindInfo in params) {
+//       if (bindInfo.isReturnBind) continue;
+//       final varImpl = bindInfo.bindVarImpl as ThinVarImpl; // Needs cast
+//       final metadata = varImpl.metadata!; // Add null check
+//       if (varImpl.isArray) {
+//         final numElements = varImpl.numElementsInArray;
+//         buf.writeUint32(numElements);
+//         for (int k=0; k < numElements; ++k) {
+//             final value = varImpl.values[k]; // Access internal values list
+//              _writeBindParamsColumn(buf, metadata, value);
+//         }
+//       } else {
+//         if (!cursorImpl!.statement!.isPlsql && // Add null checks
+//             metadata.bufferSize > buf.caps.maxStringSize) {
+//           foundLong = true;
+//           continue;
+//         }
+//         _writeBindParamsColumn(buf, metadata, varImpl.values[pos + offset]); // Access internal values list
+//       }
+//     }
+//     // Write LONG values if any were found
+//     if (foundLong) {
+//       for (final bindInfo in params) {
+//          if (bindInfo.isReturnBind) continue;
+//          final varImpl = bindInfo.bindVarImpl as ThinVarImpl; // Needs cast
+//          final metadata = varImpl.metadata!; // Add null check
+//          if (metadata.bufferSize <= buf.caps.maxStringSize) {
+//            continue;
+//          }
+//          _writeBindParamsColumn(buf, metadata, varImpl.values[pos + offset]); // Access internal values list
+//       }
+//     }
+//   }
+
+
+//   /// Actions before processing query data (fetch).
+//   void _preprocessQuery() {
+//     final cursorImpl = this.cursorImpl!; // Assert non-null
+//     final statement = cursorImpl.statement!; // Assert non-null
+
+//     inFetch = true;
+//     cursorImpl.moreRowsToFetch = true;
+//     cursorImpl.bufferRowcount = cursorImpl.bufferIndex = 0;
+//     row_index = 0;
+
+//     if (statement.fetchVarImpls == null) {
+//       return; // No fetch vars yet, describe info will create them
+//     }
+
+//     // Check if output type handler changed
+//     bool usesMetadata = false; // Placeholder
+//     final typeHandler = cursorImpl.getOutputTypeHandler(usesMetadata);
+//     if (typeHandler != statement.lastOutputTypeHandler) {
+//       final conn = cursor!.connection; // Assert non-null
+//       for (int i = 0; i < cursorImpl.fetchVarImpls!.length; i++) { // Add null check
+//          final varImpl = cursorImpl.fetchVarImpls![i] as ThinVarImpl; // Add null check & cast
+//          cursorImpl.createFetchVar(
+//               conn, cursor, typeHandler, usesMetadata, i, varImpl.fetchMetadata! // Add null check
+//          );
+//       }
+//       statement.lastOutputTypeHandler = typeHandler;
+//     }
+
+//     // Create Arrow arrays if needed
+//     if (cursorImpl.fetchingArrow) {
+//         cursorImpl.createArrowArrays();
+//     }
+
+//     out_var_impls = cursorImpl.fetchVarImpls?.cast<ThinVarImpl>(); // Add null check & cast
+//   }
+
+//   /// Processes the bit vector indicating null/duplicate columns.
+//   void _processBitVector(ReadBuffer buf) {
+//     num_columns_sent = buf.readUint16();
+//     int numBytes = cursorImpl!.numColumns ~/ 8; // Add null check
+//     if (cursorImpl!.numColumns % 8 > 0) { // Add null check
+//       numBytes += 1;
+//     }
+//     _getBitVector(buf, numBytes);
+//   }
+
+//   /// Processes column data from the buffer based on metadata.
+//   dynamic _processColumnData(ReadBuffer buf, ThinVarImpl varImpl, int pos) {
+//      final OracleMetadata metadata = (inFetch ? varImpl.fetchMetadata : varImpl.metadata)!; // Add null check
+//      final int oraTypeNum = metadata.dbType.oraTypeNum;
+//      final int csfrm = metadata.dbType.csfrm;
+//      dynamic columnValue;
+
+//      if (varImpl.bypassDecode) {
+//        // Treat as RAW if bypassing decode
+//        OracleData data = OracleData();
+//        buf.readOracleData(metadata, data, fromDbObject: false);
+//         if (!data.isNull) {
+//            columnValue = convertRawToPython(data.buffer); // Needs specific RAW conversion
+//         } else {
+//            columnValue = null;
+//         }
+//      } else if (metadata.bufferSize == 0 && inFetch &&
+//          !const {
+//            ORA_TYPE_NUM_LONG, ORA_TYPE_NUM_LONG_RAW, ORA_TYPE_NUM_UROWID
+//          }.contains(oraTypeNum)) {
+//        columnValue = null; // Null by describe
+//      } else if (oraTypeNum == ORA_TYPE_NUM_ROWID) {
+//         if (!inFetch) {
+//             columnValue = buf.readString(CS_FORM_IMPLICIT);
+//         } else {
+//             int numBytes = buf.readUint8();
+//             if (numBytes == 0 || numBytes == TNS_NULL_LENGTH_INDICATOR) {
+//                 columnValue = null;
+//             } else {
+//                 Rowid rowid = Rowid(0,0,0,0); // Assuming Rowid constructor
+//                 buf.readRowid(rowid);
+//                 columnValue = _encodeRowid(rowid); // Assuming helper exists
+//             }
+//         }
+//      } else if (oraTypeNum == ORA_TYPE_NUM_UROWID) {
+//         if (!inFetch) {
+//             columnValue = buf.readString(CS_FORM_IMPLICIT);
+//         } else {
+//             columnValue = buf.readUrowid(); // Assuming ReadBuffer method
+//         }
+//      } else if (oraTypeNum == ORA_TYPE_NUM_CURSOR) {
+//          buf.skipUint8(); // length (fixed)
+//          dynamic currentCursor = (!inFetch) ? varImpl.values[pos] : null;
+//          columnValue = _createCursorFromDescribe(buf, currentCursor);
+//          final childCursorImpl = (columnValue as dynamic/*Cursor*/).impl as BaseThinCursorImpl; // Needs cast
+//          childCursorImpl.statement!.cursorId = buf.readUint16(); // Add null check
+//          if (inFetch) {
+//              childCursorImpl.statement!.isNested = true; // Add null check
+//          }
+//      } else if (const {
+//          ORA_TYPE_NUM_CLOB, ORA_TYPE_NUM_BLOB, ORA_TYPE_NUM_BFILE
+//        }.contains(oraTypeNum)) {
+//        dynamic currentLob = (cursorImpl!.statement!.isPlsql) ? varImpl.values[pos] : null; // Add null check
+//        columnValue = buf.readLobWithLength(connImpl, metadata.dbType, currentLob); // Assuming ReadBuffer method
+//      } else if (oraTypeNum == ORA_TYPE_NUM_JSON) {
+//         columnValue = buf.readOson(); // Assuming ReadBuffer method
+//      } else if (oraTypeNum == ORA_TYPE_NUM_VECTOR) {
+//         columnValue = buf.readVector(); // Assuming ReadBuffer method
+//      } else if (oraTypeNum == ORA_TYPE_NUM_OBJECT) {
+//          final typImpl = metadata.objType as ThinDbObjectTypeImpl?; // Needs cast and null check
+//          if (typImpl == null) {
+//              columnValue = buf.readXmltype(connImpl); // Assuming ReadBuffer method
+//          } else {
+//              final objImpl = buf.readDbObject(typImpl); // Assuming ReadBuffer method
+//              if (objImpl != null) {
+//                  dynamic currentObject = (cursorImpl!.statement!.isPlsql) ? varImpl.values[pos] : null; // Add null check
+//                  if (currentObject != null) {
+//                      (currentObject as dynamic /*DbObject*/).impl = objImpl; // Needs cast
+//                      columnValue = currentObject;
+//                  } else {
+//                      columnValue = DbObject.fromImpl(objImpl); // Assuming static constructor
+//                  }
+//              } else {
+//                 columnValue = null;
+//              }
+//          }
+//      } else {
+//        OracleData data = OracleData();
+//        buf.readOracleData(metadata, data, fromDbObject: false);
+//        if (metadata.dbType.csfrm == CS_FORM_NCHAR) {
+//          buf.caps.checkNCharsetId();
+//        }
+//        if (cursorImpl!.fetchingArrow) { // Add null check
+//          // convert_oracle_data_to_arrow(metadata, varImpl.metadata!, data, varImpl.arrowArray!); // Add null checks
+//          throw UnimplementedError("Arrow conversion not fully translated");
+//        } else {
+//           columnValue = convertOracleDataToPython(
+//               metadata, varImpl.metadata!, data, varImpl.encodingErrors, false); // Add null check
+//        }
+//      }
+
+//      if (!inFetch) {
+//        int actualNumBytes = buf.readInt32();
+//        if (actualNumBytes < 0 && oraTypeNum == ORA_TYPE_NUM_BOOLEAN) {
+//          columnValue = null;
+//        } else if (actualNumBytes != 0 && columnValue != null) {
+//          String unitType = (columnValue is Uint8List) ? "bytes" : "characters";
+//          int colValueLen = (columnValue is Uint8List) ? columnValue.length : (columnValue as String).length;
+//           throw _createOracleException(
+//               dpyCode: ERR_COLUMN_TRUNCATED,
+//               message: 'Column truncated', // Args need formatting
+//               // col_value_len: colValueLen,
+//               // unit: unitType,
+//               // actual_len: actualNumBytes,
+//           );
+//        }
+//      } else if (oraTypeNum == ORA_TYPE_NUM_LONG || oraTypeNum == ORA_TYPE_NUM_LONG_RAW) {
+//        buf.skipInt32(); // null indicator
+//        buf.skipUint32(); // return code
+//      }
+//      return columnValue;
+//    }
+
+
+//   /// Processes describe information received from the server.
+//   void _processDescribeInfo(ReadBuffer buf, dynamic cursor, BaseThinCursorImpl cursorImpl) {
+//      final stmt = cursorImpl.statement!; // Assert non-null
+//      List<ThinVarImpl>? prevFetchVarImpls = stmt.fetchVarImpls?.cast<ThinVarImpl>(); // Add null check and cast
+
+//      buf.skipUint32(); // max row size
+//      cursorImpl.numColumns = buf.readUint32();
+//      cursorImpl.initFetchVars(cursorImpl.numColumns); // Assuming method exists
+//      if (cursorImpl.numColumns > 0) {
+//        buf.skipUint8(); // Skip array header byte if columns exist
+//      }
+
+//      bool usesMetadata = false; // Placeholder, determined by handler signature
+//      final typeHandler = cursorImpl.getOutputTypeHandler(usesMetadata);
+//      final conn = cursor.connection;
+
+//      for (int i = 0; i < cursorImpl.numColumns; i++) {
+//        final metadata = _processMetadata(buf); // Assuming _processMetadata is implemented
+//        if (prevFetchVarImpls != null && i < prevFetchVarImpls.length) {
+//           _adjustMetadata(prevFetchVarImpls[i], metadata);
+//        }
+//        if (const {
+//              ORA_TYPE_NUM_BLOB, ORA_TYPE_NUM_CLOB, ORA_TYPE_NUM_JSON, ORA_TYPE_NUM_VECTOR
+//            }.contains(metadata.dbType.oraTypeNum)) {
+//          stmt.requiresDefine = true;
+//          stmt.noPrefetch = true;
+//        }
+//        cursorImpl.createFetchVar(conn, cursor, typeHandler, usesMetadata, i, metadata); // Assuming method exists
+//      }
+
+//      int numBytes = buf.readUint32(); // current date length
+//      if (numBytes > 0) buf.skipRawBytesChunked();
+//      buf.skipUint32(); // dcbflag
+//      buf.skipUint32(); // dcbmdbz
+//      buf.skipUint32(); // dcbmnpr
+//      buf.skipUint32(); // dcbmxpr
+//      numBytes = buf.readUint32(); // dcbqcky length
+//      if (numBytes > 0) buf.skipRawBytesChunked();
+
+//      // Update statement with processed info
+//      stmt.fetchMetadata = cursorImpl.fetchMetadata;
+//      stmt.fetchVars = cursorImpl.fetchVars;
+//      stmt.fetchVarImpls = cursorImpl.fetchVarImpls;
+//      stmt.numColumns = cursorImpl.numColumns;
+//      stmt.lastOutputTypeHandler = typeHandler;
+//    }
+
+
+//   /// Processes the IO vector received during PL/SQL execution.
+//   void _processIoVector(ReadBuffer buf) {
+//      buf.skipUint8(); // flag
+//      buf.skipUint16(); // num requests
+//      buf.skipUint32(); // iteration number
+//      /*int numIters =*/ buf.readUint32(); // num iters this time
+//      buf.skipUint16(); // uac buffer length
+//      int numBytes = buf.readUint16(); // bit vector length
+//      if (numBytes > 0) buf.skipBytes(numBytes);
+//      numBytes = buf.readUint16(); // rowid length
+//      if (numBytes > 0) buf.skipBytes(numBytes);
+
+//      out_var_impls = [];
+//      if (cursorImpl?.statement?.bindInfoList != null) { // Add null checks
+//         for (final bindInfo in cursorImpl!.statement!.bindInfoList!) { // Add null checks
+//             bindInfo.bindDir = buf.readUint8();
+//             if (bindInfo.bindDir != TNS_BIND_DIR_INPUT) {
+//                 if (bindInfo.bindVarImpl != null) {
+//                     out_var_impls!.add(bindInfo.bindVarImpl as ThinVarImpl); // Needs cast
+//                 }
+//             }
+//         }
+//      }
+//   }
+
+//   /// Processes an implicit result set message.
+//   void _processImplicitResult(ReadBuffer buf) {
+//     cursorImpl!.implicitResultsets = []; // Add null check
+//     int numResults = buf.readUint32();
+//     for (int i = 0; i < numResults; i++) {
+//       int numBytes = buf.readUint8();
+//       buf.skipBytes(numBytes); // Skip unknown bytes
+//       final childCursor = _createCursorFromDescribe(buf);
+//       final childCursorImpl = (childCursor as dynamic/*Cursor*/).impl as BaseThinCursorImpl; // Needs cast
+//       childCursorImpl.statement!.cursorId = buf.readUint16(); // Add null check
+//       cursorImpl!.implicitResultsets!.add(childCursor); // Add null check
+//     }
+//   }
+
+//   /// Processes a row data message.
+//   void _processRowData(ReadBuffer buf) {
+//     if (out_var_impls == null) return; // Should not happen if IO vector was processed
+
+//     for (int i = 0; i < out_var_impls!.length; i++) {
+//       final varImpl = out_var_impls![i];
+//       if (varImpl.isArray) {
+//         varImpl.numElementsInArray = buf.readUint32();
+//         for (int pos = 0; pos < varImpl.numElementsInArray; pos++) {
+//           final value = _processColumnData(buf, varImpl, pos);
+//           varImpl.values[pos] = value; // Assuming values is List<dynamic>
+//         }
+//       } else if (cursorImpl?.statement?.isReturning ?? false) { // Add null checks
+//         int numRows = buf.readUint32();
+//         List<dynamic> values = List<dynamic>.filled(numRows, null);
+//         for (int j = 0; j < numRows; j++) {
+//            values[j] = _processColumnData(buf, varImpl, j);
+//         }
+//         varImpl.values[row_index] = values; // Store the list of returned values
+//         varImpl.hasReturnedData = true;
+//       } else if (cursorImpl?.fetchingArrow ?? false) { // Add null check
+//          if (_isDuplicateData(i)) {
+//             // varImpl.arrowArray!.appendLastValue(varImpl.lastArrowArray); // Add null checks
+//             throw UnimplementedError("Arrow duplicate handling not translated");
+//          } else {
+//            _processColumnData(buf, varImpl, row_index);
+//          }
+//          varImpl.lastArrowArray = null;
+//       } else if (_isDuplicateData(i)) {
+//          dynamic value;
+//          if (row_index == 0 && varImpl.outconverter != null) {
+//             value = varImpl.lastRawValue;
+//          } else {
+//             value = varImpl.values[cursorImpl!.lastRowIndex]; // Add null check
+//          }
+//          varImpl.values[row_index] = value;
+//       } else {
+//         final value = _processColumnData(buf, varImpl, row_index);
+//         varImpl.values[row_index] = value;
+//       }
+//     }
+//     row_index++;
+//     if (inFetch) {
+//       cursorImpl!.lastRowIndex = row_index - 1; // Add null check
+//       cursorImpl!.bufferRowcount = row_index; // Add null check
+//       // Reset bit vector pointer equivalent
+//       // bit_vector = NULL; // Not directly applicable in Dart
+//       bitVectorBuf = null; // Clear the buffer instead
+//     }
+//   }
+
+//   /// Processes a row header message.
+//   void _processRowHeader(ReadBuffer buf) {
+//     buf.skipUint8(); // flags
+//     buf.skipUint16(); // num requests
+//     buf.skipUint32(); // iteration number
+//     buf.skipUint32(); // num iters
+//     buf.skipUint16(); // buffer length
+//     int numBytes = buf.readUint32();
+//     if (numBytes > 0) {
+//       buf.skipUint8(); // skip repeated length
+//       _getBitVector(buf, numBytes);
+//     }
+//     numBytes = buf.readUint32();
+//     if (numBytes > 0) {
+//       buf.skipRawBytesChunked(); // rxhrid
+//     }
+//   }
+// }
+
+// // Helper to encode Rowid (needs implementation based on Rowid structure)
+// String _encodeRowid(Rowid rowid) {
+//   // ... implementation based on _convert_base64 logic ...
+//   throw UnimplementedError("Rowid encoding not implemented");
+// }
+
+
+
+// Arquivo: \src\thin\protocol\messages\connect.dart
+
+import 'dart:typed_data';
+
+import '../../../exceptions.dart';
+import '../constants.dart';
+import '../packet.dart';
+import 'base.dart';
+
+/// Thin CONNECT/ACCEPT handshake message scaffold.
+///
+/// This is a partial port of python-oracledb's ConnectMessage. It prepares the
+/// structure for building the connect packet; the actual TTC payload crafting
+/// is still TODO.
+class ConnectMessage extends Message {
+  ConnectMessage({
+    required this.connectStringBytes,
+    required this.host,
+    required this.port,
+    required this.sdu,
+    this.packetFlags = 0,
+  });
+
+  final List<int> connectStringBytes;
+  final String host;
+  final int port;
+  final int sdu;
+  final int packetFlags;
+
+  int get connectStringLen => connectStringBytes.length;
+  bool get needsConnectData => connectStringLen > TNS_MAX_CONNECT_DATA;
+
+  /// Process ACCEPT / REFUSE / REDIRECT responses (partial).
+  void process(ReadBuffer buf, int packetType) {
+    if (packetType == TNS_PACKET_TYPE_ACCEPT) {
+      final protocolVersion = buf.readUint16();
+      print('DEBUG: ACCEPT protocolVersion=$protocolVersion');
+      if (protocolVersion < TNS_VERSION_MIN_ACCEPTED) {
+        throw createOracleException(
+          dpyCode: ERR_SERVER_VERSION_NOT_SUPPORTED,
+          message: 'Server protocol $protocolVersion is below minimum',
+        );
+      }
+      final protocolOptions = buf.readUint16();
+      buf.skipBytes(10);
+      final flags1 = buf.readUint8();
+      if ((flags1 & TNS_NSI_NA_REQUIRED) != 0) {
+        throw createOracleException(
+          dpyCode: ERR_FEATURE_NOT_SUPPORTED,
+          message: 'Native Network Encryption required by server',
+        );
+      }
+      buf.skipBytes(9);
+      final sdu = buf.readUint32();
+      int flags2 = 0;
+      if (protocolVersion >= TNS_VERSION_MIN_OOB_CHECK) {
+        buf.skipBytes(5);
+        flags2 = buf.readUint32();
+      }
+          connImpl?.capabilities
+            ?.adjustForProtocol(protocolVersion, protocolOptions, flags2);
+        final useFourByteLengths =
+          protocolVersion >= TNS_VERSION_MIN_LARGE_SDU;
+        connImpl?.transport.setFullPacketSize(useFourByteLengths);
+      connImpl?.transport.setSdu(sdu);
+    } else if (packetType == TNS_PACKET_TYPE_REFUSE) {
+      throw createOracleException(
+        dpyCode: ERR_LISTENER_REFUSED_CONNECTION,
+        message: errorInfo.message ?? 'Listener refused connection',
+      );
+    } else if (packetType == TNS_PACKET_TYPE_REDIRECT) {
+      final redirectLen = buf.readUint16();
+      if (redirectLen > 0) {
+        final data = buf.readBytes(redirectLen);
+        errorInfo.message =
+            String.fromCharCodes(data); // stash redirect for caller
+      }
+    }
+  }
+
+  /// Build the CONNECT packet payload into [buf].
+  Uint8List buildPacket() {
+    final serviceOptions = TNS_GSO_DONT_CARE;
+    const nsiFlags = TNS_NSI_SUPPORT_SECURITY_RENEG | TNS_NSI_DISABLE_NA;
+    const connectFlags1 = 0;
+    var connectFlags2 = 0;
+
+    // We don't know if OOB is supported yet; initial CONNECT uses defaults.
+    final body = WriteBuffer();
+    body.writeUint16(TNS_VERSION_DESIRED);
+    body.writeUint16(TNS_VERSION_MINIMUM);
+    body.writeUint16(serviceOptions);
+    body.writeUint16(sdu);
+    body.writeUint16(sdu); // TDU
+    body.writeUint16(TNS_PROTOCOL_CHARACTERISTICS);
+    body.writeUint16(0); // line turnaround
+    body.writeUint16(1); // value of 1
+    body.writeUint16(connectStringLen);
+    body.writeUint16(74); // offset to connect data
+    body.writeUint32(0); // max receivable data
+    body.writeUint8(nsiFlags);
+    body.writeUint8(nsiFlags);
+    body.writeUint64(0); // obsolete
+    body.writeUint64(0); // obsolete
+    body.writeUint64(0); // obsolete
+    body.writeUint32(sdu); // SDU (large)
+    body.writeUint32(sdu); // TDU (large)
+    body.writeUint32(connectFlags1);
+    body.writeUint32(connectFlags2);
+    if (!needsConnectData) {
+      body.writeBytes(connectStringBytes);
+    }
+
+    final bodyBytes = body.toBytes();
+    return buildTnsPacket(
+      bodyBytes: bodyBytes,
+      packetType: TNS_PACKET_TYPE_CONNECT,
+      packetFlags: packetFlags,
+      useLargeSdu: false,
+    );
+  }
+
+  Uint8List? buildConnectDataPacket() {
+    if (!needsConnectData) return null;
+    final body = WriteBuffer();
+    body.writeBytes(connectStringBytes);
+    final bodyBytes = body.toBytes();
+    return buildTnsPacket(
+      bodyBytes: bodyBytes,
+      packetType: TNS_PACKET_TYPE_DATA,
+      includeDataFlags: true,
+      useLargeSdu: false,
+    );
+  }
+}
+
+
+
+// Arquivo: \src\thin\protocol\messages\data_types.dart
+
+import 'dart:typed_data';
+
+import '../constants.dart';
+import '../packet.dart';
+import 'base.dart';
+
+/// Data types message for establishing data type formats with the server.
+/// This message is sent after the protocol message during connection setup.
+class DataTypesMessage extends Message {
+  
+  /// Builds the data types request packet to send to the server.
+  Uint8List buildRequest() {
+    final body = WriteBuffer();
+    
+    // Write message type
+    body.writeUint8(TNS_MSG_TYPE_DATA_TYPES);
+    
+    // Write character set and capabilities
+    body.writeUint16LE(TNS_CHARSET_UTF8);
+    body.writeUint16LE(TNS_CHARSET_UTF8);
+    body.writeUint8(TNS_ENCODING_MULTI_BYTE | TNS_ENCODING_CONV_LENGTH);
+    body.writeBytesWithLength(connImpl.capabilities.compileCaps);
+    body.writeBytesWithLength(connImpl.capabilities.runtimeCaps);
+    
+    // Write data types array
+    for (final entry in _dataTypes) {
+      if (entry[0] == 0) break;
+      body.writeUint16(entry[0]); // data_type
+      body.writeUint16(entry[1]); // conv_data_type
+      body.writeUint16(entry[2]); // representation
+      body.writeUint16(0);        // padding
+    }
+    body.writeUint16(0); // terminator
+    
+    final bodyBytes = body.toBytes();
+    return buildTnsPacket(
+      bodyBytes: bodyBytes,
+      packetType: TNS_PACKET_TYPE_DATA,
+      includeDataFlags: true,
+      useLargeSdu: useLargeSdu,
+    );
+  }
+
+  @override
+  void processMessage(ReadBuffer buf, int messageType) {
+    if (messageType == TNS_MSG_TYPE_DATA_TYPES) {
+      _processDataTypes(buf);
+      endOfResponse = true;
+    } else {
+      super.processMessage(buf, messageType);
+    }
+  }
+
+  void _processDataTypes(ReadBuffer buf) {
+    // Read and skip data type definitions from server
+    while (true) {
+      final dataType = buf.readUint16();
+      if (dataType == 0) break;
+      final convDataType = buf.readUint16();
+      if (convDataType != 0) {
+        buf.skipBytes(4);
+      }
+    }
+    if (!connImpl.capabilities.supportsEndOfResponse) {
+      endOfResponse = true;
+    }
+  }
+}
+
+// Data type definitions for Oracle protocol negotiation
+// Format: [data_type, conv_data_type, representation]
+const List<List<int>> _dataTypes = [
+  [ORA_TYPE_NUM_VARCHAR, ORA_TYPE_NUM_VARCHAR, TNS_TYPE_REP_UNIVERSAL],
+  [ORA_TYPE_NUM_NUMBER, ORA_TYPE_NUM_NUMBER, TNS_TYPE_REP_ORACLE],
+  [ORA_TYPE_NUM_LONG, ORA_TYPE_NUM_LONG, TNS_TYPE_REP_UNIVERSAL],
+  [ORA_TYPE_NUM_DATE, ORA_TYPE_NUM_DATE, TNS_TYPE_REP_ORACLE],
+  [ORA_TYPE_NUM_RAW, ORA_TYPE_NUM_RAW, TNS_TYPE_REP_UNIVERSAL],
+  [ORA_TYPE_NUM_LONG_RAW, ORA_TYPE_NUM_LONG_RAW, TNS_TYPE_REP_UNIVERSAL],
+  [TNS_DATA_TYPE_UB2, TNS_DATA_TYPE_UB2, TNS_TYPE_REP_UNIVERSAL],
+  [TNS_DATA_TYPE_UB4, TNS_DATA_TYPE_UB4, TNS_TYPE_REP_UNIVERSAL],
+  [TNS_DATA_TYPE_SB1, TNS_DATA_TYPE_SB1, TNS_TYPE_REP_ORACLE],
+  [TNS_DATA_TYPE_SB2, TNS_DATA_TYPE_SB2, TNS_TYPE_REP_UNIVERSAL],
+  [TNS_DATA_TYPE_SB4, TNS_DATA_TYPE_SB4, TNS_TYPE_REP_UNIVERSAL],
+  [TNS_DATA_TYPE_SWORD, TNS_DATA_TYPE_SWORD, TNS_TYPE_REP_UNIVERSAL],
+  [TNS_DATA_TYPE_UWORD, TNS_DATA_TYPE_UWORD, TNS_TYPE_REP_UNIVERSAL],
+  [TNS_DATA_TYPE_PTRB, TNS_DATA_TYPE_PTRB, TNS_TYPE_REP_UNIVERSAL],
+  [TNS_DATA_TYPE_PTRW, TNS_DATA_TYPE_PTRW, TNS_TYPE_REP_UNIVERSAL],
+  [TNS_DATA_TYPE_TIDDEF, TNS_DATA_TYPE_TIDDEF, TNS_TYPE_REP_UNIVERSAL],
+  [ORA_TYPE_NUM_ROWID, ORA_TYPE_NUM_ROWID, TNS_TYPE_REP_UNIVERSAL],
+  [TNS_DATA_TYPE_AMS, TNS_DATA_TYPE_AMS, TNS_TYPE_REP_UNIVERSAL],
+  [TNS_DATA_TYPE_BRN, TNS_DATA_TYPE_BRN, TNS_TYPE_REP_UNIVERSAL],
+  [TNS_DATA_TYPE_CWD, TNS_DATA_TYPE_CWD, TNS_TYPE_REP_UNIVERSAL],
+  [0, 0, 0], // terminator
+];
+
+// TNS Data type constants (subset needed for data types message)
+const int TNS_DATA_TYPE_UB2 = 25;
+const int TNS_DATA_TYPE_UB4 = 26;
+const int TNS_DATA_TYPE_SB1 = 27;
+const int TNS_DATA_TYPE_SB2 = 28;
+const int TNS_DATA_TYPE_SB4 = 29;
+const int TNS_DATA_TYPE_SWORD = 30;
+const int TNS_DATA_TYPE_UWORD = 31;
+const int TNS_DATA_TYPE_PTRB = 32;
+const int TNS_DATA_TYPE_PTRW = 33;
+const int TNS_DATA_TYPE_TIDDEF = 10;
+const int TNS_DATA_TYPE_AMS = 40;
+const int TNS_DATA_TYPE_BRN = 41;
+const int TNS_DATA_TYPE_CWD = 117;
+
+// Type representations
+const int TNS_TYPE_REP_UNIVERSAL = 1;
+const int TNS_TYPE_REP_ORACLE = 10;
+
+// Oracle type numbers (should eventually be in constants.dart)
+const int ORA_TYPE_NUM_VARCHAR = 1;
+const int ORA_TYPE_NUM_NUMBER = 2;
+const int ORA_TYPE_NUM_LONG = 8;
+const int ORA_TYPE_NUM_DATE = 12;
+const int ORA_TYPE_NUM_RAW = 23;
+const int ORA_TYPE_NUM_LONG_RAW = 24;
+const int ORA_TYPE_NUM_ROWID = 11;
+
+// WriteBuffer extension for little-endian writes
+extension _WriteBufferLE on WriteBuffer {
+  void writeUint16LE(int value) {
+    final data = ByteData(2)..setUint16(0, value & 0xFFFF, Endian.little);
+    writeBytes(data.buffer.asUint8List());
+  }
+}
+
+
+
+// Arquivo: \src\thin\protocol\messages\protocol.dart
+
+import 'dart:typed_data';
+
+import '../constants.dart';
+import '../packet.dart';
+import 'base.dart';
+
+const _driverName = 'python-oracledb'; // Testing with Python driver name
+
+/// Protocol negotiation message sent after CONNECT/ACCEPT handshake.
+class ProtocolMessage extends Message {
+  int serverVersion = 0;
+  int serverFlags = 0;
+  Uint8List? serverCompileCaps;
+  Uint8List? serverRuntimeCaps;
+  String? serverBanner;
+
+  Uint8List buildRequest() {
+    final body = WriteBuffer();
+    body.writeUint8(TNS_MSG_TYPE_PROTOCOL);
+    body.writeUint8(6); // protocol version (8.1 and higher)
+    body.writeUint8(0); // array terminator
+    body.writeBytes(_driverName.codeUnits);
+    body.writeUint8(0); // NULL terminator
+
+    final bodyBytes = body.toBytes();
+    return buildTnsPacket(
+      bodyBytes: bodyBytes,
+      packetType: TNS_PACKET_TYPE_DATA,
+      includeDataFlags: true,
+      useLargeSdu: useLargeSdu,
+    );
+  }
+
+  @override
+  void processMessage(ReadBuffer buf, int messageType) {
+    if (messageType == TNS_MSG_TYPE_PROTOCOL) {
+      _processProtocolInfo(buf);
+      endOfResponse = true;
+    } else {
+      super.processMessage(buf, messageType);
+    }
+  }
+
+  void _processProtocolInfo(ReadBuffer buf) {
+    serverVersion = buf.readUint8();
+    buf.skipUint8(); // skip zero byte
+    serverBanner = buf.readNullTerminatedString();
+    final charsetId = buf.readUint16LE();
+    serverFlags = buf.readUint8();
+    final numElem = buf.readUint16LE();
+    if (numElem > 0) {
+      buf.skipBytes(numElem * 5);
+    }
+    final fdoLength = buf.readUint16();
+    final fdo = buf.readBytes(fdoLength);
+    final ix = 6 + fdo[5] + fdo[6];
+    final ncharsetId = (fdo[ix + 3] << 8) + fdo[ix + 4];
+
+    // Read server compile caps
+    serverCompileCaps = buf.readBytesWithLength();
+    if (serverCompileCaps != null && serverCompileCaps!.isNotEmpty) {
+      print('DEBUG: Server compile caps (${serverCompileCaps!.length} bytes): ${serverCompileCaps!.take(20).map((b) => b.toRadixString(16).padLeft(2, '0')).join(' ')}');
+      connImpl?.capabilities.adjustForServerCompileCaps(serverCompileCaps!);
+    }
+
+    // Read server runtime caps
+    serverRuntimeCaps = buf.readBytesWithLength();
+    if (serverRuntimeCaps != null && serverRuntimeCaps!.isNotEmpty) {
+      print('DEBUG: Server runtime caps (${serverRuntimeCaps!.length} bytes): ${serverRuntimeCaps!.map((b) => b.toRadixString(16).padLeft(2, '0')).join(' ')}');
+      connImpl?.capabilities.adjustForServerRuntimeCaps(serverRuntimeCaps!);
+    }
+
+    connImpl?.capabilities.charsetId = charsetId;
+    connImpl?.capabilities.ncharsetId = ncharsetId;
+    print('DEBUG: Protocol response: charsetId=$charsetId, ncharsetId=$ncharsetId, serverVersion=$serverVersion, serverFlags=$serverFlags');
+  }
+}
+
+
+
+// Arquivo: \src\thin\protocol\packet.dart
+
+// Core packet helpers for the thin protocol.
+
+import 'dart:convert';
+import 'dart:math';
+import 'dart:typed_data';
+
+import '../../exceptions.dart';
+import 'constants.dart';
+
+/// Basic write buffer that grows as bytes are appended.
+class WriteBuffer {
+  final BytesBuilder _builder = BytesBuilder();
+
+  void writeUint8(int value) {
+    _builder.addByte(value & 0xFF);
+  }
+
+  void writeUint16(int value) {
+    final data = ByteData(2)..setUint16(0, value & 0xFFFF, Endian.big);
+    _builder.add(data.buffer.asUint8List());
+  }
+
+  void writeUint32(int value) {
+    final data = ByteData(4)..setUint32(0, value, Endian.big);
+    _builder.add(data.buffer.asUint8List());
+  }
+
+  void writeUint64(int value) {
+    final data = ByteData(8)..setUint64(0, value, Endian.big);
+    _builder.add(data.buffer.asUint8List());
+  }
+
+  /// Writes a 32-bit integer in Oracle's universal format (variable length).
+  /// This is the standard format for most TTC integer fields.
+  void writeUB4(int value) {
+    if (value == 0) {
+      writeUint8(0);
+    } else if (value <= 0xFF) {
+      writeUint8(1);
+      writeUint8(value);
+    } else if (value <= 0xFFFF) {
+      writeUint8(2);
+      writeUint16(value);
+    } else {
+      writeUint8(4);
+      writeUint32(value);
+    }
+  }
+
+  /// Writes a 16-bit integer in Oracle's universal format (variable length).
+  void writeUB2(int value) {
+    if (value == 0) {
+      writeUint8(0);
+    } else if (value <= 0xFF) {
+      writeUint8(1);
+      writeUint8(value);
+    } else {
+      writeUint8(2);
+      writeUint16(value);
+    }
+  }
+
+  /// Writes a 64-bit integer in Oracle's universal format (variable length).
+  void writeUB8(int value) {
+    if (value == 0) {
+      writeUint8(0);
+    } else if (value <= 0xFF) {
+      writeUint8(1);
+      writeUint8(value);
+    } else if (value <= 0xFFFF) {
+      writeUint8(2);
+      writeUint16(value);
+    } else if (value <= 0xFFFFFFFF) {
+      writeUint8(4);
+      writeUint32(value);
+    } else {
+      writeUint8(8);
+      writeUint64(value);
+    }
+  }
+
+  void writeBytes(List<int> bytes) {
+    _builder.add(bytes);
+  }
+
+  void writeBytesWithLength(List<int> bytes) {
+    if (bytes.isEmpty) {
+      writeUint8(0);
+      return;
+    }
+    if (bytes.length < TNS_LONG_LENGTH_INDICATOR) {
+      writeUint8(bytes.length);
+      writeBytes(bytes);
+      return;
+    }
+    writeUint8(TNS_LONG_LENGTH_INDICATOR);
+    var offset = 0;
+    while (offset < bytes.length) {
+      final chunkLen = min(0xFFFF, bytes.length - offset);
+      writeUint32(chunkLen);
+      writeBytes(bytes.sublist(offset, offset + chunkLen));
+      offset += chunkLen;
+    }
+    writeUint32(0);
+  }
+
+  Uint8List toBytes() => _builder.toBytes();
+}
+
+/// Basic read buffer with big-endian helpers mirroring python-oracledb.
+class ReadBuffer {
+  ReadBuffer(Uint8List data) : _data = data;
+
+  final Uint8List _data;
+  int _pos = 0;
+
+  bool get isEOF => _pos >= _data.length;
+  int get remaining => _data.length - _pos;
+
+  int readUint8() => _read(1, (bd) => bd.getUint8(0));
+  int readUint16() => _read(2, (bd) => bd.getUint16(0, Endian.big));
+  int readUint16LE() => _read(2, (bd) => bd.getUint16(0, Endian.little));
+  int readUint32() => _read(4, (bd) => bd.getUint32(0, Endian.big));
+  int readUint64() => _read(8, (bd) => bd.getUint64(0, Endian.big));
+  int readInt16() => _read(2, (bd) => bd.getInt16(0, Endian.big));
+  int readInt32() => _read(4, (bd) => bd.getInt32(0, Endian.big));
+
+  /// Reads an unsigned 16-bit integer in Oracle's universal format (variable length).
+  int readUB2() {
+    final length = readUint8();
+    if (length == 0) return 0;
+    if (length == 1) return readUint8();
+    return readUint16();
+  }
+
+  /// Reads an unsigned 32-bit integer in Oracle's universal format (variable length).
+  int readUB4() {
+    final length = readUint8();
+    if (length == 0) return 0;
+    if (length == 1) return readUint8();
+    if (length == 2) return readUint16();
+    return readUint32();
+  }
+
+  /// Skips an unsigned 32-bit integer in Oracle's universal format.
+  void skipUB4() {
+    final length = readUint8();
+    if (length > 0) {
+      skipBytes(length);
+    }
+  }
+
+  /// Reads a null-terminated string from the buffer.
+  String readNullTerminatedString({Encoding encoding = utf8}) {
+    final startPos = _pos;
+    while (_pos < _data.length && _data[_pos] != 0) {
+      _pos++;
+    }
+    final strBytes = _data.sublist(startPos, _pos);
+    if (_pos < _data.length) {
+      _pos++; // Skip the null terminator
+    }
+    return encoding.decode(strBytes);
+  }
+
+  Uint8List readBytes(int length) => _slice(length);
+  void skipBytes(int length) => _skip(length);
+
+  /// Saves the current cursor position. The thin Dart port keeps packet
+  /// payloads fully materialized for now, so this is a no-op but maintains API
+  /// compatibility with the Python implementation.
+  void savePoint() {}
+
+  /// Reads a length-prefixed string using the default UTF-8 encoding.
+  String readStringWithLength({Encoding encoding = utf8}) {
+    final bytes = readBytesWithLength();
+    if (bytes.isEmpty) {
+      return '';
+    }
+    return encoding.decode(bytes);
+  }
+
+  /// Reads a server rowid tuple.
+  Rowid readRowid() {
+    final rba = readUint32();
+    final partitionId = readUint16();
+    final blockNum = readUint32();
+    final slotNum = readUint16();
+    return Rowid(
+      rba: rba,
+      partitionId: partitionId,
+      blockNum: blockNum,
+      slotNum: slotNum,
+    );
+  }
+
+  /// Skip a byte-length-prefixed raw payload; if the length is the long
+  /// length indicator, consume chunked segments until a zero-length terminator.
+  void skipRawBytesChunked() {
+    final length = readUint8();
+    if (length != TNS_LONG_LENGTH_INDICATOR) {
+      skipBytes(length);
+      return;
+    }
+    while (true) {
+      final chunkLen = readUint32();
+      if (chunkLen == 0) break;
+      skipBytes(chunkLen);
+    }
+  }
+
+  /// Read a raw payload with a leading length byte or chunked encoding.
+  Uint8List readBytesWithLength() {
+    final length = readUint8();
+    if (length != TNS_LONG_LENGTH_INDICATOR) {
+      return readBytes(length);
+    }
+    final chunks = <int>[];
+    while (true) {
+      final chunkLen = readUint32();
+      if (chunkLen == 0) break;
+      chunks.addAll(readBytes(chunkLen));
+    }
+    return Uint8List.fromList(chunks);
+  }
+
+  void skipUint8() => _skip(1);
+  void skipUint16() => _skip(2);
+  void skipUint32() => _skip(4);
+
+  T _read<T>(int length, T Function(ByteData) reader) {
+    if (remaining < length) {
+      throw createOracleException(
+        dpyCode: ERR_UNEXPECTED_END_OF_DATA,
+        message:
+            'unexpected end of data: wanted $length bytes, only $remaining left',
+      );
+    }
+    final view =
+        ByteData.sublistView(_data, _pos, _pos + length); // cheap slice view
+    _pos += length;
+    return reader(view);
+  }
+
+  Uint8List _slice(int length) {
+    if (remaining < length) {
+      throw createOracleException(
+        dpyCode: ERR_UNEXPECTED_END_OF_DATA,
+        message:
+            'unexpected end of data: wanted $length bytes, only $remaining left',
+      );
+    }
+    final result = Uint8List.sublistView(_data, _pos, _pos + length);
+    _pos += length;
+    return result;
+  }
+
+  void _skip(int length) {
+    if (remaining < length) {
+      throw createOracleException(
+        dpyCode: ERR_UNEXPECTED_END_OF_DATA,
+        message:
+            'unexpected end of data: wanted $length bytes, only $remaining left',
+      );
+    }
+    _pos += length;
+  }
+}
+
+/// Representation of a network packet header and payload.
+class Packet {
+  Packet({
+    required this.packetSize,
+    required this.packetType,
+    required this.packetFlags,
+    required this.buf,
+  });
+
+  /// Total size of the packet reported by the network layer.
+  final int packetSize;
+
+  /// TNS packet type (CONNECT, ACCEPT, DATA, ...).
+  final int packetType;
+
+  /// Flags reported on the packet header.
+  final int packetFlags;
+
+  /// Raw bytes for the entire packet, header first.
+  final Uint8List buf;
+
+  /// Returns `true` if the packet marks the end of a response.
+  bool get hasEndOfResponse {
+    if (buf.length < packetHeaderSize + 2) return false;
+
+    final flags = _readUint16BE(buf, packetHeaderSize);
+    if ((flags & TNS_DATA_FLAGS_END_OF_RESPONSE) != 0) {
+      return true;
+    }
+
+    final eorMarkerOffset = packetHeaderSize + 2;
+    return packetSize == packetHeaderSize + 3 &&
+        buf.length > eorMarkerOffset &&
+        buf[eorMarkerOffset] == TNS_MSG_TYPE_END_OF_RESPONSE;
+  }
+}
+
+/// Oracle rowid components used by the protocol layer.
+class Rowid {
+  const Rowid({
+    required this.rba,
+    required this.partitionId,
+    required this.blockNum,
+    required this.slotNum,
+  });
+
+  final int rba;
+  final int partitionId;
+  final int blockNum;
+  final int slotNum;
+}
+
+// Packet header starts with 8 bytes in the Python implementation.
+const int packetHeaderSize = 8;
+
+Uint8List buildTnsPacket({
+  required Uint8List bodyBytes,
+  required int packetType,
+  int packetFlags = 0,
+  bool includeDataFlags = false,
+  bool useLargeSdu = false,
+}) {
+  final dataFlagsLen = includeDataFlags ? 2 : 0;
+  final totalLen = packetHeaderSize + dataFlagsLen + bodyBytes.length;
+  final packet = Uint8List(totalLen);
+  final header = ByteData.sublistView(packet, 0, packetHeaderSize);
+  if (useLargeSdu) {
+    header.setUint32(0, totalLen, Endian.big);
+  } else {
+    header.setUint16(0, totalLen, Endian.big);
+    header.setUint16(2, 0, Endian.big);
+  }
+  header.setUint8(4, packetType);
+  header.setUint8(5, packetFlags);
+  header.setUint16(6, 0, Endian.big);
+  var offset = packetHeaderSize;
+  if (includeDataFlags) {
+    packet[offset] = 0;
+    packet[offset + 1] = 0;
+    offset += 2;
+  }
+  packet.setRange(offset, totalLen, bodyBytes);
+  return packet;
+}
+
+int _readUint16BE(Uint8List data, int offset) {
+  final view = ByteData.sublistView(data, offset, offset + 2);
+  return view.getUint16(0, Endian.big);
+}
+
+
+
+// Arquivo: \src\thin\protocol\transport.dart
+
+// Thin protocol transport: send/receive packets over a Socket.
+// This is a Dart-friendly port of python-oracledb's transport.pyx.
+
+import 'dart:async';
+import 'dart:io';
+import 'dart:typed_data';
+
+import '../../exceptions.dart';
+import 'constants.dart';
+import 'packet.dart';
+
+class Transport {
+  Transport({
+    bool fullPacketSize = false,
+    bool? debugPackets,
+  })  : _fullPacketSize = fullPacketSize,
+        _debugPackets =
+            debugPackets ?? Platform.environment.containsKey('PYO_DEBUG_PACKETS');
+
+  bool _fullPacketSize;
+  final bool _debugPackets;
+
+  Socket? _socket;
+  StreamIterator<Uint8List>? _iterator;
+  Uint8List? _partialBuf;
+  int _opNum = 0;
+  int _sdu = TNS_CHUNK_SIZE;
+
+  bool get isConnected => _socket != null;
+  String get hostInfo => _socket == null
+      ? 'disconnected'
+      : '${_socket!.remoteAddress.address}:${_socket!.remotePort}';
+
+  /// Negotiated SDU size (if known).
+  int get sdu => _sdu;
+
+  void setFromSocket(Socket socket) {
+    _socket = socket;
+    _iterator = StreamIterator(socket);
+  }
+
+  void setSdu(int value) {
+    _sdu = value;
+  }
+
+  void setFullPacketSize(bool value) {
+    _fullPacketSize = value;
+  }
+
+  /// Adjust the socket timeout; in Dart we emulate this via `setOption` when available.
+  void setTimeout(Duration? timeout) {
+    if (_socket == null) return;
+    // Dart sockets do not expose a direct timeout; keep hook for parity.
+    // Callers can wrap reads with `timeout` on the Future instead.
+  }
+
+  /// Reads and parses a packet from the transport.
+  Future<Packet> readPacket() async {
+    Packet? packet = extractPacket();
+    while (packet == null) {
+      if (_iterator == null) {
+        throw createOracleException(
+          dpyCode: ERR_CONNECTION_CLOSED,
+          message: 'transport is not connected',
+        );
+      }
+      final hasData = await _iterator!.moveNext();
+      if (!hasData) {
+        final partialLen = _partialBuf?.length ?? 0;
+        print('DEBUG: Socket closed by server, partial buffer: $partialLen bytes');
+        if (_partialBuf != null && _partialBuf!.isNotEmpty) {
+          print('DEBUG: Partial buffer hex: ${_partialBuf!.map((b) => b.toRadixString(16).padLeft(2, '0')).join(' ')}');
+        }
+        _disconnect();
+        throw createOracleException(
+          dpyCode: ERR_CONNECTION_CLOSED,
+          message: 'socket closed while reading packet',
+        );
+      }
+      final chunk = _iterator!.current;
+      if (chunk.isEmpty) continue;
+      print('DEBUG: Received chunk ${chunk.length} bytes');
+      packet = extractPacket(Uint8List.fromList(chunk));
+    }
+    return packet;
+  }
+
+  Future<void> disconnect() async {
+    if (_socket == null) return;
+    if (_debugPackets) {
+      stdout.writeln(_getDebugHeader('Disconnecting transport'));
+    }
+    await _iterator?.cancel();
+    _iterator = null;
+    await _socket?.close();
+    _socket = null;
+  }
+
+  /// Writes a packet to the transport.
+  Future<void> writePacket(WriteBuffer buf) async {
+    if (_socket == null) {
+      throw createOracleException(
+        dpyCode: ERR_CONNECTION_CLOSED,
+        message: 'transport is not connected',
+      );
+    }
+    final data = buf.toBytes();
+    if (_debugPackets) {
+      _printPacket('Sending packet', data);
+    }
+    try {
+      _socket!.add(data);
+      await _socket!.flush();
+    } catch (e) {
+      _disconnect();
+      throw createOracleException(
+        dpyCode: ERR_CONNECTION_CLOSED,
+        message: 'failed to write packet: $e',
+        cause: e,
+      );
+    }
+  }
+
+  /// Send raw packet bytes (when the caller already built the header).
+  Future<void> sendRaw(Uint8List data) async {
+    if (_socket == null) {
+      throw createOracleException(
+        dpyCode: ERR_CONNECTION_CLOSED,
+        message: 'transport is not connected',
+      );
+    }
+    if (_debugPackets) {
+      _printPacket('Sending packet', data);
+    }
+    try {
+      _socket!.add(data);
+      await _socket!.flush();
+    } catch (e) {
+      _disconnect();
+      throw createOracleException(
+        dpyCode: ERR_CONNECTION_CLOSED,
+        message: 'failed to write packet: $e',
+        cause: e,
+      );
+    }
+  }
+
+  /// Try to extract a complete packet from the buffered data.
+  Packet? extractPacket([Uint8List? data]) {
+    if (data != null) {
+      _appendPartial(data);
+    }
+    final size = _partialBuf?.length ?? 0;
+    if (size < packetHeaderSize) return null;
+
+    final buf = _partialBuf!;
+    final packetSize = _fullPacketSize
+        ? ByteData.sublistView(buf, 0, 4).getUint32(0, Endian.big)
+        : ByteData.sublistView(buf, 0, 2).getUint16(0, Endian.big);
+    if (size < packetSize) return null;
+
+    final packetBuf =
+        size == packetSize ? buf : Uint8List.sublistView(buf, 0, packetSize);
+    final packet = Packet(
+      packetSize: packetSize,
+      packetType: packetBuf[4],
+      packetFlags: packetBuf[5],
+      buf: packetBuf,
+    );
+
+    // Retain remaining bytes, if any.
+    _partialBuf = size == packetSize
+        ? null
+        : Uint8List.sublistView(buf, packetSize, size);
+
+    if (_debugPackets) {
+      _printPacket('Receiving packet', packet.buf);
+    }
+    return packet;
+  }
+
+  void _appendPartial(Uint8List data) {
+    if (_partialBuf == null || _partialBuf!.isEmpty) {
+      _partialBuf = data;
+      return;
+    }
+    final combined = Uint8List(_partialBuf!.length + data.length);
+    combined.setRange(0, _partialBuf!.length, _partialBuf!);
+    combined.setRange(_partialBuf!.length, combined.length, data);
+    _partialBuf = combined;
+  }
+
+  void _disconnect() {
+    _iterator?.cancel();
+    _iterator = null;
+    _socket?.destroy();
+    _socket = null;
+  }
+
+  void _printPacket(String operation, Uint8List data) {
+    final header = _getDebugHeader(operation);
+    final buf = StringBuffer(header);
+    int offset = 0;
+    while (offset < data.length) {
+      final end = (offset + 8).clamp(0, data.length);
+      final slice = data.sublist(offset, end);
+      final hexBytes = slice.map((b) => b.toRadixString(16).padLeft(2, '0').toUpperCase()).toList();
+      while (hexBytes.length < 8) {
+        hexBytes.add('  ');
+      }
+      final printable = slice
+          .map((b) => b >= 32 && b < 127 ? String.fromCharCode(b) : '.')
+          .join()
+          .padRight(8, ' ');
+      buf.writeln();
+      buf.write('${offset.toString().padLeft(4, '0')} : ${hexBytes.join(' ')} |$printable|');
+      offset += 8;
+    }
+    stdout.writeln(buf.toString());
+  }
+
+  String _getDebugHeader(String operation) {
+    _opNum += 1;
+    final now = DateTime.now().toIso8601String();
+    final sockInfo = _socket == null
+        ? 'closed'
+        : '${_socket!.remoteAddress.address}:${_socket!.remotePort}';
+    return '$now $operation [op $_opNum] on socket $sockInfo';
+  }
+}
+
+
+

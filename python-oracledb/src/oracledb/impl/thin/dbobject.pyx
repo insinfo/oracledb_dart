@@ -280,7 +280,8 @@ cdef class ThinDbObjectImpl(BaseDbObjectImpl):
         elif ora_type_num == ORA_TYPE_NUM_BOOLEAN:
             buf.write_uint8(4)
             buf.write_uint32be(value)
-        elif ora_type_num in (ORA_TYPE_NUM_DATE, ORA_TYPE_NUM_TIMESTAMP,
+        elif ora_type_num in (ORA_TYPE_NUM_DATE,
+                              ORA_TYPE_NUM_TIMESTAMP,
                               ORA_TYPE_NUM_TIMESTAMP_TZ,
                               ORA_TYPE_NUM_TIMESTAMP_LTZ):
             buf.write_oracle_date(value, metadata.dbtype._buffer_size_factor)
@@ -390,7 +391,8 @@ cdef class ThinDbObjectImpl(BaseDbObjectImpl):
             else:
                 obj_impl._unpack_data_from_buf(buf)
             return PY_TYPE_DB_OBJECT._from_impl(obj_impl)
-        buf.read_oracle_data(metadata, &data, from_dbobject=True)
+        buf.read_oracle_data(metadata, &data, from_dbobject=True,
+                             decode_str=False)
         if metadata.dbtype._csfrm == CS_FORM_NCHAR:
             conn_impl = self.type._conn_impl
             conn_impl._protocol._caps._check_ncharset_id()

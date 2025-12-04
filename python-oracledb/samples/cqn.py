@@ -1,5 +1,5 @@
 # -----------------------------------------------------------------------------
-# Copyright (c) 2016, 2023, Oracle and/or its affiliates.
+# Copyright (c) 2016, 2025, Oracle and/or its affiliates.
 #
 # Portions Copyright 2007-2015, Anthony Tuininga. All rights reserved.
 #
@@ -55,7 +55,7 @@ def callback(message):
         registered = False
         return
     print("Message database name:", message.dbname)
-    print("Message tranasction id:", message.txid)
+    print("Message transaction id:", message.txid)
     print("Message queries:")
     for query in message.queries:
         print("--> Query ID:", query.id)

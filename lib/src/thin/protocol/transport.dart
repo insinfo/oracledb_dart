@@ -66,6 +66,11 @@ class Transport {
       }
       final hasData = await _iterator!.moveNext();
       if (!hasData) {
+        final partialLen = _partialBuf?.length ?? 0;
+        print('DEBUG: Socket closed by server, partial buffer: $partialLen bytes');
+        if (_partialBuf != null && _partialBuf!.isNotEmpty) {
+          print('DEBUG: Partial buffer hex: ${_partialBuf!.map((b) => b.toRadixString(16).padLeft(2, '0')).join(' ')}');
+        }
         _disconnect();
         throw createOracleException(
           dpyCode: ERR_CONNECTION_CLOSED,
@@ -74,6 +79,7 @@ class Transport {
       }
       final chunk = _iterator!.current;
       if (chunk.isEmpty) continue;
+      print('DEBUG: Received chunk ${chunk.length} bytes');
       packet = extractPacket(Uint8List.fromList(chunk));
     }
     return packet;

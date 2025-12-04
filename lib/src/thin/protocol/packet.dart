@@ -30,6 +30,55 @@ class WriteBuffer {
     _builder.add(data.buffer.asUint8List());
   }
 
+  /// Writes a 32-bit integer in Oracle's universal format (variable length).
+  /// This is the standard format for most TTC integer fields.
+  void writeUB4(int value) {
+    if (value == 0) {
+      writeUint8(0);
+    } else if (value <= 0xFF) {
+      writeUint8(1);
+      writeUint8(value);
+    } else if (value <= 0xFFFF) {
+      writeUint8(2);
+      writeUint16(value);
+    } else {
+      writeUint8(4);
+      writeUint32(value);
+    }
+  }
+
+  /// Writes a 16-bit integer in Oracle's universal format (variable length).
+  void writeUB2(int value) {
+    if (value == 0) {
+      writeUint8(0);
+    } else if (value <= 0xFF) {
+      writeUint8(1);
+      writeUint8(value);
+    } else {
+      writeUint8(2);
+      writeUint16(value);
+    }
+  }
+
+  /// Writes a 64-bit integer in Oracle's universal format (variable length).
+  void writeUB8(int value) {
+    if (value == 0) {
+      writeUint8(0);
+    } else if (value <= 0xFF) {
+      writeUint8(1);
+      writeUint8(value);
+    } else if (value <= 0xFFFF) {
+      writeUint8(2);
+      writeUint16(value);
+    } else if (value <= 0xFFFFFFFF) {
+      writeUint8(4);
+      writeUint32(value);
+    } else {
+      writeUint8(8);
+      writeUint64(value);
+    }
+  }
+
   void writeBytes(List<int> bytes) {
     _builder.add(bytes);
   }
@@ -75,6 +124,31 @@ class ReadBuffer {
   int readUint64() => _read(8, (bd) => bd.getUint64(0, Endian.big));
   int readInt16() => _read(2, (bd) => bd.getInt16(0, Endian.big));
   int readInt32() => _read(4, (bd) => bd.getInt32(0, Endian.big));
+
+  /// Reads an unsigned 16-bit integer in Oracle's universal format (variable length).
+  int readUB2() {
+    final length = readUint8();
+    if (length == 0) return 0;
+    if (length == 1) return readUint8();
+    return readUint16();
+  }
+
+  /// Reads an unsigned 32-bit integer in Oracle's universal format (variable length).
+  int readUB4() {
+    final length = readUint8();
+    if (length == 0) return 0;
+    if (length == 1) return readUint8();
+    if (length == 2) return readUint16();
+    return readUint32();
+  }
+
+  /// Skips an unsigned 32-bit integer in Oracle's universal format.
+  void skipUB4() {
+    final length = readUint8();
+    if (length > 0) {
+      skipBytes(length);
+    }
+  }
 
   /// Reads a null-terminated string from the buffer.
   String readNullTerminatedString({Encoding encoding = utf8}) {

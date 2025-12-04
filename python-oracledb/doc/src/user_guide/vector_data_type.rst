@@ -1,15 +1,19 @@
 .. _vectors:
 
+.. currentmodule:: oracledb
+
 *****************
 Using VECTOR Data
 *****************
 
-Oracle Database 23ai introduced a new data type `VECTOR <https://docs.oracle.
-com/en/database/oracle/oracle-database/23/vecse/overview-ai-vector-search.
-html>`__ for artificial intelligence and machine learning search operations.
-The VECTOR data type is a homogeneous array of 8-bit signed integers, 8-bit
-unsigned integers, 32-bit floating-point numbers, or 64-bit floating-point
-numbers.
+Oracle AI Database 26ai introduced a new data type `VECTOR <https://www.oracle.
+com/pls/topic/lookup?ctx=dblatest&id=GUID-746EAA47-9ADA-4A77-82BB-
+64E8EF5309BE>`__ for artificial intelligence and machine learning search
+operations. The VECTOR data type is a homogeneous array of 8-bit signed
+integers, 8-bit unsigned integers, 32-bit floating-point numbers, or 64-bit
+floating-point numbers. For more information about using vectors in Oracle
+Database, see the `Oracle AI Vector Search User's Guide
+<https://www.oracle.com/pls/topic/lookup?ctx=dblatest&id=VECSE>`__.
 
 With the VECTOR data type, you can define the number of dimensions for the
 data and the storage format for each dimension value in the vector. The
@@ -29,6 +33,9 @@ various storage formats mentioned above. For example:
     CREATE TABLE vector_table (
         vec_data vector
     )
+
+If you are interested in using VECTOR data with data frames, see
+:ref:`dfvector`.
 
 .. _intfloatformat:
 
@@ -121,9 +128,8 @@ representation of each row's value as shown below::
 
 See :ref:`insertvecwithnumpy` for an example of using an input type handler.
 
-If you are using python-oracledb Thick mode with older versions of Oracle
-Client libraries than 23ai, see this
-:ref:`section <vector_thick_mode_old_client>`.
+If you are using python-oracledb Thick mode with Oracle Client 21c or earlier,
+see this :ref:`section <vector_thick_mode_old_client>`.
 
 See `vector.py <https://github.com/oracle/python-oracledb/tree/main/
 samples/vector.py>`__ for a runnable example.
@@ -133,9 +139,8 @@ samples/vector.py>`__ for a runnable example.
 Using BINARY Vectors
 ====================
 
-A Binary vector format is supported when you are using Oracle Database 23.5, or
-later. The binary format represents each dimension value as a binary value (0
-or 1). Binary vectors require less memory storage.  For example, a 16
+A Binary vector format represents each dimension value as a binary value (0 or
+1). Binary vectors require less memory storage.  For example, a 16
 dimensional vector with binary format requires only 2 bytes of storage while a
 16 dimensional vector with int8 format requires 16 bytes of storage.
 
@@ -208,9 +213,8 @@ using this :ref:`output type handler <vecoutputtypehandlerlist>`. For each vecto
 column, the database will now return a Python list representation of each
 row's value.
 
-If you are using python-oracledb Thick mode with older versions of Oracle
-Client libraries than 23ai, see this
-:ref:`section <vector_thick_mode_old_client>`.
+If you are using python-oracledb Thick mode with Oracle Client 21c or earlier,
+see this :ref:`section <vector_thick_mode_old_client>`.
 
 .. _sparsevectors:
 
@@ -222,8 +226,6 @@ This vector only physically stores the non-zero values. For more information
 on sparse vectors, see the `Oracle AI Vector search User's Guide <https://
 www.oracle.com/pls/topic/lookup?ctx=dblatest&id=GUID-6015566C-3277-4A3C-8DD0-
 08B346A05478>`__.
-
-Sparse vectors are supported when you are using Oracle Database 23.7 or later.
 
 Sparse vectors are represented by the total number of vector dimensions, an
 array of indices, and an array of values where each value's location in the
@@ -240,7 +242,7 @@ In this example, the sparse vector has 25 dimensions. Only indices 5, 8, and 11
 have values which are 25.25, 6.125, and 8.25 respectively. All of the other
 values are zero.
 
-In Oracle Database, you can define a column for a sparse vector using the
+In Oracle AI Database, you can define a column for a sparse vector using the
 following format::
 
     VECTOR(number_of_dimensions, dimension_storage_format, sparse)
@@ -340,29 +342,42 @@ This prints::
 Values can also be explicitly passed to `str()
 <https://docs.python.org/3/library/stdtypes.html#str>`__, if needed.
 
-**SPARSE Vector Metadata**
+VECTOR Metadata
+===============
 
 The :ref:`FetchInfo <fetchinfoobj>` object that is returned as part of the
-fetched metadata contains attributes :attr:`FetchInfo.vector_dimensions`,
+query metadata contains attributes :attr:`FetchInfo.vector_dimensions`,
 :attr:`FetchInfo.vector_format`, and :attr:`FetchInfo.vector_is_sparse` which
 return the number of dimensions of the vector column, the format of each
 dimension value in the vector column, and a boolean which determines whether
 the vector is sparse or not.
+
+For example:
+
+.. code-block:: python
+
+    cursor.execute("select float64sparsecol from vector_sparse_table")
+    desc = cursor.description[0]
+    print(desc.vector_format, desc.vector_dimensions, desc.vector_is_sparse)
+
+might print::
+
+    VectorFormat.FLOAT64 30 True
 
 .. _vector_thick_mode_old_client:
 
 Using python-oracledb Thick Mode with Older Versions of Oracle Client Libraries
 ===============================================================================
 
-If you are using python-oracledb Thick mode with versions of Oracle Client
-libraries older than 23ai, then you must use strings when inserting vectors.
-The vector columns are fetched as Python lists.
+If you are using python-oracledb Thick mode with Oracle Client 21c or earlier,
+then you must use strings when inserting vectors.  The vector columns are
+fetched as Python lists.
 
 Inserting Vectors with Older Oracle Client Versions
 ---------------------------------------------------
 
 To insert vectors of int8, float32, float64, and unit8 format when using Oracle
-Client versions older than 23ai, you must use strings as shown below:
+Client 21c or earlier, you must use strings as shown below:
 
 .. code-block:: python
 
@@ -379,8 +394,8 @@ Client versions older than 23ai, you must use strings as shown below:
 Fetching Vectors with Older Oracle Client Versions
 --------------------------------------------------
 
-With Oracle Client versions older than 23ai, the vector columns are fetched as
-Python lists. For example:
+With Oracle Client 21c or earlier, the vector columns are fetched as Python
+lists. For example:
 
 .. code-block:: python
 

@@ -1,5 +1,5 @@
 # -----------------------------------------------------------------------------
-# Copyright (c) 2021, 2024, Oracle and/or its affiliates.
+# Copyright (c) 2021, 2025, Oracle and/or its affiliates.
 #
 # This software is dual-licensed to you under the Universal Permissive License
 # (UPL) 1.0 as shown at https://oss.oracle.com/licenses/upl and Apache License
@@ -52,8 +52,9 @@ def makedsn(
     super_sharding_key: str = None,
 ) -> str:
     """
-    Return a string suitable for use as the dsn parameter for connect(). This
-    string is identical to the strings that are defined in the tnsnames.ora
+    Returns a string suitable for use as the ``dsn`` parameter for
+    :meth:`~oracledb.connect()`. This string is identical to the strings that
+    are defined by the Oracle names server or defined in the ``tnsnames.ora``
     file.
     """
     connect_data_parts = []

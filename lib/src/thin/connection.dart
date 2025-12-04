@@ -3,6 +3,7 @@ import 'dart:typed_data';
 
 import '../exceptions.dart';
 import 'connect_params.dart';
+import 'debug/auth_logger.dart';
 import 'protocol/capabilities.dart';
 import 'protocol/constants.dart';
 import 'protocol/messages/base.dart';
@@ -107,15 +108,19 @@ class ThinConnection {
     print('DEBUG: Sending DataTypes message...');
     final dataTypesMsg = DataTypesMessage()..initialize(this);
     final dataTypesPkt = dataTypesMsg.buildRequest();
+    print('DEBUG: DataTypes packet (${dataTypesPkt.length} bytes):');
+    _printHexDump(dataTypesPkt);
     await _transport.sendRaw(dataTypesPkt);
     print('DEBUG: Receiving DataTypes response...');
     await _receiveMessage(dataTypesMsg);
     print('DEBUG: DataTypes message complete');
+    print('DEBUG: ttcFieldVersion after negotiation: ${capabilities.ttcFieldVersion}');
 
     // Restore end-of-response support
     capabilities.supportsEndOfResponse = savedSupportsEOR;
 
     // AUTH phase 1: request session data (no password)
+    print('DEBUG: Sending AUTH phase 1...');
     final authPhase1 = AuthMessage(
       user: params.user,
       password: params.password,
@@ -126,7 +131,11 @@ class ThinConnection {
       includePassword: false,
     )..initialize(this);
     final pkt1 = authPhase1.buildRequest();
+    AuthPacketLogger.logSend(authPhase1.traceLabel, pkt1);
+    print('DEBUG: AUTH phase 1 packet (${pkt1.length} bytes):');
+    _printHexDump(pkt1);
     await _transport.sendRaw(pkt1);
+    print('DEBUG: Receiving AUTH phase 1 response...');
     await _receiveMessage(authPhase1);
     sessionData = {...sessionData, ...authPhase1.sessionData};
 
@@ -142,6 +151,7 @@ class ThinConnection {
       initialSessionData: sessionData,
     )..initialize(this);
     final pkt2 = authPhase2.buildRequest();
+    AuthPacketLogger.logSend(authPhase2.traceLabel, pkt2);
     await _transport.sendRaw(pkt2);
     await _receiveMessage(authPhase2);
     sessionData = {...sessionData, ...authPhase2.sessionData};
@@ -172,10 +182,18 @@ class ThinConnection {
     while (!message.endOfResponse) {
       print('DEBUG: Reading packet...');
       final packet = await _nextPacket();
+      
+      // IGNORA marker packets por enquanto - responder incorretamente causa TNS-12592
+      // TODO: implementar BREAK/RESET corretamente quando necessário
       if (packet.packetType == TNS_PACKET_TYPE_MARKER) {
-        print('DEBUG: Received marker packet');
-        await _handleMarkerPacket(packet);
+        print('DEBUG: Received marker packet (IGNORING for now)');
         continue;
+      }
+      
+      if (message is AuthMessage && AuthPacketLogger.enabled) {
+        final packetBytes =
+            Uint8List.fromList(packet.buf.sublist(0, packet.packetSize));
+        AuthPacketLogger.logReceive(message.traceLabel, packetBytes);
       }
       print('DEBUG: Got packet type=${packet.packetType}, size=${packet.packetSize}, hasEOR=${packet.hasEndOfResponse}');
       final bodyOffset = packet.packetType == TNS_PACKET_TYPE_DATA
@@ -207,6 +225,10 @@ class ThinConnection {
     return _transport.readPacket();
   }
 
+  // TODO: Implementar BREAK/RESET corretamente quando necessário
+  // Por enquanto, marker packets são ignorados em _receiveMessage
+  // para evitar TNS-12592 "bad packet"
+  /*
   Future<void> _handleMarkerPacket(Packet packet) async {
     final markerType = _markerTypeFromPacket(packet);
     print('DEBUG: Marker type=$markerType, sending RESET');
@@ -242,5 +264,18 @@ class ThinConnection {
           capabilities.protocolVersion >= TNS_VERSION_MIN_LARGE_SDU,
     );
     await _transport.sendRaw(packet);
+  }
+  */
+
+  void _printHexDump(Uint8List data) {
+    final sb = StringBuffer();
+    for (var i = 0; i < data.length; i += 16) {
+      final end = (i + 16).clamp(0, data.length);
+      final bytes = data.sublist(i, end);
+      final hex = bytes.map((b) => b.toRadixString(16).padLeft(2, '0')).join(' ');
+      final ascii = bytes.map((b) => (b >= 32 && b < 127) ? String.fromCharCode(b) : '.').join();
+      sb.writeln('  ${i.toRadixString(16).padLeft(4, '0')}: ${hex.padRight(48)} $ascii');
+    }
+    print(sb.toString());
   }
 }

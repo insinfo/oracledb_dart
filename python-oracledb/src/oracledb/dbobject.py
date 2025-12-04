@@ -1,5 +1,5 @@
 # -----------------------------------------------------------------------------
-# Copyright (c) 2021, 2024, Oracle and/or its affiliates.
+# Copyright (c) 2021, 2025, Oracle and/or its affiliates.
 #
 # This software is dual-licensed to you under the Universal Permissive License
 # (UPL) 1.0 as shown at https://oss.oracle.com/licenses/upl and Apache License
@@ -32,12 +32,11 @@
 from typing import Any, Sequence, Union
 
 from . import errors
-from . import __name__ as MODULE_NAME
+from .base import BaseMetaClass
 from .base_impl import DbType
 
 
-class DbObject:
-    __module__ = MODULE_NAME
+class DbObject(metaclass=BaseMetaClass):
 
     def __getattr__(self, name):
         try:
@@ -54,10 +53,8 @@ class DbObject:
             ix = self._impl.get_next_index(ix)
 
     def __repr__(self):
-        return (
-            f"<oracledb.DbObject {self.type._get_full_name()} at "
-            f"{hex(id(self))}>"
-        )
+        cls_name = self.__class__._public_name
+        return f"<{cls_name} {self.type._get_full_name()} at {hex(id(self))}>"
 
     def __setattr__(self, name, value):
         if name == "_impl" or name == "_type":
@@ -86,17 +83,18 @@ class DbObject:
 
     def append(self, element: Any) -> None:
         """
-        Append an element to the collection object. If no elements exist in the
-        collection, this creates an element at index 0; otherwise, it creates
-        an element immediately following the highest index available in the
-        collection.
+        Appends an element to the collection object. If no elements exist in
+        the collection, this creates an element at index 0; otherwise, it
+        creates an element immediately following the highest index available in
+        the collection.
         """
+        self._ensure_is_collection()
         self._impl.append(element)
 
     def asdict(self) -> dict:
         """
-        Return a dictionary where the collection’s indexes are the keys and the
-        elements are its values.
+        Returns a dictionary where the collection’s indexes are the keys and
+        the elements are its values.
         """
         self._ensure_is_collection()
         result = {}
@@ -108,13 +106,13 @@ class DbObject:
 
     def aslist(self) -> list:
         """
-        Return a list of each of the collection’s elements in index order.
+        Returns a list of each of the collection’s elements in index order.
         """
         return list(self)
 
     def copy(self) -> "DbObject":
         """
-        Create a copy of the object and return it.
+        Creates a copy of the object and returns it.
         """
         copied_impl = self._impl.copy()
         return DbObject._from_impl(copied_impl)
@@ -140,7 +138,7 @@ class DbObject:
 
     def extend(self, seq: list) -> None:
         """
-        Append all of the elements in the sequence to the collection. This is
+        Appends all of the elements in the sequence to the collection. This is
         the equivalent of performing append() for each element found in the
         sequence.
         """
@@ -150,7 +148,7 @@ class DbObject:
 
     def first(self) -> int:
         """
-        Return the index of the first element in the collection. If the
+        Returns the index of the first element in the collection. If the
         collection is empty, None is returned.
         """
         self._ensure_is_collection()
@@ -158,7 +156,7 @@ class DbObject:
 
     def getelement(self, index: int) -> Any:
         """
-        Return the element at the specified index of the collection. If no
+        Returns the element at the specified index of the collection. If no
         element exists at that index, an exception is raised.
         """
         self._ensure_is_collection()
@@ -166,7 +164,7 @@ class DbObject:
 
     def last(self) -> int:
         """
-        Return the index of the last element in the collection. If the
+        Returns the index of the last element in the collection. If the
         collection is empty, None is returned.
         """
         self._ensure_is_collection()
@@ -174,7 +172,7 @@ class DbObject:
 
     def next(self, index: int) -> int:
         """
-        Return the index of the next element in the collection following the
+        Returns the index of the next element in the collection following the
         specified index. If there are no elements in the collection following
         the specified index, None is returned.
         """
@@ -183,7 +181,7 @@ class DbObject:
 
     def prev(self, index: int) -> int:
         """
-        Return the index of the element in the collection preceding the
+        Returns the index of the element in the collection preceding the
         specified index. If there are no elements in the collection preceding
         the specified index, None is returned.
         """
@@ -192,7 +190,7 @@ class DbObject:
 
     def setelement(self, index: int, value: Any) -> None:
         """
-        Set the value in the collection at the specified index to the given
+        Sets the value in the collection at the specified index to the given
         value.
         """
         self._ensure_is_collection()
@@ -200,14 +198,15 @@ class DbObject:
 
     def size(self) -> int:
         """
-        Return the number of elements in the collection.
+        Returns the number of elements in the collection.
         """
         self._ensure_is_collection()
         return self._impl.get_size()
 
     def trim(self, num: int) -> None:
         """
-        Remove the specified number of elements from the end of the collection.
+        Removes the specified number of elements from the end of the
+        collection.
         """
         self._ensure_is_collection()
         self._impl.trim(num)
@@ -215,15 +214,15 @@ class DbObject:
     @property
     def type(self) -> "DbObjectType":
         """
-        Returns an ObjectType corresponding to the type of the object.
+        This read-only attribute arturns an ObjectType corresponding to the
+        type of the object.
         """
         if self._type is None:
             self._type = DbObjectType._from_impl(self._impl.type)
         return self._type
 
 
-class DbObjectAttr:
-    __module__ = MODULE_NAME
+class DbObjectAttr(metaclass=BaseMetaClass):
 
     def __repr__(self):
         return f"<oracledb.DbObjectAttr {self.name}>"
@@ -238,9 +237,10 @@ class DbObjectAttr:
     @property
     def max_size(self) -> Union[int, None]:
         """
-        Returns the max size of the attribute (in bytes) for attributes of type
+        This read-only attribute returns the maximum size (in bytes) of the
+        attribute when the attribute's type is one of
         DB_TYPE_RAW, DB_TYPE_CHAR, DB_TYPE_NCHAR, DB_TYPE_VARCHAR and
-        DB_TYPE_NVARCHAR.
+        DB_TYPE_NVARCHAR. For all other types, the value returned is None.
         """
         if self._impl.max_size:
             return self._impl.max_size
@@ -255,7 +255,9 @@ class DbObjectAttr:
     @property
     def precision(self) -> Union[int, None]:
         """
-        Returns the precision of the attribute.
+        This read-only attribute returns the precision of the attribute when
+        the attribute's type is DB_TYPE_NUMBER. For all other types, the value
+        returned is None.
         """
         if self._impl.precision or self._impl.scale:
             return self._impl.precision
@@ -263,7 +265,9 @@ class DbObjectAttr:
     @property
     def scale(self) -> Union[int, None]:
         """
-        Returns the scale of the column.
+        This read-only attribute returns the scale of the attribute when the
+        attribute's type is DB_TYPE_NUMBER. For all other types, the value
+        returned is None.
         """
         if self._impl.precision or self._impl.scale:
             return self._impl.scale
@@ -283,10 +287,13 @@ class DbObjectAttr:
         return self._type
 
 
-class DbObjectType:
-    __module__ = MODULE_NAME
+class DbObjectType(metaclass=BaseMetaClass):
 
-    def __call__(self, value=None):
+    def __call__(self, value: Sequence = None) -> DbObject:
+        """
+        The object type may be called directly and serves as an alternative way
+        of calling :meth:`~DbObjectType.newobject()`.
+        """
         return self.newobject(value)
 
     def __eq__(self, other):
@@ -312,7 +319,7 @@ class DbObjectType:
         return self._impl._get_fqn()
 
     @property
-    def attributes(self) -> list:
+    def attributes(self) -> list["DbObjectAttr"]:
         """
         This read-only attribute returns a list of the attributes that make up
         the object type.
@@ -356,7 +363,7 @@ class DbObjectType:
 
     def newobject(self, value: Sequence = None) -> DbObject:
         """
-        Return a new Oracle object of the given type. This object can then be
+        Returns a new Oracle object of the given type. This object can then be
         modified by setting its attributes and then bound to a cursor for
         interaction with Oracle. If the object type refers to a collection, a
         sequence may be passed and the collection will be initialized with the

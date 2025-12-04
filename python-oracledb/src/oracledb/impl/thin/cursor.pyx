@@ -72,7 +72,7 @@ cdef class BaseThinCursorImpl(BaseCursorImpl):
         message.num_execs = 1
         if self.scrollable:
             message.fetch_orientation = TNS_FETCH_ORIENTATION_CURRENT
-            message.fetch_pos = 1
+            message.fetch_pos = self.rowcount + 1
         return message
 
     cdef ExecuteMessage _create_scroll_message(self, object cursor,
@@ -116,7 +116,7 @@ cdef class BaseThinCursorImpl(BaseCursorImpl):
 
         # build message
         message = self._create_message(ExecuteMessage, cursor)
-        message.scroll_operation = self._more_rows_to_fetch
+        message.scroll_operation = True
         message.fetch_orientation = orientation
         message.fetch_pos = <uint32_t> desired_row
         return message
@@ -169,7 +169,7 @@ cdef class BaseThinCursorImpl(BaseCursorImpl):
         if self._statement is not None:
             self._conn_impl._return_statement(self._statement)
             self._statement = None
-        self._statement = self._conn_impl._get_statement(statement.strip(),
+        self._statement = self._conn_impl._get_statement(statement,
                                                          cache_statement)
         self.fetch_metadata = self._statement._fetch_metadata
         self.fetch_vars = self._statement._fetch_vars
@@ -259,8 +259,8 @@ cdef class ThinCursorImpl(BaseThinCursorImpl):
         cdef:
             Protocol protocol = <Protocol> self._conn_impl._protocol
             MessageWithData message
-        if self._statement._sql is None:
-            message = self._create_message(ExecuteMessage, cursor)
+        if self._statement._sql is None or self.scrollable:
+            message = self._create_execute_message(cursor)
         else:
             message = self._create_message(FetchMessage, cursor)
         protocol._process_single_message(message)
@@ -280,7 +280,8 @@ cdef class ThinCursorImpl(BaseThinCursorImpl):
             if message.type_cache is not None:
                 message.type_cache.populate_partial_types(conn)
 
-    def executemany(self, cursor, num_execs, batcherrors, arraydmlrowcounts):
+    def executemany(self, object cursor, uint32_t num_execs, bint batcherrors,
+                    bint arraydmlrowcounts, uint32_t offset=0):
         cdef:
             Protocol protocol = <Protocol> self._conn_impl._protocol
             MessageWithData messsage
@@ -293,6 +294,7 @@ cdef class ThinCursorImpl(BaseThinCursorImpl):
         message.num_execs = num_execs
         message.batcherrors = batcherrors
         message.arraydmlrowcounts = arraydmlrowcounts
+        message.offset = offset
         stmt = self._statement
 
         # only DML statements may use the batch errors or array DML row counts
@@ -355,8 +357,8 @@ cdef class AsyncThinCursorImpl(BaseThinCursorImpl):
         Internal method used for fetching rows from the database.
         """
         cdef MessageWithData message
-        if self._statement._sql is None:
-            message = self._create_message(ExecuteMessage, cursor)
+        if self._statement._sql is None or self.scrollable:
+            message = self._create_execute_message(cursor)
         else:
             message = self._create_message(FetchMessage, cursor)
         await self._conn_impl._protocol._process_single_message(message)
@@ -393,8 +395,9 @@ cdef class AsyncThinCursorImpl(BaseThinCursorImpl):
             if message.type_cache is not None:
                 await message.type_cache.populate_partial_types(conn)
 
-    async def executemany(self, cursor, num_execs, batcherrors,
-                          arraydmlrowcounts):
+    async def executemany(self, object cursor, uint32_t num_execs,
+                          bint batcherrors, bint arraydmlrowcounts,
+                          uint32_t offset):
         cdef:
             BaseAsyncProtocol protocol
             MessageWithData messsage
@@ -408,6 +411,7 @@ cdef class AsyncThinCursorImpl(BaseThinCursorImpl):
         message.num_execs = num_execs
         message.batcherrors = batcherrors
         message.arraydmlrowcounts = arraydmlrowcounts
+        message.offset = offset
         stmt = self._statement
 
         # only DML statements may use the batch errors or array DML row counts
@@ -434,7 +438,7 @@ cdef class AsyncThinCursorImpl(BaseThinCursorImpl):
 
     async def fetch_df_all(self, cursor):
         """
-        Internal method used for fetching all data as OracleDataFrame
+        Internal method used for fetching all data as DataFrame
         """
         while self._more_rows_to_fetch:
             await self._fetch_rows_async(cursor)
@@ -442,7 +446,7 @@ cdef class AsyncThinCursorImpl(BaseThinCursorImpl):
 
     async def fetch_df_batches(self, cursor, int batch_size):
         """
-        Internal method used for fetching next batch as OracleDataFrame.
+        Internal method used for fetching next batch as DataFrame.
         """
         # Return the prefetched batch
         yield self._finish_building_arrow_arrays()

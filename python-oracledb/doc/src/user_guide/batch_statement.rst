@@ -1,15 +1,35 @@
 .. _batchstmnt:
 
-*******************************************
-Executing Batch Statements and Bulk Loading
-*******************************************
+.. currentmodule:: oracledb
+
+****************************************
+Batch Statement and Bulk Copy Operations
+****************************************
+
+Python-oracledb is perfect for large ETL ("Extract, Transform, Load") data
+operations.
+
+This chapter focuses on efficient data ingestion. Python-oracledb lets you
+easily optimize batch insertion, and also allows "noisy" data (values not in a
+suitable format) to be filtered for review while other, correct, values are
+inserted.
+
+In addition to Oracle Database "Array DML" batch loading,
+:ref:`directpathloads` can be used for very fast loading of large data sets if
+certain schema criteria can be met. Another option for frequent, small inserts
+is to load data using the Oracle Database :ref:`memoptimized`.
+
+Related topics include :ref:`tuning` and :ref:`dataframeformat`.
+
+Batch Statement Execution
+=========================
 
 Inserting, updating or deleting multiple rows can be performed efficiently with
 :meth:`Cursor.executemany()`, making it easy to work with large data sets with
 python-oracledb.  This method can significantly outperform repeated calls to
 :meth:`Cursor.execute()` by reducing network transfer costs and database
 overheads.  The :meth:`~Cursor.executemany()` method can also be used to
-execute PL/SQL statements multiple times at once.
+execute a PL/SQL statement multiple times in one call.
 
 There are examples in the `GitHub examples
 <https://github.com/oracle/python-oracledb/tree/main/samples>`__
@@ -36,7 +56,7 @@ The following tables will be used in the samples that follow:
 
 
 Batch Execution of SQL
-======================
+----------------------
 
 The following example inserts five rows into the table ``ParentTable``:
 
@@ -55,12 +75,7 @@ Each tuple value maps to one of the bind variable placeholders.
 
 This code requires only one :ref:`round-trip <roundtrips>` from the client to
 the database instead of the five round-trips that would be required for
-repeated calls to :meth:`~Cursor.execute()`.  For very large data sets, there
-may be an external buffer or network limits to how many rows can be processed,
-so repeated calls to ``executemany()`` may be required.  The limits are based
-on both the number of rows being processed as well as the "size" of each row
-that is being processed.  Repeated calls to :meth:`~Cursor.executemany()` are
-still better than repeated calls to :meth:`~Cursor.execute()`.
+repeated calls to :meth:`~Cursor.execute()`.
 
 To insert a single column, make sure the bind variables are correctly created
 as tuples, for example:
@@ -88,6 +103,11 @@ the bind variable placeholder names:
     ]
     cursor.executemany("insert into ParentTable values :pid, :pdesc)", data)
 
+
+A data frame can alternatively be passed to :meth:`Cursor.executemany()`, see
+:ref:`dfinsert`.
+
+.. _predefmemory:
 
 Predefining Memory Areas
 ------------------------
@@ -153,10 +173,42 @@ With named bind variables, use named parameters when calling
             values (:pid, :pdesc)""", data)
 
 
+Batching of Large Datasets
+--------------------------
+
+For very large data sets, there may be a buffer or network limit on how many
+rows can be processed. The limit is based on both the number of records as
+well as the size of each record that is being processed. In other cases, it may
+be faster to process smaller sets of records.
+
+To reduce the data sizes involved, you can either make repeated calls to
+:meth:`~Cursor.executemany()` as shown later in the CSV examples, or you can
+use the ``batch_size`` parameter to optimize transfer across the network to the
+database. For example:
+
+.. code-block:: python
+
+    data = [
+        (1, "Parent 1"),
+        (2, "Parent 2"),
+        . . .
+        (9_999_999, "Parent 9,999,999"),
+        (10_000_000, "Parent 10,000,000"),
+
+    ]
+
+    cursor.executemany("insert into ParentTable values (:1, :2)", data, batch_size=200_000)
+
+This will send the data to the database in batches of 200,000 records until all
+10,000,000 records have been inserted.
+
+If :attr:`Connection.autocommit` is ``True``, then a commit will take place per
+batch of records processed.
+
 .. _batchplsql:
 
 Batch Execution of PL/SQL
-=========================
+-------------------------
 
 Using :meth:`~Cursor.executemany()` can improve performance when PL/SQL
 functions, procedures, or anonymous blocks need to be called multiple times.
@@ -285,7 +337,7 @@ The equivalent code using named binds is:
 .. _batcherrors:
 
 Handling Data Errors
-====================
+--------------------
 
 Large datasets may contain some invalid data.  When using batch execution as
 discussed above, the entire batch will be discarded if a single error is
@@ -331,7 +383,7 @@ committing.
 
 
 Identifying Affected Rows
-=========================
+-------------------------
 
 When executing a DML statement using :meth:`~Cursor.execute()`, the number of
 rows affected can be examined by looking at the attribute
@@ -361,7 +413,7 @@ is as follows::
 
 
 DML RETURNING
-=============
+-------------
 
 DML statements like INSERT, UPDATE, DELETE, and MERGE can return values by using
 the DML RETURNING syntax. A bind variable can be created to accept this data.
@@ -396,8 +448,18 @@ arraysize large enough to hold data for each row that is processed. Also, the
 call to :meth:`Cursor.setinputsizes()` binds this variable immediately so that
 it does not have to be passed in each row of data.
 
+Bulk Copy Operations
+====================
+
+Bulk copy operations are facilitated with the use of
+:meth:`Cursor.executemany()`, the use of appropriate SQL statements, and the
+use of Python modules.
+
+Also, see :ref:`dataframeformat` and :ref:`Oracle Database Pipelining
+<pipelining>`.
+
 Loading CSV Files into Oracle Database
-======================================
+--------------------------------------
 
 The :meth:`Cursor.executemany()` method and Python's `csv module
 <https://docs.python.org/3/library/csv.html#module-csv>`__ can be used to
@@ -416,8 +478,8 @@ And the schema:
 
     create table test (id number, name varchar2(25));
 
-Data loading can be done in batches of records since the number of records may
-prevent all data being inserted at once:
+Data loading can be done in batches of records since Python memory limitations
+may prevent all the records being held in memory at once:
 
 .. code-block:: python
 
@@ -461,15 +523,51 @@ Depending on data sizes and business requirements, database changes such as
 temporarily disabling redo logging on the table, or disabling indexes may also
 be beneficial.
 
-See `load_csv.py <https://github.com/oracle/python-oracledb/tree/main/
-samples/load_csv.py>`__ for a runnable example.
+The PyArrow package's CSV methods may be more efficient than the default CSV
+module.
+
+See `samples/load_csv.py <https://github.com/oracle/python-oracledb/tree/main/
+samples/load_csv.py>`__ for a runnable example showing both the CSV module and
+PyArrow's CSV functionality.
+
+You should also review whether Oracle's specialized data loading tools and
+features suit your environment. These can be faster than using Python. See
+`SQL*Loader <https://www.oracle.com/pls/topic/lookup?ctx=dblatest&id=
+GUID-DD843EE2-1FAB-4E72-A115-21D97A501ECC>`__ and `External Tables
+<https://www.oracle.com/pls/topic/lookup?ctx=dblatest&id=
+GUID-44323E01-7D72-45EC-915A-99E596769D9E>`__.
 
 
-Copying Data between Databases
-==============================
+Creating CSV Files from Oracle Database
+---------------------------------------
 
-The :meth:`Cursor.executemany()` function is useful for efficiently copying
-data from one database to another:
+Python's `csv module <https://docs.python.org/3/library/csv.html#module-csv>`__
+can be used to efficiently create CSV (Comma Separated Values) files.  For
+example:
+
+.. code-block:: python
+
+    cursor.arraysize = 1000  # tune this for large queries
+    print(f"Writing to {FILE_NAME}")
+    with open(FILE_NAME, "w") as f:
+        writer = csv.writer(
+            f, lineterminator="\n", quoting=csv.QUOTE_NONNUMERIC
+        )
+        cursor.execute("""select rownum, sysdate, mycol from BigTab""")
+        writer.writerow(info.name for info in cursor.description)
+        writer.writerows(cursor)
+
+
+See `samples/write_csv.py <https://github.com/oracle/python-oracledb/tree/main/
+samples/write_csv.py>`__ for a runnable example.
+
+
+Bulk Copying Data between Databases
+-----------------------------------
+
+The :meth:`Cursor.executemany()` function is useful for copying data from one
+database to another, for example in an ETL ("Extract, Transform, Load")
+workflow:
 
 .. code-block:: python
 
@@ -487,18 +585,198 @@ data from one database to another:
     # Perform bulk fetch and insertion
     source_cursor.execute("select c1, c2 from MySrcTable")
     while True:
+
+        # Extract the records
         rows = source_cursor.fetchmany()
         if not rows:
             break
+
+        # Optionally transform the records here
+        # ...
+
+        # Load the records into the target database
         target_cursor.executemany("insert into MyDestTable values (:1, :2)", rows)
 
     target_connection.commit()
 
-Tune the :attr:`~Cursor.arraysize` value according to notes in
-:ref:`tuningfetch`.  Use ``setinputsizes()`` according to `Predefining Memory
-Areas`_.
+The :attr:`~Cursor.arraysize` value alters how many rows each
+:meth:`Cursor.fetchmany()` call returns, see :ref:`tuningfetch`.  The
+:meth:`~Cursor.setinputsizes()` call is used to optimize memory allocation when
+inserting with :meth:`~Cursor.executemany()`, see :ref:`predefmemory`.  You
+may also want to tune the SDU setting for best nework performance, see
+:ref:`tuning`.
 
-Note that it may be preferable to create a `database link
-<https://www.oracle.com/pls/topic/lookup?ctx=dblatest&id=GUID-D966642A-B19E-449D-9968-1121AF06D793>`__
-between the databases and use an INSERT INTO SELECT statement so that data is
-not copied to, and back from, the Python process.
+If you are inserting back into the same database that the records originally
+came from, you do not need to open a second connection. Instead, both cursors
+can be obtained from one connection.
+
+**Avoiding Copying Data Over the Network**
+
+When copying data to another table in the same database, it may be preferable
+to use INSERT INTO SELECT or CREATE AS SELECT to avoid the overhead of copying
+data to, and back from, the Python process. This also avoids any data type
+changes.  For example to create a complete copy of a table:
+
+.. code-block:: python
+
+   cursor.execute("create table new_table as select * from old_table")
+
+Similarly, when copying to a different database, consider creating a `database
+link <https://www.oracle.com/pls/topic/lookup?ctx=dblatest&id=GUID-D966642A-
+B19E-449D-9968-1121AF06D793>`__ between the databases and using
+INSERT INTO SELECT or CREATE AS SELECT.
+
+You can control the data transfer by changing your SELECT statement.
+
+.. _directpathloads:
+
+Direct Path Loads
+=================
+
+Direct Path Loads allow data being inserted into Oracle Database to bypass
+code layers such as the database buffer cache. Also there are no INSERT
+statements used. This can be very efficient for ingestion of huge amounts of
+data but, as a consequence of the architecture, there are restrictions on when
+Direct Path Loads can be used. For more information see Oracle Database
+documentation such as on SQL*Loader `Direct Path Loads
+<https://www.oracle.com/pls/topic/lookup?ctx=dblatest&id=
+GUID-0D576DEF-7918-4DD2-A184-754D217C021F>`__ and on the Oracle Call Interface
+`Direct Path Load Interface
+<https://www.oracle.com/pls/topic/lookup?ctx=dblatest&id=
+GUID-596F5F9B-47A1-48DB-8702-FEED7BE038B9>`__.
+
+The end-to-end insertion time when using Direct Path Loads for smaller data
+sets may not be faster than using :meth:`Cursor.executemany()`, however there
+can still be reduced load on the database.
+
+.. note::
+
+    Direct Path Loads are only supported in python-oracledb Thin mode.
+
+Direct Path Loading is performed by the :meth:`Connection.direct_path_load()`
+method. For example, if you have the table::
+
+    create table TestDirectPathLoad (
+        id    number(9),
+        name  varchar2(20)
+    );
+
+Then you can load data into it using the code:
+
+.. code-block:: python
+
+    SCHEMA_NAME = "HR"
+    TABLE_NAME = "TESTDIRECTPATHLOAD"
+    COLUMN_NAMES = ["ID", "NAME"]
+    DATA = [
+        (1, "A first row"),
+        (2, "A second row"),
+        (3, "A third row"),
+    ]
+
+    connection.direct_path_load(
+        schema_name=SCHEMA_NAME,
+        table_name=TABLE_NAME,
+        column_names=COLUMN_NAMES,
+        data=DATA
+    )
+
+The records are always implicitly committed.
+
+The ``data`` parameter can be a list of sequences, a :ref:`DataFrame
+<oracledataframeobj>` object, or a third-party DataFrame instance that supports
+the Apache Arrow PyCapsule Interface, see :ref:`dfppl`.
+
+To load into VECTOR columns, pass an appropriate `Python array.array()
+<https://docs.python.org/3/library/array.html>`__ value, or a list of values.
+For example, if you have the table::
+
+    create table TestDirectPathLoad (
+        id    number(9),
+        name  varchar2(20),
+        v64   vector(3, float64)
+    );
+
+Then you can load data into it using the code:
+
+.. code-block:: python
+
+    SCHEMA_NAME = "HR"
+    TABLE_NAME = "TESTDIRECTPATHLOAD"
+    COLUMN_NAMES = ["ID", "NAME", "V64"]
+    DATA = [
+        (1, "A first row", array.array("d", [1, 2, 3])),
+        (2, "A second row", [4, 5, 6]),
+        (3, "A third row", array.array("d", [7, 8, 9])),
+    ]
+
+    connection.direct_path_load(
+        schema_name=SCHEMA_NAME,
+        table_name=TABLE_NAME,
+        column_names=COLUMN_NAMES,
+        data=DATA
+    )
+
+
+For more on vectors, see :ref:`vectors`.
+
+Runnable Direct Path Load examples are in the `GitHub examples
+<https://github.com/oracle/python-oracledb/tree/main/samples>`__ directory.
+
+**Notes on Direct Path Loads**
+
+- Data is implicitly committed.
+- Data being inserted into CLOB or BLOB columns must be strings or bytes, not
+  python-oracledb :ref:`LOB Objects <lobobj>`.
+- Insertion of python-oracledb :ref:`DbObjectType Objects <dbobjecttype>` is
+  not supported
+
+Review Oracle Database documentation for database requirements and
+restrictions.
+
+Batching of Direct Path Loads
+-----------------------------
+
+If buffer, network, or database limits make it desirable to process smaller
+sets of records, you can either make repeated calls to
+:meth:`Connection.direct_path_load()` or you can use the ``batch_size``
+parameter. For example:
+
+.. code-block:: python
+
+    SCHEMA_NAME = "HR"
+    TABLE_NAME = "TESTDIRECTPATHLOAD"
+    COLUMN_NAMES = ["ID", "NAME"]
+    DATA = [
+        (1, "A first row"),
+        (2, "A second row"),
+        . . .
+        (10_000_000, "Ten millionth row"),
+    ]
+
+    connection.direct_path_load(
+        schema_name=SCHEMA_NAME,
+        table_name=TABLE_NAME,
+        column_names=COLUMN_NAMES,
+        data=DATA,
+        batch_size=1_000_000
+    )
+
+This will send the data to the database in batches of 1,000,000 records until
+all 10,000,000 records have been inserted.
+
+.. _memoptimized:
+
+Memoptimized Rowstore
+=====================
+
+The Memoptimized Rowstore is another Oracle Database feature for data
+ingestion, particularly for frequent single row inserts. It can also aid query
+performance. Configuration and control is handled by database configuration and
+the use of specific SQL statements. As a result, there is no specific
+python-oracledb requirement or API needed to take advantage of the feature.
+
+To use the Memoptimized Rowstore see Oracle Database documentation `Enabling
+High Performance Data Streaming with the Memoptimized Rowstore
+<https://www.oracle.com/pls/topic/lookup?ctx=dblatest&id=GUID-9752E93D-55A7-
+4584-B09B-9623B33B5CCF>`__.

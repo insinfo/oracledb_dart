@@ -120,85 +120,105 @@ class PoolParams(ConnectParams):
         use_sni: Optional[bool] = None,
         thick_mode_dsn_passthrough: Optional[bool] = None,
         extra_auth_params: Optional[dict] = None,
+        pool_name: Optional[str] = None,
         handle: Optional[int] = None,
     ):
         """
         All parameters are optional. A brief description of each parameter
         follows:
 
-        - min: the minimum number of connections the pool should contain
+        - ``min``: the minimum number of connections the pool should contain
           (default: 1)
 
-        - max: the maximum number of connections the pool should contain
+        - ``max``: the maximum number of connections the pool should contain
           (default: 2)
 
-        - increment: the number of connections that should be added to the pool
-          whenever a new connection needs to be created (default: 1)
+        - ``increment``: the number of connections that should be added to the
+          pool whenever the pool needs to grow
+          (default: 1)
 
-        - connectiontype: the class of the connection that should be returned
-          during calls to pool.acquire(). It must be oracledb.Connection or a
-          subclass of oracledb.Connection (default: None)
+        - ``connectiontype``: the class of the connection that should be
+          returned during calls to pool.acquire(). It must be
+          oracledb.Connection or a subclass of oracledb.Connection
+          (default: None)
 
-        - getmode: how pool.acquire() will behave. One of the constants
-          oracledb.POOL_GETMODE_WAIT, oracledb.POOL_GETMODE_NOWAIT,
-          oracledb.POOL_GETMODE_FORCEGET, or oracledb.POOL_GETMODE_TIMEDWAIT
-          (default: oracledb.POOL_GETMODE_WAIT)
+        - ``getmode``: how pool.acquire() will behave. One of the constants
+          :data:`oracledb.POOL_GETMODE_WAIT`,
+          :data:`oracledb.POOL_GETMODE_NOWAIT`,
+          :data:`oracledb.POOL_GETMODE_FORCEGET`, or
+          :data:`oracledb.POOL_GETMODE_TIMEDWAIT`
+          (default: :attr:`oracledb.POOL_GETMODE_WAIT`)
 
-        - homogeneous: a boolean indicating whether the connections are
-          homogeneous (same user) or heterogeneous (multiple users) (default:
-          True)
+        - ``homogeneous``: a boolean indicating whether the connections in the
+          pool are homogeneous (same user) or heterogeneous (multiple users)
+          (default: True)
 
-        - timeout: length of time (in seconds) that a connection may remain
-          idle in the pool before it is terminated. If it is 0 then connections
-          are never terminated (default: 0)
+        - ``timeout``: the length of time (in seconds) that a connection may
+          remain idle in the pool before it is terminated. If it is 0 then
+          connections are never terminated
+          (default: 0)
 
-        - wait_timeout: length of time (in milliseconds) that a caller should
-          wait when acquiring a connection from the pool with getmode set to
-          oracledb.POOL_GETMODE_TIMEDWAIT (default: 0)
+        - ``wait_timeout``: the length of time (in milliseconds) that a caller
+          should wait when acquiring a connection from the pool with getmode
+          set to :data:`oracledb.POOL_GETMODE_TIMEDWAIT`
+          (default: 0)
 
-        - max_lifetime_session: length of time (in seconds) that connections
-          can remain in the pool. If it is 0 then connections may remain in the
-          pool indefinitely (default: 0)
+        - ``max_lifetime_session``: the length of time (in seconds) that
+          connections can remain in the pool. If it is 0 then connections may
+          remain in the pool indefinitely
+          (default: 0)
 
-        - session_callback: a callable that is invoked when a connection is
+        - ``session_callback``: a callable that is invoked when a connection is
           returned from the pool for the first time, or when the connection tag
-          differs from the one requested (default: None)
+          differs from the one requested
+          (default: None)
 
-        - max_sessions_per_shard: the maximum number of connections that may be
-          associated with a particular shard (default: 0)
+        - ``max_sessions_per_shard``: the maximum number of connections that
+          may be associated with a particular shard
+          (default: 0)
 
-        - soda_metadata_cache: boolean indicating whether or not the SODA
-          metadata cache should be enabled (default: False)
+        - ``soda_metadata_cache``: a boolean indicating whether or not the SODA
+          metadata cache should be enabled
+          (default: False)
 
-        - ping_interval: length of time (in seconds) after which an unused
-          connection in the pool will be a candidate for pinging when
+        - ``ping_interval``: the length of time (in seconds) after which an
+          unused connection in the pool will be a candidate for pinging when
           pool.acquire() is called. If the ping to the database indicates the
           connection is not alive a replacement connection will be returned by
           pool.acquire(). If ping_interval is a negative value the ping
-          functionality will be disabled (default: 60)
+          functionality will be disabled
+          (default: 60)
 
-        - ping_timeout: maximum length of time (in milliseconds) to wait for a
-          connection in the pool to respond to an internal ping to the database
-          before being discarded and replaced during a call to acquire()
+        - ``ping_timeout``: the maximum length of time (in milliseconds) to
+          wait for a connection in the pool to respond to an internal ping to
+          the database before being discarded and replaced during a call to
+          acquire()
           (default: 5000)
 
-        - user: the name of the user to connect to (default: None)
-
-        - proxy_user: the name of the proxy user to connect to. If this value
-          is not specified, it will be parsed out of user if user is in the
-          form "user[proxy_user]" (default: None)
-
-        - password: the password for the user (default: None)
-
-        - newpassword: the new password for the user. The new password will
-          take effect immediately upon a successful connection to the database
+        - ``user``: the name of the database user to connect to
           (default: None)
 
-        - wallet_password: the password to use to decrypt the wallet, if it is
-          encrypted. This value is only used in thin mode (default: None)
+        - ``proxy_user``: the name of the proxy user to connect to. If this
+          value is not specified, it will be parsed out of user if user is in
+          the form "user[proxy_user]"
+          (default: None)
 
-        - access_token: expected to be a string or a 2-tuple or a callable. If
-          it is a string, it specifies an Azure AD OAuth2 token used for Open
+        - ``password``: the password for the database user
+          (default: None)
+
+        - ``newpassword``: a new password for the database user. The new
+          password will take effect immediately upon a successful connection to
+          the database
+          (default: None)
+
+        - ``wallet_password``: the password to use to decrypt the wallet, if it
+          is encrypted. This is not the database password. For Oracle
+          Autonomous Database this is the password created when downloading the
+          wallet. This value is only used in python-oracledb Thin mode.
+          (default: None)
+
+        - ``access_token``: a string, or a 2-tuple, or a callable. If it is a
+          string, it specifies an Entra ID OAuth2 token used for Open
           Authorization (OAuth 2.0) token based authentication. If it is a
           2-tuple, it specifies the token and private key strings used for
           Oracle Cloud Infrastructure (OCI) Identity and Access Management
@@ -206,188 +226,249 @@ class PoolParams(ConnectParams):
           either a string or a 2-tuple used for OAuth 2.0 or OCI IAM token
           based authentication and is useful when the pool needs to expand and
           create new connections but the current authentication token has
-          expired (default: None)
+          expired
+          (default: None)
 
-        - host: the name or IP address of the machine hosting the database or
-          the database listener (default: None)
+        - ``host``: the hostname or IP address of the machine hosting the
+          database or the database listener
+          (default: None)
 
-        - port: the port number on which the database listener is listening
+        - ``port``: the port number on which the database listener is listening
           (default: 1521)
 
-        - protocol: one of the strings "tcp" or "tcps" indicating whether to
-          use unencrypted network traffic or encrypted network traffic (TLS)
+        - ``protocol``: one of the strings "tcp" or "tcps" indicating whether
+          to use unencrypted network traffic or encrypted network traffic (TLS)
           (default: "tcp")
 
-        - https_proxy: the name or IP address of a proxy host to use for
-          tunneling secure connections (default: None)
+        - ``https_proxy``: the hostname or IP address of a proxy host to use
+          for tunneling secure connections
+          (default: None)
 
-        - https_proxy_port: the port on which to communicate with the proxy
-          host (default: 0)
+        - ``https_proxy_port``: the port on which to communicate with the proxy
+          host
+          (default: 0)
 
-        - service_name: the service name of the database (default: None)
+        - ``service_name``: the service name of the database
+          (default: None)
 
-        - instance_name: the instance name of the database (default: None)
+        - ``instance_name``: the instance name of the database
+          (default: None)
 
-        - sid: the system identifier (SID) of the database. Note using a
-          service_name instead is recommended (default: None)
+        - ``sid``: the system identifier (SID) of the database. Note using a
+          service_name instead is recommended
+          (default: None)
 
-        - server_type: the type of server connection that should be
-          established. If specified, it should be one of "dedicated", "shared"
-          or "pooled" (default: None)
+        - ``server_type``: the type of server connection that should be
+          established. If specified, it should be one of strings "dedicated",
+          "shared" or "pooled"
+          (default: None)
 
-        - cclass: connection class to use for Database Resident Connection
-          Pooling (DRCP) (default: None)
+        - ``cclass``: the connection class to use for Database Resident
+          Connection Pooling (DRCP)
+          (default: None)
 
-        - purity: purity to use for Database Resident Connection Pooling (DRCP)
-          (default: oracledb.PURITY_DEFAULT)
+        - ``purity``: the connection purity to use for Database Resident
+          Connection Pooling (DRCP)
+          (default: :attr:`oracledb.PURITY_DEFAULT`)
 
-        - expire_time: an integer indicating the number of minutes between the
-          sending of keepalive probes. If this parameter is set to a value
-          greater than zero it enables keepalive (default: 0)
+        - ``expire_time``: the number of minutes between the sending of
+          keepalive probes. If this parameter is set to a value greater than
+          zero it enables keepalive
+          (default: 0)
 
-        - retry_count: the number of times that a connection attempt should be
-          retried before the attempt is terminated (default: 0)
+        - ``retry_count``: the number of times that initial connection
+          establishment should be retried before the connection attempt is
+          terminated
+          (default: 0)
 
-        - retry_delay: the number of seconds to wait before making a new
-          connection attempt (default: 1)
+        - ``retry_delay``: the number of seconds to wait before retrying to
+          establish a connection
+          (default: 1)
 
-        - tcp_connect_timeout: a float indicating the maximum number of seconds
-          to wait for establishing a connection to the database host (default:
-          20.0)
+        - ``tcp_connect_timeout``: a float indicating the maximum number of
+          seconds to wait when establishing a connection to the database host
+          (default: 20.0)
 
-        - ssl_server_dn_match: boolean indicating whether the server
+        - ``ssl_server_dn_match``: a boolean indicating whether the server
           certificate distinguished name (DN) should be matched in addition to
           the regular certificate verification that is performed. Note that if
           the ssl_server_cert_dn parameter is not privided, host name matching
-          is performed instead (default: True)
+          is performed instead
+          (default: True)
 
-        - ssl_server_cert_dn: the distinguished name (DN) which should be
+        - ``ssl_server_cert_dn``: the distinguished name (DN) which should be
           matched with the server. This value is ignored if the
           ssl_server_dn_match parameter is not set to the value True. If
           specified this value is used for any verfication. Otherwise the
-          hostname will be used (default: None)
-
-        - wallet_location: the directory where the wallet can be found. In thin
-          mode this must be the directory containing the PEM-encoded wallet
-          file ewallet.pem. In thick mode this must be the directory containing
-          the file cwallet.sso (default: None)
-
-        - events: boolean specifying whether events mode should be enabled.
-          This value is only used in thick mode and is needed for continuous
-          query notification and high availability event notifications
-          (default: False)
-
-        - externalauth: a boolean indicating whether to use external
-          authentication (default: False)
-
-        - mode: authorization mode to use. For example
-          oracledb.AUTH_MODE_SYSDBA (default: oracledb.AUTH_MODE_DEFAULT)
-
-        - disable_oob: boolean indicating whether out-of-band breaks should be
-          disabled. This value is only used in thin mode. It has no effect on
-          Windows which does not support this functionality (default: False)
-
-        - stmtcachesize: identifies the initial size of the statement cache
-          (default: oracledb.defaults.stmtcachesize)
-
-        - edition: edition to use for the connection. This parameter cannot be
-          used simultaneously with the cclass parameter (default: None)
-
-        - tag: identifies the type of connection that should be returned from a
-          pool. This value is only used in thick mode (default: None)
-
-        - matchanytag: boolean specifying whether any tag can be used when
-          acquiring a connection from the pool. This value is only used in
-          thick mode (default: False)
-
-        - config_dir: directory in which the optional tnsnames.ora
-          configuration file is located. This value is only used in thin mode.
-          For thick mode use the config_dir parameter of init_oracle_client()
-          (default: oracledb.defaults.config_dir)
-
-        - appcontext: application context used by the connection. It should be
-          a list of 3-tuples (namespace, name, value) and each entry in the
-          tuple should be a string. This value is only used in thick mode
+          hostname will be used
           (default: None)
 
-        - shardingkey: a list of strings, numbers, bytes or dates that identify
-          the database shard to connect to. This value is only used in thick
-          mode (default: None)
+        - ``wallet_location``: the directory where the wallet can be found. In
+          python-oracledb Thin mode this must be the directory containing the
+          PEM-encoded wallet file ewallet.pem. In python-oracledb Thick mode
+          this must be the directory containing the file cwallet.sso
+          (default: None)
 
-        - supershardingkey: a list of strings, numbers, bytes or dates that
+        - ``events``: a boolean specifying whether events mode should be
+          enabled. This value is only used in python-oracledb Thick mode and is
+          needed for continuous query notification and high availability event
+          notifications
+          (default: False)
+
+        - ``externalauth``: a boolean indicating whether to use external
+          authentication
+          (default: False)
+
+        - ``mode``: the authorization mode to use. One of the constants
+          :data:`oracledb.AUTH_MODE_DEFAULT`,
+          :data:`oracledb.AUTH_MODE_PRELIM`, :data:`oracledb.AUTH_MODE_SYSASM`,
+          :data:`oracledb.AUTH_MODE_SYSBKP`, :data:`oracledb.AUTH_MODE_SYSDBA`,
+          :data:`oracledb.AUTH_MODE_SYSDGD`, :data:`oracledb.AUTH_MODE_SYSKMT`,
+          :data:`oracledb.AUTH_MODE_SYSOPER`, or
+          :data:`oracledb.AUTH_MODE_SYSRAC`
+          (default: :attr:`oracledb.AUTH_MODE_DEFAULT`)
+
+        - ``disable_oob``: a boolean indicating whether out-of-band breaks
+          should be disabled. This value is only used in python-oracledb Thin
+          mode. It has no effect on Windows which does not support this
+          functionality
+          (default: False)
+
+        - ``stmtcachesize``: the size of the statement cache
+          (default: :attr:`oracledb.defaults.stmtcachesize
+          <Defaults.stmtcachesize>`)
+
+        - ``edition``: edition to use for the connection. This parameter cannot
+          be used simultaneously with the cclass parameter
+          (default: None)
+
+        - ``tag``: identifies the type of connection that should be returned
+          from a pool. This value is only used in python-oracledb Thick mode
+          (default: None)
+
+        - ``matchanytag``: a boolean specifying whether any tag can be used
+          when acquiring a connection from the pool. This value is only used in
+          python-oracledb Thick mode
+          (default: False)
+
+        - ``config_dir``: a directory in which the optional tnsnames.ora
+          configuration file is located. This value is only used in python-
+          oracledb Thin mode. For python-oracledb Thick mode, it is used if
+          :attr:`oracledb.defaults.thick_mode_dsn_passthrough
+          <Defaults.thick_mode_dsn_passthrough>` is *False*. Otherwise in Thick
+          mode use the ``config_dir`` parameter of
+          :meth:`oracledb.init_oracle_client()`
+          (default: :attr:`oracledb.defaults.config_dir
+          <Defaults.config_dir>`)
+
+        - ``appcontext``: application context used by the connection. It should
+          be a list of 3-tuples (namespace, name, value) and each entry in the
+          tuple should be a string
+          (default: None)
+
+        - ``shardingkey``: a list of strings, numbers, bytes or dates that
           identify the database shard to connect to. This value is only used in
-          thick mode (default: None)
+          python-oracledb Thick mode
+          (default: None)
 
-        - debug_jdwp: a string with the format "host=<host>;port=<port>" that
-          specifies the host and port of the PL/SQL debugger. This value is
-          only used in thin mode. For thick mode set the ORA_DEBUG_JDWP
-          environment variable (default: None)
+        - ``supershardingkey``: a list of strings, numbers, bytes or dates that
+          identify the database shard to connect to. This value is only used in
+          python-oracledb Thick mode
+          (default: None)
 
-        - connection_id_prefix: an application specific prefix that is added to
-          the connection identifier used for tracing (default: None)
+        - ``debug_jdwp``: a string with the format "host=<host>;port=<port>"
+          that specifies the host and port of the PL/SQL debugger. This value
+          is only used in python-oracledb Thin mode.  For python-oracledb Thick
+          mode set the ORA_DEBUG_JDWP environment variable
+          (default: None)
 
-        - ssl_context: an SSLContext object used for connecting to the database
-          using TLS.  This SSL context will be modified to include the private
-          key or any certificates found in a separately supplied wallet. This
-          parameter should only be specified if the default SSLContext object
-          cannot be used (default: None)
+        - ``connection_id_prefix``: an application specific prefix that is
+          added to the connection identifier used for tracing
+          (default: None)
 
-        - sdu: the requested size of the Session Data Unit (SDU), in bytes. The
-          value tunes internal buffers used for communication to the database.
-          Bigger values can increase throughput for large queries or bulk data
-          loads, but at the cost of higher memory use. The SDU size that will
-          actually be used is negotiated down to the lower of this value and
-          the database network SDU configuration value (default: 8192)
+        - ``ssl_context``: an SSLContext object used for connecting to the
+          database using TLS.  This SSL context will be modified to include the
+          private key or any certificates found in a separately supplied
+          wallet. This parameter should only be specified if the default
+          SSLContext object cannot be used
+          (default: None)
 
-        - pool_boundary: one of the values "statement" or "transaction"
+        - ``sdu``: the requested size of the Session Data Unit (SDU), in bytes.
+          The value tunes internal buffers used for communication to the
+          database. Bigger values can increase throughput for large queries or
+          bulk data loads, but at the cost of higher memory use. The SDU size
+          that will actually be used is negotiated down to the lower of this
+          value and the database network SDU configuration value
+          (default: 8192)
+
+        - ``pool_boundary``: one of the values "statement" or "transaction"
           indicating when pooled DRCP connections can be returned to the pool.
           This requires the use of DRCP with Oracle Database 23.4 or higher
           (default: None)
 
-        - use_tcp_fast_open: boolean indicating whether to use TCP fast open.
-          This is an Oracle Autonomous Database Serverless (ADB-S) specific
-          property for clients connecting from within OCI Cloud network. Please
-          refer to the ADB-S documentation for more information (default:
-          False)
-
-        - ssl_version: one of the values ssl.TLSVersion.TLSv1_2 or
-          ssl.TLSVersion.TLSv1_3 indicating which TLS version to use (default:
-          None)
-
-        - program: the name of the executable program or application connected
-          to the Oracle Database (default: oracledb.defaults.program)
-
-        - machine: the machine name of the client connecting to the Oracle
-          Database (default: oracledb.defaults.machine)
-
-        - terminal: the terminal identifier from which the connection
-          originates (default: oracledb.defaults.terminal)
-
-        - osuser: the operating system user that initiates the database
-          connection (default: oracledb.defaults.osuser)
-
-        - driver_name: the driver name used by the client to connect to the
-          Oracle Database (default: oracledb.defaults.driver_name)
-
-        - use_sni: boolean indicating whether to use the TLS SNI extension to
-          bypass the second TLS neogiation that would otherwise be required
+        - ``use_tcp_fast_open``: a boolean indicating whether to use TCP fast
+          open. This is an Oracle Autonomous Database Serverless (ADB-S)
+          specific property for clients connecting from within OCI Cloud
+          network. Please refer to the ADB-S documentation for more information
           (default: False)
 
-        - thick_mode_dsn_passthrough: boolean indicating whether to pass the
-          connect string to the Oracle Client libraries unchanged without
-          parsing by the driver. Setting this to False makes thick and thin
-          mode applications behave similarly regarding connection string
-          parameter handling and locating any optional tnsnames.ora
-          configuration file (default:
-          oracledb.defaults.thick_mode_dsn_passthrough)
+        - ``ssl_version``: one of the values ssl.TLSVersion.TLSv1_2 or
+          ssl.TLSVersion.TLSv1_3 indicating which TLS version to use
+          (default: None)
 
-        - extra_auth_params: a dictionary containing configuration parameters
-          necessary for Oracle Database authentication using plugins, such as
-          the Azure and OCI cloud-native authentication plugins (default: None)
+        - ``program``: a string recorded by Oracle Database as the program from
+          which the connection originates
+          (default: :attr:`oracledb.defaults.program
+          <Defaults.program>`)
 
-        - handle: an integer representing a pointer to a valid service context
-          handle. This value is only used in thick mode. It should be used with
-          extreme caution (default: 0)
+        - ``machine``: a string recorded by Oracle Database as the name of the
+          machine from which the connection originates
+          (default: :attr:`oracledb.defaults.machine
+          <Defaults.machine>`)
+
+        - ``terminal``: a string recorded by Oracle Database as the terminal
+          identifier from which the connection originates
+          (default: :attr:`oracledb.defaults.terminal
+          <Defaults.terminal>`)
+
+        - ``osuser``: a string recorded by Oracle Database as the operating
+          system user who originated the connection
+          (default: :attr:`oracledb.defaults.osuser
+          <Defaults.osuser>`)
+
+        - ``driver_name``: a string recorded by Oracle Database as the name of
+          the driver which originated the connection
+          (default: :attr:`oracledb.defaults.driver_name
+          <Defaults.driver_name>`)
+
+        - ``use_sni``: a boolean indicating whether to use the TLS SNI
+          extension to bypass the second TLS neogiation that would otherwise be
+          required
+          (default: False)
+
+        - ``thick_mode_dsn_passthrough``: a boolean indicating whether to pass
+          the connect string to the Oracle Client libraries unchanged without
+          parsing by the driver. Setting this to False makes python-oracledb
+          Thick and Thin mode applications behave similarly regarding
+          connection string parameter handling and locating any optional
+          tnsnames.ora configuration file
+          (default: :attr:`oracledb.defaults.thick_mode_dsn_passthrough
+          <Defaults.thick_mode_dsn_passthrough>`)
+
+        - ``extra_auth_params``: a dictionary containing configuration
+          parameters necessary for Oracle Database authentication using
+          plugins, such as the Azure and OCI cloud-native authentication
+          plugins
+          (default: None)
+
+        - ``pool_name``: the name of the DRCP pool when using multi-pool DRCP
+          with Oracle Database 23.4, or higher
+          (default: None)
+
+        - ``handle``: an integer representing a pointer to a valid service
+          context handle. This value is only used in python-oracledb Thick
+          mode. It should be used with extreme caution
+          (default: 0)
         """
         pass
 
@@ -454,7 +535,8 @@ class PoolParams(ConnectParams):
             f"driver_name={self.driver_name!r}, "
             f"use_sni={self.use_sni!r}, "
             f"thick_mode_dsn_passthrough={self.thick_mode_dsn_passthrough!r}, "
-            f"extra_auth_params={self.extra_auth_params!r}"
+            f"extra_auth_params={self.extra_auth_params!r}, "
+            f"pool_name={self.pool_name!r}"
             ")"
         )
 
@@ -471,24 +553,26 @@ class PoolParams(ConnectParams):
     def getmode(self) -> oracledb.PoolGetMode:
         """
         How pool.acquire() will behave. One of the constants
-        oracledb.POOL_GETMODE_WAIT, oracledb.POOL_GETMODE_NOWAIT,
-        oracledb.POOL_GETMODE_FORCEGET, or oracledb.POOL_GETMODE_TIMEDWAIT.
+        :data:`oracledb.POOL_GETMODE_WAIT`,
+        :data:`oracledb.POOL_GETMODE_NOWAIT`,
+        :data:`oracledb.POOL_GETMODE_FORCEGET`, or
+        :data:`oracledb.POOL_GETMODE_TIMEDWAIT`.
         """
         return oracledb.PoolGetMode(self._impl.getmode)
 
     @property
     def homogeneous(self) -> bool:
         """
-        A boolean indicating whether the connections are homogeneous (same
-        user) or heterogeneous (multiple users).
+        A boolean indicating whether the connections in the pool are
+        homogeneous (same user) or heterogeneous (multiple users).
         """
         return self._impl.homogeneous
 
     @property
     def increment(self) -> int:
         """
-        The number of connections that should be added to the pool whenever a
-        new connection needs to be created.
+        The number of connections that should be added to the pool whenever the
+        pool needs to grow.
         """
         return self._impl.increment
 
@@ -502,8 +586,8 @@ class PoolParams(ConnectParams):
     @property
     def max_lifetime_session(self) -> int:
         """
-        Length of time (in seconds) that connections can remain in the pool. If
-        it is 0 then connections may remain in the pool indefinitely.
+        The length of time (in seconds) that connections can remain in the
+        pool. If it is 0 then connections may remain in the pool indefinitely.
         """
         return self._impl.max_lifetime_session
 
@@ -525,7 +609,7 @@ class PoolParams(ConnectParams):
     @property
     def ping_interval(self) -> int:
         """
-        Length of time (in seconds) after which an unused connection in the
+        The length of time (in seconds) after which an unused connection in the
         pool will be a candidate for pinging when pool.acquire() is called. If
         the ping to the database indicates the connection is not alive a
         replacement connection will be returned by pool.acquire(). If
@@ -537,8 +621,8 @@ class PoolParams(ConnectParams):
     @property
     def ping_timeout(self) -> int:
         """
-        Maximum length of time (in milliseconds) to wait for a connection in
-        the pool to respond to an internal ping to the database before being
+        The maximum length of time (in milliseconds) to wait for a connection
+        in the pool to respond to an internal ping to the database before being
         discarded and replaced during a call to acquire().
         """
         return self._impl.ping_timeout
@@ -555,7 +639,7 @@ class PoolParams(ConnectParams):
     @property
     def soda_metadata_cache(self) -> bool:
         """
-        Boolean indicating whether or not the SODA metadata cache should be
+        A boolean indicating whether or not the SODA metadata cache should be
         enabled.
         """
         return self._impl.soda_metadata_cache
@@ -563,8 +647,8 @@ class PoolParams(ConnectParams):
     @property
     def timeout(self) -> int:
         """
-        Length of time (in seconds) that a connection may remain idle in the
-        pool before it is terminated. If it is 0 then connections are never
+        The length of time (in seconds) that a connection may remain idle in
+        the pool before it is terminated. If it is 0 then connections are never
         terminated.
         """
         return self._impl.timeout
@@ -572,9 +656,9 @@ class PoolParams(ConnectParams):
     @property
     def wait_timeout(self) -> int:
         """
-        Length of time (in milliseconds) that a caller should wait when
+        The length of time (in milliseconds) that a caller should wait when
         acquiring a connection from the pool with getmode set to
-        oracledb.POOL_GETMODE_TIMEDWAIT.
+        :data:`oracledb.POOL_GETMODE_TIMEDWAIT`.
         """
         return self._impl.wait_timeout
 
@@ -655,79 +739,86 @@ class PoolParams(ConnectParams):
         use_sni: Optional[bool] = None,
         thick_mode_dsn_passthrough: Optional[bool] = None,
         extra_auth_params: Optional[dict] = None,
+        pool_name: Optional[str] = None,
         handle: Optional[int] = None,
     ):
         """
         All parameters are optional. A brief description of each parameter
         follows:
 
-        - min: the minimum number of connections the pool should contain
+        - ``min``: the minimum number of connections the pool should contain
 
-        - max: the maximum number of connections the pool should contain
+        - ``max``: the maximum number of connections the pool should contain
 
-        - increment: the number of connections that should be added to the pool
-          whenever a new connection needs to be created
+        - ``increment``: the number of connections that should be added to the
+          pool whenever the pool needs to grow
 
-        - connectiontype: the class of the connection that should be returned
-          during calls to pool.acquire(). It must be oracledb.Connection or a
-          subclass of oracledb.Connection
+        - ``connectiontype``: the class of the connection that should be
+          returned during calls to pool.acquire(). It must be
+          oracledb.Connection or a subclass of oracledb.Connection
 
-        - getmode: how pool.acquire() will behave. One of the constants
-          oracledb.POOL_GETMODE_WAIT, oracledb.POOL_GETMODE_NOWAIT,
-          oracledb.POOL_GETMODE_FORCEGET, or oracledb.POOL_GETMODE_TIMEDWAIT
+        - ``getmode``: how pool.acquire() will behave. One of the constants
+          :data:`oracledb.POOL_GETMODE_WAIT`,
+          :data:`oracledb.POOL_GETMODE_NOWAIT`,
+          :data:`oracledb.POOL_GETMODE_FORCEGET`, or
+          :data:`oracledb.POOL_GETMODE_TIMEDWAIT`
 
-        - homogeneous: a boolean indicating whether the connections are
-          homogeneous (same user) or heterogeneous (multiple users)
+        - ``homogeneous``: a boolean indicating whether the connections in the
+          pool are homogeneous (same user) or heterogeneous (multiple users)
 
-        - timeout: length of time (in seconds) that a connection may remain
-          idle in the pool before it is terminated. If it is 0 then connections
-          are never terminated
+        - ``timeout``: the length of time (in seconds) that a connection may
+          remain idle in the pool before it is terminated. If it is 0 then
+          connections are never terminated
 
-        - wait_timeout: length of time (in milliseconds) that a caller should
-          wait when acquiring a connection from the pool with getmode set to
-          oracledb.POOL_GETMODE_TIMEDWAIT
+        - ``wait_timeout``: the length of time (in milliseconds) that a caller
+          should wait when acquiring a connection from the pool with getmode
+          set to :data:`oracledb.POOL_GETMODE_TIMEDWAIT`
 
-        - max_lifetime_session: length of time (in seconds) that connections
-          can remain in the pool. If it is 0 then connections may remain in the
-          pool indefinitely
+        - ``max_lifetime_session``: the length of time (in seconds) that
+          connections can remain in the pool. If it is 0 then connections may
+          remain in the pool indefinitely
 
-        - session_callback: a callable that is invoked when a connection is
+        - ``session_callback``: a callable that is invoked when a connection is
           returned from the pool for the first time, or when the connection tag
           differs from the one requested
 
-        - max_sessions_per_shard: the maximum number of connections that may be
-          associated with a particular shard
+        - ``max_sessions_per_shard``: the maximum number of connections that
+          may be associated with a particular shard
 
-        - soda_metadata_cache: boolean indicating whether or not the SODA
+        - ``soda_metadata_cache``: a boolean indicating whether or not the SODA
           metadata cache should be enabled
 
-        - ping_interval: length of time (in seconds) after which an unused
-          connection in the pool will be a candidate for pinging when
+        - ``ping_interval``: the length of time (in seconds) after which an
+          unused connection in the pool will be a candidate for pinging when
           pool.acquire() is called. If the ping to the database indicates the
           connection is not alive a replacement connection will be returned by
           pool.acquire(). If ping_interval is a negative value the ping
           functionality will be disabled
 
-        - ping_timeout: maximum length of time (in milliseconds) to wait for a
-          connection in the pool to respond to an internal ping to the database
-          before being discarded and replaced during a call to acquire()
+        - ``ping_timeout``: the maximum length of time (in milliseconds) to
+          wait for a connection in the pool to respond to an internal ping to
+          the database before being discarded and replaced during a call to
+          acquire()
 
-        - user: the name of the user to connect to
+        - ``user``: the name of the database user to connect to
 
-        - proxy_user: the name of the proxy user to connect to. If this value
-          is not specified, it will be parsed out of user if user is in the
-          form "user[proxy_user]"
+        - ``proxy_user``: the name of the proxy user to connect to. If this
+          value is not specified, it will be parsed out of user if user is in
+          the form "user[proxy_user]"
 
-        - password: the password for the user
+        - ``password``: the password for the database user
 
-        - newpassword: the new password for the user. The new password will
-          take effect immediately upon a successful connection to the database
+        - ``newpassword``: a new password for the database user. The new
+          password will take effect immediately upon a successful connection to
+          the database
 
-        - wallet_password: the password to use to decrypt the wallet, if it is
-          encrypted. This value is only used in thin mode
+        - ``wallet_password``: the password to use to decrypt the wallet, if it
+          is encrypted. This is not the database password. For Oracle
+          Autonomous Database this is the password created when downloading the
+          wallet. This value is only used in python-oracledb Thin mode.
 
-        - access_token: expected to be a string or a 2-tuple or a callable. If
-          it is a string, it specifies an Azure AD OAuth2 token used for Open
+        - ``access_token``: a string, or a 2-tuple, or a callable. If it is a
+          string, it specifies an Entra ID OAuth2 token used for Open
           Authorization (OAuth 2.0) token based authentication. If it is a
           2-tuple, it specifies the token and private key strings used for
           Oracle Cloud Infrastructure (OCI) Identity and Access Management
@@ -737,172 +828,190 @@ class PoolParams(ConnectParams):
           create new connections but the current authentication token has
           expired
 
-        - host: the name or IP address of the machine hosting the database or
-          the database listener
+        - ``host``: the hostname or IP address of the machine hosting the
+          database or the database listener
 
-        - port: the port number on which the database listener is listening
+        - ``port``: the port number on which the database listener is listening
 
-        - protocol: one of the strings "tcp" or "tcps" indicating whether to
-          use unencrypted network traffic or encrypted network traffic (TLS)
+        - ``protocol``: one of the strings "tcp" or "tcps" indicating whether
+          to use unencrypted network traffic or encrypted network traffic (TLS)
 
-        - https_proxy: the name or IP address of a proxy host to use for
-          tunneling secure connections
+        - ``https_proxy``: the hostname or IP address of a proxy host to use
+          for tunneling secure connections
 
-        - https_proxy_port: the port on which to communicate with the proxy
+        - ``https_proxy_port``: the port on which to communicate with the proxy
           host
 
-        - service_name: the service name of the database
+        - ``service_name``: the service name of the database
 
-        - instance_name: the instance name of the database
+        - ``instance_name``: the instance name of the database
 
-        - sid: the system identifier (SID) of the database. Note using a
+        - ``sid``: the system identifier (SID) of the database. Note using a
           service_name instead is recommended
 
-        - server_type: the type of server connection that should be
-          established. If specified, it should be one of "dedicated", "shared"
-          or "pooled"
+        - ``server_type``: the type of server connection that should be
+          established. If specified, it should be one of strings "dedicated",
+          "shared" or "pooled"
 
-        - cclass: connection class to use for Database Resident Connection
-          Pooling (DRCP)
+        - ``cclass``: the connection class to use for Database Resident
+          Connection Pooling (DRCP)
 
-        - purity: purity to use for Database Resident Connection Pooling (DRCP)
+        - ``purity``: the connection purity to use for Database Resident
+          Connection Pooling (DRCP)
 
-        - expire_time: an integer indicating the number of minutes between the
-          sending of keepalive probes. If this parameter is set to a value
-          greater than zero it enables keepalive
+        - ``expire_time``: the number of minutes between the sending of
+          keepalive probes. If this parameter is set to a value greater than
+          zero it enables keepalive
 
-        - retry_count: the number of times that a connection attempt should be
-          retried before the attempt is terminated
+        - ``retry_count``: the number of times that initial connection
+          establishment should be retried before the connection attempt is
+          terminated
 
-        - retry_delay: the number of seconds to wait before making a new
-          connection attempt
+        - ``retry_delay``: the number of seconds to wait before retrying to
+          establish a connection
 
-        - tcp_connect_timeout: a float indicating the maximum number of seconds
-          to wait for establishing a connection to the database host
+        - ``tcp_connect_timeout``: a float indicating the maximum number of
+          seconds to wait when establishing a connection to the database host
 
-        - ssl_server_dn_match: boolean indicating whether the server
+        - ``ssl_server_dn_match``: a boolean indicating whether the server
           certificate distinguished name (DN) should be matched in addition to
           the regular certificate verification that is performed. Note that if
           the ssl_server_cert_dn parameter is not privided, host name matching
           is performed instead
 
-        - ssl_server_cert_dn: the distinguished name (DN) which should be
+        - ``ssl_server_cert_dn``: the distinguished name (DN) which should be
           matched with the server. This value is ignored if the
           ssl_server_dn_match parameter is not set to the value True. If
           specified this value is used for any verfication. Otherwise the
           hostname will be used
 
-        - wallet_location: the directory where the wallet can be found. In thin
-          mode this must be the directory containing the PEM-encoded wallet
-          file ewallet.pem. In thick mode this must be the directory containing
-          the file cwallet.sso
+        - ``wallet_location``: the directory where the wallet can be found. In
+          python-oracledb Thin mode this must be the directory containing the
+          PEM-encoded wallet file ewallet.pem. In python-oracledb Thick mode
+          this must be the directory containing the file cwallet.sso
 
-        - events: boolean specifying whether events mode should be enabled.
-          This value is only used in thick mode and is needed for continuous
-          query notification and high availability event notifications
+        - ``events``: a boolean specifying whether events mode should be
+          enabled. This value is only used in python-oracledb Thick mode and is
+          needed for continuous query notification and high availability event
+          notifications
 
-        - externalauth: a boolean indicating whether to use external
+        - ``externalauth``: a boolean indicating whether to use external
           authentication
 
-        - mode: authorization mode to use. For example
-          oracledb.AUTH_MODE_SYSDBA
+        - ``mode``: the authorization mode to use. One of the constants
+          :data:`oracledb.AUTH_MODE_DEFAULT`,
+          :data:`oracledb.AUTH_MODE_PRELIM`, :data:`oracledb.AUTH_MODE_SYSASM`,
+          :data:`oracledb.AUTH_MODE_SYSBKP`, :data:`oracledb.AUTH_MODE_SYSDBA`,
+          :data:`oracledb.AUTH_MODE_SYSDGD`, :data:`oracledb.AUTH_MODE_SYSKMT`,
+          :data:`oracledb.AUTH_MODE_SYSOPER`, or
+          :data:`oracledb.AUTH_MODE_SYSRAC`
 
-        - disable_oob: boolean indicating whether out-of-band breaks should be
-          disabled. This value is only used in thin mode. It has no effect on
-          Windows which does not support this functionality
+        - ``disable_oob``: a boolean indicating whether out-of-band breaks
+          should be disabled. This value is only used in python-oracledb Thin
+          mode. It has no effect on Windows which does not support this
+          functionality
 
-        - stmtcachesize: identifies the initial size of the statement cache
+        - ``stmtcachesize``: the size of the statement cache
 
-        - edition: edition to use for the connection. This parameter cannot be
-          used simultaneously with the cclass parameter
+        - ``edition``: edition to use for the connection. This parameter cannot
+          be used simultaneously with the cclass parameter
 
-        - tag: identifies the type of connection that should be returned from a
-          pool. This value is only used in thick mode
+        - ``tag``: identifies the type of connection that should be returned
+          from a pool. This value is only used in python-oracledb Thick mode
 
-        - matchanytag: boolean specifying whether any tag can be used when
-          acquiring a connection from the pool. This value is only used in
-          thick mode
+        - ``matchanytag``: a boolean specifying whether any tag can be used
+          when acquiring a connection from the pool. This value is only used in
+          python-oracledb Thick mode
 
-        - config_dir: directory in which the optional tnsnames.ora
-          configuration file is located. This value is only used in thin mode.
-          For thick mode use the config_dir parameter of init_oracle_client()
+        - ``config_dir``: a directory in which the optional tnsnames.ora
+          configuration file is located. This value is only used in python-
+          oracledb Thin mode. For python-oracledb Thick mode, it is used if
+          :attr:`oracledb.defaults.thick_mode_dsn_passthrough
+          <Defaults.thick_mode_dsn_passthrough>` is *False*. Otherwise in Thick
+          mode use the ``config_dir`` parameter of
+          :meth:`oracledb.init_oracle_client()`
 
-        - appcontext: application context used by the connection. It should be
-          a list of 3-tuples (namespace, name, value) and each entry in the
-          tuple should be a string. This value is only used in thick mode
+        - ``appcontext``: application context used by the connection. It should
+          be a list of 3-tuples (namespace, name, value) and each entry in the
+          tuple should be a string
 
-        - shardingkey: a list of strings, numbers, bytes or dates that identify
-          the database shard to connect to. This value is only used in thick
-          mode
-
-        - supershardingkey: a list of strings, numbers, bytes or dates that
+        - ``shardingkey``: a list of strings, numbers, bytes or dates that
           identify the database shard to connect to. This value is only used in
-          thick mode
+          python-oracledb Thick mode
 
-        - debug_jdwp: a string with the format "host=<host>;port=<port>" that
-          specifies the host and port of the PL/SQL debugger. This value is
-          only used in thin mode. For thick mode set the ORA_DEBUG_JDWP
-          environment variable
+        - ``supershardingkey``: a list of strings, numbers, bytes or dates that
+          identify the database shard to connect to. This value is only used in
+          python-oracledb Thick mode
 
-        - connection_id_prefix: an application specific prefix that is added to
-          the connection identifier used for tracing
+        - ``debug_jdwp``: a string with the format "host=<host>;port=<port>"
+          that specifies the host and port of the PL/SQL debugger. This value
+          is only used in python-oracledb Thin mode.  For python-oracledb Thick
+          mode set the ORA_DEBUG_JDWP environment variable
 
-        - ssl_context: an SSLContext object used for connecting to the database
-          using TLS.  This SSL context will be modified to include the private
-          key or any certificates found in a separately supplied wallet. This
-          parameter should only be specified if the default SSLContext object
-          cannot be used
+        - ``connection_id_prefix``: an application specific prefix that is
+          added to the connection identifier used for tracing
 
-        - sdu: the requested size of the Session Data Unit (SDU), in bytes. The
-          value tunes internal buffers used for communication to the database.
-          Bigger values can increase throughput for large queries or bulk data
-          loads, but at the cost of higher memory use. The SDU size that will
-          actually be used is negotiated down to the lower of this value and
-          the database network SDU configuration value
+        - ``ssl_context``: an SSLContext object used for connecting to the
+          database using TLS.  This SSL context will be modified to include the
+          private key or any certificates found in a separately supplied
+          wallet. This parameter should only be specified if the default
+          SSLContext object cannot be used
 
-        - pool_boundary: one of the values "statement" or "transaction"
+        - ``sdu``: the requested size of the Session Data Unit (SDU), in bytes.
+          The value tunes internal buffers used for communication to the
+          database. Bigger values can increase throughput for large queries or
+          bulk data loads, but at the cost of higher memory use. The SDU size
+          that will actually be used is negotiated down to the lower of this
+          value and the database network SDU configuration value
+
+        - ``pool_boundary``: one of the values "statement" or "transaction"
           indicating when pooled DRCP connections can be returned to the pool.
           This requires the use of DRCP with Oracle Database 23.4 or higher
 
-        - use_tcp_fast_open: boolean indicating whether to use TCP fast open.
-          This is an Oracle Autonomous Database Serverless (ADB-S) specific
-          property for clients connecting from within OCI Cloud network. Please
-          refer to the ADB-S documentation for more information
+        - ``use_tcp_fast_open``: a boolean indicating whether to use TCP fast
+          open. This is an Oracle Autonomous Database Serverless (ADB-S)
+          specific property for clients connecting from within OCI Cloud
+          network. Please refer to the ADB-S documentation for more information
 
-        - ssl_version: one of the values ssl.TLSVersion.TLSv1_2 or
+        - ``ssl_version``: one of the values ssl.TLSVersion.TLSv1_2 or
           ssl.TLSVersion.TLSv1_3 indicating which TLS version to use
 
-        - program: the name of the executable program or application connected
-          to the Oracle Database
+        - ``program``: a string recorded by Oracle Database as the program from
+          which the connection originates
 
-        - machine: the machine name of the client connecting to the Oracle
-          Database
+        - ``machine``: a string recorded by Oracle Database as the name of the
+          machine from which the connection originates
 
-        - terminal: the terminal identifier from which the connection
-          originates
+        - ``terminal``: a string recorded by Oracle Database as the terminal
+          identifier from which the connection originates
 
-        - osuser: the operating system user that initiates the database
-          connection
+        - ``osuser``: a string recorded by Oracle Database as the operating
+          system user who originated the connection
 
-        - driver_name: the driver name used by the client to connect to the
-          Oracle Database
+        - ``driver_name``: a string recorded by Oracle Database as the name of
+          the driver which originated the connection
 
-        - use_sni: boolean indicating whether to use the TLS SNI extension to
-          bypass the second TLS neogiation that would otherwise be required
+        - ``use_sni``: a boolean indicating whether to use the TLS SNI
+          extension to bypass the second TLS neogiation that would otherwise be
+          required
 
-        - thick_mode_dsn_passthrough: boolean indicating whether to pass the
-          connect string to the Oracle Client libraries unchanged without
-          parsing by the driver. Setting this to False makes thick and thin
-          mode applications behave similarly regarding connection string
-          parameter handling and locating any optional tnsnames.ora
-          configuration file
+        - ``thick_mode_dsn_passthrough``: a boolean indicating whether to pass
+          the connect string to the Oracle Client libraries unchanged without
+          parsing by the driver. Setting this to False makes python-oracledb
+          Thick and Thin mode applications behave similarly regarding
+          connection string parameter handling and locating any optional
+          tnsnames.ora configuration file
 
-        - extra_auth_params: a dictionary containing configuration parameters
-          necessary for Oracle Database authentication using plugins, such as
-          the Azure and OCI cloud-native authentication plugins
+        - ``extra_auth_params``: a dictionary containing configuration
+          parameters necessary for Oracle Database authentication using
+          plugins, such as the Azure and OCI cloud-native authentication
+          plugins
 
-        - handle: an integer representing a pointer to a valid service context
-          handle. This value is only used in thick mode. It should be used with
-          extreme caution
+        - ``pool_name``: the name of the DRCP pool when using multi-pool DRCP
+          with Oracle Database 23.4, or higher
+
+        - ``handle``: an integer representing a pointer to a valid service
+          context handle. This value is only used in python-oracledb Thick
+          mode. It should be used with extreme caution
         """
         pass

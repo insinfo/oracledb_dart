@@ -22,6 +22,17 @@ class Capabilities {
   bool supportsPipelining = false;
   bool supportsRequestBoundaries = false;
   int sdu = 8192; // initial value to use
+  int _seqNum = 0; // TTC sequence number for function code messages
+
+  /// Returns the next sequence number for TTC messages.
+  /// Sequence numbers range from 1-255, wrapping around after 255.
+  int getNextSeqNum() {
+    _seqNum += 1;
+    if (_seqNum > 255) {
+      _seqNum = 1;
+    }
+    return _seqNum;
+  }
 
   Capabilities() {
     _initCompileCaps();

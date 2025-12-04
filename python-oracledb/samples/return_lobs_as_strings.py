@@ -1,5 +1,5 @@
 # -----------------------------------------------------------------------------
-# Copyright (c) 2016, 2024, Oracle and/or its affiliates.
+# Copyright (c) 2016, 2025, Oracle and/or its affiliates.
 #
 # Portions Copyright 2007-2015, Anthony Tuininga. All rights reserved.
 #
@@ -41,10 +41,12 @@ import oracledb
 import sample_env
 
 # determine whether to use python-oracledb thin mode or thick mode
-if not sample_env.get_is_thin():
+if sample_env.run_in_thick_mode():
     oracledb.init_oracle_client(lib_dir=sample_env.get_oracle_client())
 
-# indicate that LOBS should not be fetched
+# A global indicating that LOB columns should be fetched as str or bytes, not
+# as python-oracledb LOB objects. You can do the same in execute() calls by
+# passing a fetch_lobs parameter.
 oracledb.defaults.fetch_lobs = False
 
 connection = oracledb.connect(

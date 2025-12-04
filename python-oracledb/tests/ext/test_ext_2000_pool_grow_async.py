@@ -1,5 +1,5 @@
 # -----------------------------------------------------------------------------
-# Copyright (c) 2024, Oracle and/or its affiliates.
+# Copyright (c) 2024, 2025, Oracle and/or its affiliates.
 #
 # This software is dual-licensed to you under the Universal Permissive License
 # (UPL) 1.0 as shown at https://oss.oracle.com/licenses/upl and Apache License
@@ -36,41 +36,31 @@ run_long_tests value is enabled.
 # -----------------------------------------------------------------------------
 
 import asyncio
-import unittest
 
-import test_env
+import pytest
 
 
-@unittest.skipUnless(
-    test_env.get_is_thin(), "asyncio not supported in thick mode"
-)
-@unittest.skipUnless(
-    test_env.get_extended_config_bool("run_long_tests"),
-    "extended configuration run_long_tests is disabled",
-)
-class TestCase(test_env.BaseAsyncTestCase):
-    requires_connection = False
+@pytest.fixture(autouse=True)
+def module_checks(
+    anyio_backend, skip_unless_thin_mode, skip_unless_run_long_tests
+):
+    pass
 
-    async def test_ext_2000(self):
-        "E2000 - test static pool grows back to the min after sessions killed"
-        pool = test_env.get_pool_async(
-            min=5, max=5, increment=1, ping_interval=0
-        )
-        conns = [await pool.acquire() for i in range(5)]
-        admin_conn = await test_env.get_admin_connection_async()
-        with admin_conn.cursor() as admin_cursor:
-            for conn in conns:
-                sid, serial = await self.get_sid_serial(conn)
-                kill_sql = f"alter system kill session '{sid},{serial}'"
-                await admin_cursor.execute(kill_sql)
-        await admin_conn.close()
+
+async def test_ext_2000(test_env):
+    "E2000 - test static pool grows back to the min after sessions killed"
+    pool = test_env.get_pool_async(min=5, max=5, increment=1, ping_interval=0)
+    conns = [await pool.acquire() for i in range(5)]
+    admin_conn = await test_env.get_admin_connection_async()
+    with admin_conn.cursor() as admin_cursor:
         for conn in conns:
-            await conn.close()
-        conns.clear()
-        conn = await pool.acquire()
-        await asyncio.sleep(2)
-        self.assertEqual(pool.opened, pool.min)
-
-
-if __name__ == "__main__":
-    test_env.run_test_cases()
+            sid, serial = (conn.session_id, conn.serial_num)
+            kill_sql = f"alter system kill session '{sid},{serial}'"
+            await admin_cursor.execute(kill_sql)
+    await admin_conn.close()
+    for conn in conns:
+        await conn.close()
+    conns.clear()
+    conn = await pool.acquire()
+    await asyncio.sleep(2)
+    assert pool.opened == pool.min

@@ -1,16 +1,31 @@
 .. _plsqlexecution:
 
+.. currentmodule:: oracledb
+
 ****************
 Executing PL/SQL
 ****************
 
-PL/SQL stored procedures, functions, and anonymous blocks can be called from
-python-oracledb.
+PL/SQL is a procedural language used for creating user-defined procedures,
+functions, and anonymous blocks. PL/SQL program units are compiled and run
+inside Oracle Database, letting them efficiently work on data. Procedures and
+functions can be stored in the database, encapsulating business logic for reuse
+in other applications.
+
+PL/SQL code can be stored in the database, and executed using python-oracledb.
 
 Examples in this chapter show single invocations using
 :meth:`Cursor.callproc()`, :meth:`Cursor.callfunc()`, or
 :meth:`Cursor.execute()`. Examples of repeated calls using
 :meth:`Cursor.executemany()` are shown in :ref:`batchplsql`.
+
+**User-defined procedures in JavaScript**
+
+You may also be interested in creating user-defined procedures in JavaScript
+instead of PL/SQL, see `Introduction to Oracle Database Multilingual Engine for
+JavaScript <https://www.oracle.com/pls/topic/lookup?ctx=dblatest&id=GUID-
+6AEC4D40-BE51-4DC6-9B8E-22396B5B16DD>`__. These procedures can be invoked in
+python-oracledb the same way PL/SQL is.
 
 .. _plsqlproc:
 
@@ -448,13 +463,13 @@ python-oracledb Thin mode. See :ref:`implicitresultsdiff`.
 Edition-Based Redefinition (EBR)
 --------------------------------
 
-Oracle Database's `Edition-Based Redefinition
-<https://www.oracle.com/pls/topic/lookup?ctx=dblatest&
-id=GUID-58DE05A0-5DEF-4791-8FA8-F04D11964906>`__ feature enables upgrading of
-the database component of an application while it is in use, thereby minimizing
-or eliminating down time. This feature allows multiple versions of views,
-synonyms, PL/SQL objects and SQL Translation profiles to be used concurrently.
-Different versions of the database objects are associated with an "edition".
+Oracle Database's `Edition-Based Redefinition <https://www.oracle.com/pls/topic
+/lookup?ctx=dblatest&id=GUID-58DE05A0-5DEF-4791-8FA8-F04D11964906>`__ feature
+enables upgrading of the database component of an application while it is in
+use, thereby minimizing or eliminating down time. This feature allows multiple
+versions of views, synonyms, PL/SQL objects and SQL Translation profiles to be
+used concurrently. Different versions of the database objects are associated
+with an "edition".
 
 The simplest way to set the edition used by your applications is to pass the
 ``edition`` parameter to :meth:`oracledb.connect()` or

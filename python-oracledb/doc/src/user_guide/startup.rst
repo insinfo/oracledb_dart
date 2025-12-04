@@ -1,5 +1,7 @@
 .. _startup:
 
+.. currentmodule:: oracledb
+
 *************************************
 Starting and Stopping Oracle Database
 *************************************
@@ -9,7 +11,7 @@ python-oracledb.
 
 .. note::
 
-    Database start up and shut down functionality is only supported in the
+    Database start up and shut down functionality is only supported in
     python-oracledb Thick mode.  See :ref:`enablingthick`.
 
 ===========================

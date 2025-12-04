@@ -308,6 +308,8 @@ cdef class ThickCursorImpl(BaseCursorImpl):
             mode = DPI_MODE_EXEC_COMMIT_ON_SUCCESS
         else:
             mode = DPI_MODE_EXEC_DEFAULT
+        if self.suspend_on_success:
+            mode |= DPI_MODE_EXEC_SUSPEND_ON_SUCCESS
         with nogil:
             status = dpiStmt_execute(self._handle, mode, &num_query_cols)
             if status == DPI_SUCCESS:
@@ -324,7 +326,8 @@ cdef class ThickCursorImpl(BaseCursorImpl):
         elif self._stmt_info.isReturning or self._stmt_info.isPLSQL:
             self._transform_binds()
 
-    def executemany(self, cursor, num_execs, batcherrors, arraydmlrowcounts):
+    def executemany(self, object cursor, uint32_t num_execs, bint batcherrors,
+                    bint arraydmlrowcounts, uint32_t offset=0):
         """
         Internal method for executing a statement multiple times.
         """
@@ -342,26 +345,27 @@ cdef class ThickCursorImpl(BaseCursorImpl):
             mode |= DPI_MODE_EXEC_ARRAY_DML_ROWCOUNTS
         if batcherrors:
             mode |= DPI_MODE_EXEC_BATCH_ERRORS
+        if self.suspend_on_success:
+            mode |= DPI_MODE_EXEC_SUSPEND_ON_SUCCESS
 
         if self.bind_vars is not None:
             self._perform_binds(cursor.connection, num_execs_int)
 
-        if num_execs_int > 0:
-            with nogil:
-                status = dpiStmt_executeMany(self._handle, mode, num_execs_int)
-                dpiContext_getError(driver_info.context, &error_info)
-                dpiStmt_getRowCount(self._handle, &rowcount)
-            if not self._stmt_info.isPLSQL:
-                self.rowcount = rowcount
-            if status < 0:
-                error = _create_new_from_info(&error_info)
-                if self._stmt_info.isPLSQL and error_info.offset == 0:
-                    error.offset = rowcount
-                raise error.exc_type(error)
-            elif error_info.isWarning:
-                self.warning = _create_new_from_info(&error_info)
-            if self._stmt_info.isReturning or self._stmt_info.isPLSQL:
-                self._transform_binds()
+        with nogil:
+            status = dpiStmt_executeMany(self._handle, mode, num_execs_int)
+            dpiContext_getError(driver_info.context, &error_info)
+            dpiStmt_getRowCount(self._handle, &rowcount)
+        if not self._stmt_info.isPLSQL:
+            self.rowcount = rowcount
+        if status < 0:
+            error = _create_new_from_info(&error_info)
+            if self._stmt_info.isPLSQL and error_info.offset == 0:
+                error.offset = rowcount
+            raise error.exc_type(error)
+        elif error_info.isWarning:
+            self.warning = _create_new_from_info(&error_info)
+        if self._stmt_info.isReturning or self._stmt_info.isPLSQL:
+            self._transform_binds()
 
     def get_array_dml_row_counts(self):
         """

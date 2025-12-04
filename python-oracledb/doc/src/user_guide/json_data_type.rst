@@ -1,5 +1,7 @@
 .. _jsondatatype:
 
+.. currentmodule:: oracledb
+
 ***************
 Using JSON Data
 ***************
@@ -106,6 +108,7 @@ insert JSON strings like:
     data = dict(name="Rod", dept="Sales", location="Germany")
     inssql = "insert into CustomersAsBlob values (:1, :2)"
 
+    cursor.setinputsizes(None, oracledb.DB_TYPE_LONG_RAW)
     cursor.execute(inssql, [1, json.dumps(data)])
 
 You can fetch VARCHAR2 and LOB columns that contain JSON data in the same way
@@ -376,8 +379,8 @@ in the Oracle JSON Developer's Guide.
 Accessing Relational Data as JSON
 =================================
 
-In Oracle Database 12.2 or later, the `JSON_OBJECT
-<https://www.oracle.com/pls/topic/lookup?ctx=dblatest&id=GUID-1EF347AE-7FDA-4B41-AFE0-DD5A49E8B370>`__
+In Oracle Database 12.2 or later, the `JSON_OBJECT <https://www.oracle.com/pls/
+topic/lookup?ctx=dblatest&id=GUID-1EF347AE-7FDA-4B41-AFE0-DD5A49E8B370>`__
 function is a great way to convert relational table data to JSON:
 
 .. code-block:: python
@@ -410,8 +413,6 @@ for example:
 
 .. code-block:: python
 
-    oracledb.defaults.fetch_lobs = False
-
     cursor.execute("""
         select
             json_arrayagg(
@@ -421,7 +422,8 @@ for example:
             departments d
         where
             department_id < :did""",
-       [50]);
+       [50],
+       fetch_lobs=False)
     j, = cursor.fetchone()
     print(j)
 
@@ -435,10 +437,10 @@ This produces::
 JSON-Relational Duality Views
 =============================
 
-Oracle Database 23ai JSON-Relational Duality Views allow data to be stored as
-rows in tables to provide the benefits of the relational model and SQL access,
-while also allowing read and write access to data as JSON documents for
-application simplicity. See the `JSON-Relational Duality Developer's Guide
+Oracle AI Database 26ai JSON-Relational Duality Views allow data to be
+stored as rows in tables to provide the benefits of the relational model and
+SQL access, while also allowing read and write access to data as JSON documents
+for application simplicity. See the `JSON-Relational Duality Developer's Guide
 <https://www.oracle.com/pls/topic/lookup?ctx=dblatest&id=JSNVU>`__ for more
 information.
 

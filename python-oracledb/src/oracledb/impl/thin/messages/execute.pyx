@@ -37,6 +37,29 @@ cdef class ExecuteMessage(MessageWithData):
         uint32_t fetch_pos
         bint scroll_operation
 
+    cdef _handle_sessionless_suspend(self):
+        """
+        Suspend the active sessionless transaction after execution of a
+        statement.
+        """
+        cdef _SessionlessData sdata = self.conn_impl._sessionless_data
+
+        # perform validation
+        if sdata is None:
+            errors._raise_err(errors.ERR_SESSIONLESS_INACTIVE)
+        elif sdata.started_on_server:
+            errors._raise_err(errors.ERR_SESSIONLESS_DIFFERING_METHODS)
+
+        # if a piggyback is pending , ensure that it is suspended when the
+        # operation is completed; otherwise, create a new pending piggyback to
+        # suspend the transaction
+        if sdata.piggyback_pending:
+            sdata.operation |= TNS_TPC_TXN_POST_DETACH
+        else:
+            sdata.operation = TNS_TPC_TXN_POST_DETACH
+            sdata.flags = TPC_TXN_FLAGS_SESSIONLESS
+            sdata.piggyback_pending = True
+
     cdef int _write_execute_message(self, WriteBuffer buf) except -1:
         """
         Write the message for a full execute.
@@ -58,8 +81,9 @@ cdef class ExecuteMessage(MessageWithData):
             exec_flags |= TNS_EXEC_FLAGS_IMPLICIT_RESULTSET
             if not self.scroll_operation:
                 options |= TNS_EXEC_OPTION_EXECUTE
-        if cursor_impl.scrollable:
+        if cursor_impl.scrollable and not self.parse_only:
             exec_flags |= TNS_EXEC_FLAGS_SCROLLABLE
+            exec_flags |= TNS_EXEC_FLAGS_NO_CANCEL_ON_EOF
         if stmt._cursor_id == 0 or stmt._is_ddl:
             options |= TNS_EXEC_OPTION_PARSE
         if stmt._is_query:
@@ -77,7 +101,7 @@ cdef class ExecuteMessage(MessageWithData):
             options |= TNS_EXEC_OPTION_NOT_PLSQL
         elif stmt._is_plsql and num_params > 0:
             options |= TNS_EXEC_OPTION_PLSQL_BIND
-        if num_params > 0:
+        if num_params > 0 and not self.scroll_operation:
             options |= TNS_EXEC_OPTION_BIND
         if self.batcherrors:
             options |= TNS_EXEC_OPTION_BATCH_ERRORS
@@ -85,6 +109,8 @@ cdef class ExecuteMessage(MessageWithData):
             exec_flags |= TNS_EXEC_FLAGS_DML_ROWCOUNTS
         if self.conn_impl.autocommit and not self.parse_only:
             options |= TNS_EXEC_OPTION_COMMIT
+        if self.cursor_impl.suspend_on_success:
+            self._handle_sessionless_suspend()
 
         # write body of message
         self._write_function_code(buf)
@@ -202,6 +228,8 @@ cdef class ExecuteMessage(MessageWithData):
             if self.conn_impl.autocommit:
                 options_2 |= TNS_EXEC_OPTION_COMMIT_REEXECUTE
             num_iters = self.num_execs
+        if self.cursor_impl.suspend_on_success:
+            self._handle_sessionless_suspend()
 
         self._write_function_code(buf)
         buf.write_ub4(stmt._cursor_id)

@@ -1,4 +1,7 @@
+responda sempre em portugues 
 continue a portar o driver oracledb puro python C:\MyDartProjects\tlslite\oracledb_dart\python-oracledb para dart e atualizar o C:\MyDartProjects\tlslite\oracledb_dart\TODO.md
+
+use rg para buscas no codigo fonte
 
 - [x] portar a fabrica de excecoes/DPY-xxxx e usar na verificacao de charset (`lib/src/exceptions.dart`, `lib/src/thin/protocol/capabilities.dart`).
 - [x] portar helpers de protocolo para detectar end-of-response, Rowid e buffers basicos (`lib/src/thin/protocol/packet.dart`).
@@ -17,7 +20,11 @@ continue a portar o driver oracledb puro python C:\MyDartProjects\tlslite\oracle
 - [x] parsear resposta AUTH em key/value para sessionData (AUTH_VFR_DATA, AUTH_SESSKEY, etc.).
 - [x] ligar o parser base de mensagens ao transporte para AUTH (processBuffer/return params) e propagar metadata de sessao para `ThinConnection`.
 - [x] montar o payload completo de AUTH TTC (phase1/phase2, PBKDF2 11g/12c, combo key) em `lib/src/thin/protocol/messages/auth.dart`.
+- [x] corrigir PBKDF2 (usando senha como entrada em vez de chave do HMAC) e manter API compatível (`lib/src/thin/crypto.dart`).
+- [x] garantir que a senha seja codificada em UTF-8 antes de alimentar PBKDF2/AES (`lib/src/thin/protocol/messages/auth.dart`).
+- [x] instrumentar drivers Dart/Python para gerar dumps hex dos pacotes AUTH (env `DART_AUTH_TRACE`/`PYTHON_AUTH_TRACE_FILE`).
 - [ ] validar/auth TTC contra servidor XE real e ajustar verificador/sessao ate login funcionar.
+- [ ] coletar e comparar os arquivos gerados pelos tracers (fase1/fase2) para achar divergencias restantes.
 - [ ] completar o parsing das mensagens base (warnings/piggybacks/row data/result sets) e amarrar ao transporte.
 - [ ] expandir testes de integracao para login e queries simples (usar `ORACLE_TESTS=1`).
 - [ ] exercitar login real contra o serviço `XEPDB1` com `dart_user/dart` (conexao mostrada no Navicat) e registrar sessionData para comparar com python-oracledb.

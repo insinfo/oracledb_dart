@@ -1,12 +1,14 @@
 .. _connhandling:
 
+.. currentmodule:: oracledb
+
 *****************************
 Connecting to Oracle Database
 *****************************
 
-Connections between python-oracledb and Oracle Database are used for executing
-:ref:`SQL <sqlexecution>` and :ref:`PL/SQL <plsqlexecution>`, for calling
-:ref:`SODA <sodausermanual>` functions, for receiving database
+Connections between python-oracledb and Oracle Database are used for
+executing :ref:`SQL <sqlexecution>` and :ref:`PL/SQL <plsqlexecution>`, for
+calling :ref:`SODA <sodausermanual>` functions, for receiving database
 :ref:`notifications <cqn>` and :ref:`messages <aqusermanual>`, and for
 :ref:`starting and stopping <startup>` the database.
 
@@ -32,31 +34,27 @@ Oracle Client and Oracle Database communicate.
 There are two ways to create a connection to Oracle Database using
 python-oracledb:
 
-*  **Standalone connections**: :ref:`Standalone connections <standaloneconnection>`
-   are useful when the application needs a single connection to a database.
-   Connections are created by calling :meth:`oracledb.connect()`.
+* **Standalone connections**: :ref:`Standalone connections
+  <standaloneconnection>` are useful when the application needs a single
+  connection to a database.  Connections are created by calling
+  :meth:`oracledb.connect()`. For :ref:`asyncio <asyncio>`, use
+  :meth:`oracledb.connect_async()` instead, see :ref:`connasync`.
 
-*  **Pooled connections**: :ref:`Connection pooling <connpooling>` is important for
-   performance when applications frequently connect and disconnect from the database.
-   Pools support Oracle's :ref:`high availability <highavailability>` features and are
-   recommended for applications that must be reliable.  Small pools can also be
-   useful for applications that want a few connections available for infrequent
-   use.  Pools are created with :meth:`oracledb.create_pool()` at application
-   initialization time, and then :meth:`ConnectionPool.acquire()` can be called to
-   obtain a connection from a pool.
+* **Pooled connections**: :ref:`Connection pooling <connpooling>` is important
+  for performance when applications frequently connect and disconnect from the
+  database.  Pools support Oracle's :ref:`high availability <highavailability>`
+  features and are recommended for applications that must be reliable.  Small
+  pools can also be useful for applications that want a few connections
+  available for infrequent use.  Pools are created with
+  :meth:`oracledb.create_pool()` at application initialization time, and then
+  :meth:`ConnectionPool.acquire()` can be called to obtain a connection from a
+  pool. For :ref:`asyncio <asyncio>`, use :meth:`oracledb.create_pool_async()`
+  and :meth:`AsyncConnectionPool.acquire()` instead, see :ref:`asyncconnpool`.
 
 Many connection behaviors can be controlled by python-oracledb connection
 options.  Other settings can be configured in :ref:`optnetfiles` or in
 :ref:`optclientfiles`.  These include limiting the amount of time that opening
 a connection can take, or enabling :ref:`network encryption <netencrypt>`.
-
-.. note::
-
-       Creating a connection in python-oracledb Thin mode always requires a
-       connection string, or the database host name and service name, to be
-       specified.  The Thin mode cannot use "bequeath" connections and does not
-       reference Oracle environment variables ``ORACLE_SID``, ``TWO_TASK``,
-       or ``LOCAL``.
 
 .. _standaloneconnection:
 
@@ -73,7 +71,8 @@ calling :meth:`oracledb.connect()` and passing:
 - A 'data source name' connection string, see :ref:`connstr`
 
 Python-oracledb also supports :ref:`external authentication <extauth>` so
-passwords do not need to be in the application.
+passwords do not need to be in the application. For information on other
+authentication methods supported, see :ref:`authenticationmethods`.
 
 Creating a Standalone Connection
 --------------------------------
@@ -242,8 +241,8 @@ the database service you wanted ("doesnotexist") does not exist there.
 Technically, the error means the listener does not know about the service at the
 moment.  So you might also get this error if the database is currently restarting.
 
-This error is similar to the ``ORA-12514`` error that you may see when connecting
-with python-oracledb in Thick mode, or with some other Oracle tools.
+This error is similar to the ``ORA-12514`` error that you may see when
+connecting with python-oracledb Thick mode, or with some other Oracle tools.
 
 The solution is to use a valid service name in the connection string. You can:
 
@@ -287,6 +286,14 @@ For more information about naming methods, see the `Database Net Services
 Administrator's Guide
 <https://www.oracle.com/pls/topic/lookup?ctx=dblatest&id=GUID-E5358DEA-D619-4B7B-A799-3D2F802500F1>`__.
 
+.. note::
+
+    Creating a connection in python-oracledb Thin mode always requires a
+    connection string, or the database host name and service name, to be
+    specified.  The Thin mode cannot use "bequeath" connections and does not
+    reference Oracle environment variables ``ORACLE_SID``, ``TWO_TASK``,
+    or ``LOCAL``.
+
 .. _easyconnect:
 
 Easy Connect Syntax for Connection Strings
@@ -328,8 +335,8 @@ If the database is using a non-default port, it must be specified:
     connection = oracledb.connect(user="hr", password=userpwd,
                                   dsn="dbhost.example.com:1984/orclpdb")
 
-The Easy Connect syntax supports Oracle Database service names.  It cannot be
-used with the older System Identifiers (SID).
+The Easy Connect syntax supports Oracle Database service names.  It cannot
+be used with the older System Identifiers (SID).
 
 **Oracle Net Settings in Easy Connect Strings**
 
@@ -414,11 +421,11 @@ TNS Aliases for Connection Strings
 
 :ref:`Connect Descriptors <conndescriptor>` are commonly stored in a
 :ref:`tnsnames.ora <optnetfiles>` file and associated with a TNS Alias.  This
-:ref:alias can be used directly for the data source name parameter ``dsn`` of
-:ref::meth:`oracledb.connect()`, :meth:`oracledb.create_pool()`,
-:ref::meth:`oracledb.connect_async()`, and
-:ref::meth:`oracledb.create_pool_async()`.  For example, given a file
-:ref:``/opt/oracle/config/tnsnames.ora`` with the following contents::
+alias can be used directly for the data source name parameter ``dsn`` of
+:meth:`oracledb.connect()`, :meth:`oracledb.create_pool()`,
+:meth:`oracledb.connect_async()`, and :meth:`oracledb.create_pool_async()`.
+For example, given a file ``/opt/oracle/config/tnsnames.ora`` with the
+following contents::
 
     ORCLPDB =
       (DESCRIPTION =
@@ -474,11 +481,13 @@ In python-oracledb Thin mode, an additional :ref:`connection protocol hook
 function <registerprotocolhook>` is required to handle this connection
 protocol, see :ref:`ldapconnections`. A connection protocol hook function is
 also required in python-oracledb Thick mode if
-:attr:`defaults.thick_mode_dsn_passthrough` is *False*.
+:attr:`oracledb.defaults.thick_mode_dsn_passthrough
+<Defaults.thick_mode_dsn_passthrough>` is *False*.
 
 To use LDAP URLs in python-oracledb Thick mode applications when
-:attr:`defaults.thick_mode_dsn_passthrough` is *True*, the Oracle Client
-libraries must be 23.4, or later.
+:attr:`oracledb.defaults.thick_mode_dsn_passthrough
+<Defaults.thick_mode_dsn_passthrough>` is *True*, the Oracle Client libraries
+must be 23.4, or later.
 
 
 .. _configproviderurl:
@@ -539,9 +548,9 @@ The valid keys for the "pyo" object are shown in :ref:`pyoparams`.
 JDBC and Oracle SQL Developer Connection Strings
 ------------------------------------------------
 
-The python-oracledb connection string syntax is different from Java JDBC and the
-common Oracle SQL Developer syntax.  If these JDBC connection strings reference
-a service name like::
+The python-oracledb connection string syntax is different from Java JDBC and
+the common Oracle SQL Developer syntax.  If these JDBC connection strings
+reference a service name like::
 
     jdbc:oracle:thin:@hostname:port/service_name
 
@@ -625,16 +634,18 @@ you in python-oracledb, then you can alter the connection string to include a
 protocol such as ``tcp://hostname``, or a port number such as
 ``hostname:1521``.
 
-In python-oracledb Thick mode, when :attr:`defaults.thick_mode_dsn_passthrough`
-is *False*, any ``DESCRIPTION``, ``CONNECT_DATA`` and ``SECURITY`` parameters
-of a full connect descriptor that are unrecognized by python-oracledb are
-passed to the database unchanged. Any Easy Connect parameters that are not
-known to python-oracledb are discarded and not passed to the database.
+In python-oracledb Thick mode, when
+:attr:`oracledb.defaults.thick_mode_dsn_passthrough
+<Defaults.thick_mode_dsn_passthrough>` is *False*, any ``DESCRIPTION``,
+``CONNECT_DATA`` and ``SECURITY`` parameters of a full connect descriptor that
+are unrecognized by python-oracledb are passed to the database unchanged. Any
+Easy Connect parameters that are not known to python-oracledb are discarded and
+not passed to the database.
 
 .. _pyoparams:
 
-Python-oracledb Parameters Settable in Easy Connect Strings or Central Configuration Providers
-----------------------------------------------------------------------------------------------
+Python-oracledb Parameters Settable in Easy Connect Strings or Centralized Configuration Providers
+--------------------------------------------------------------------------------------------------
 
 Some python-oracledb connection and pool creation parameters can be set in
 :ref:`Easy Connect strings <easyconnect>` or via a :ref:`Centralized
@@ -889,6 +900,25 @@ prefix. The names are case insensitive.
       - ``wallet_location``
       - Not recommended for use in Configuration Providers because the path name may not be valid on any particular application host.
 
+.. _authentication:
+
+Authenticating to Oracle Database
+=================================
+
+When connecting to Oracle Database, authentication plays a key role in
+establishing an authorized connection. Python-oracledb supports various Oracle
+Database authentication methods which are listed below:
+
+- :ref:`dbauthentication`
+- :ref:`proxyauth`
+- :ref:`extauth`
+- :ref:`tokenauth`
+- :ref:`instanceprincipalauth`
+
+The Oracle Client libraries used by python-oracledb Thick mode may support
+additional authentication methods that are configured independently of the
+driver.
+
 .. _configurationproviders:
 
 Centralized Configuration Providers
@@ -914,18 +944,19 @@ The following configuration providers are supported by python-oracledb:
 - :ref:`Microsoft Azure App Centralized Configuration Provider
   <azureappstorageprovider>`
 
-To use python-oracledb :ref:`Centralized Configuration Provider
-<configurationproviders>` functionality in Thick mode, you should set
-:attr:`defaults.thick_mode_dsn_passthrough` to *False*. Alternatively use
+To use :ref:`Centralized Configuration Provider <configurationproviders>`
+functionality in python-oracledb Thick mode, you should set
+:attr:`oracledb.defaults.thick_mode_dsn_passthrough
+<Defaults.thick_mode_dsn_passthrough>` to *False*. Alternatively use
 :meth:`ConnectParams.parse_connect_string()`, see :ref:`usingconnparams`.
 
-Note: In Thick mode, when :attr:`defaults.thick_mode_dsn_passthrough` is
-*True*, it is the Oracle Client libraries that access the configuration
-provider when python-oracledb connection or pool creation methods are
-invoked. Any python-oracledb parameter section will be ignored. Any Oracle
-Client Interface parameter section should be *removed* from the configuration
-because its values may be different to those that python-oracledb assumes, and
-will cause undefined behavior.
+Note: In Thick mode, when :attr:`oracledb.defaults.thick_mode_dsn_passthrough
+<Defaults.thick_mode_dsn_passthrough>` is *True*, it is the Oracle Client
+libraries that access the configuration provider when python-oracledb
+connection or pool creation methods are invoked. Any python-oracledb parameter
+section will be ignored. Any Oracle Client Interface parameter section should
+be *removed* from the configuration because its values may be different to
+those that python-oracledb assumes, and will cause undefined behavior.
 
 **Precedence of Attributes**
 
@@ -1030,11 +1061,20 @@ The elements of the ``dsn`` parameter are detailed in the table below.
     * - Parameter
       - Description
     * - ``config-file``
-      - Indicates that the centralized configuration provider is a file in your local system.
+      - Indicates that the centralized configuration provider is a file in your
+        local system.
     * - <file-name>
-      - The file path and name of the JSON file that contains the configuration information. For relative paths, python-oracledb will use the connection or pool creation ``config_dir`` parameter, or :attr:`defaults.config_dir` value, to create an absolute path.
+      - The file path and name of the JSON file that contains the configuration
+        information. For relative paths, python-oracledb will use the
+        connection or pool creation ``config_dir`` parameter, or
+        :attr:`oracledb.defaults.config_dir <Defaults.config_dir>` value, to
+        create an absolute path.
     * - ``key``
-      - The connection key name used to identify a specific configuration. If this parameter is specified, the file is assumed to contain multiple configurations that are indexed by the key value. If not specified, the file is assumed to contain a single configuration. See the example further below.
+      - The connection key name used to identify a specific configuration. If
+        this parameter is specified, the file is assumed to contain multiple
+        configurations that are indexed by the key value. If not specified, the
+        file is assumed to contain a single configuration. See the example
+        further below.
 
 **File Configuration Provider Examples**
 
@@ -1208,15 +1248,7 @@ The elements of the connection string are detailed in the table below.
       - The network service name or alias if the JSON file contains one or more network service names.
       - Optional
     * - <option>=<value>
-      - The authentication method and its corresponding parameters to access the OCI Object Storage configuration provider. Depending on the specified authentication method, you must also set the corresponding authentication parameters in the connection string. You can specify one of the following authentication methods:
-
-        - **API Key-based Authentication**: The authentication to OCI is done using API key-related values. This is the default authentication method. Note that this method is used when no authentication value is set or by setting the option value to *OCI_DEFAULT*. The optional authentication parameters that can be set for this method include *OCI_PROFILE*, *OCI_TENANCY*, *OCI_USER*, *OCI_FINGERPRINT*, *OCI_KEY_FILE*, and *OCI_PASS_PHRASE*. These authentication parameters can also be set in an OCI Authentication Configuration file which can be stored in a default location *~/.oci/config*, or in location *~/.oraclebmc/config*, or in the location specified by the OCI_CONFIG_FILE environment variable. See `Authentication Parameters for Oracle Cloud Infrastructure (OCI) Object Storage <https://www.oracle.com/pls/topic/lookup?ctx=dblatest&id=GUID-EB94F084-0F3F-47B5-AD77-D111070F7E8D>`__.
-
-        - **Instance Principal Authentication**: The authentication to OCI is done using VM instance credentials running on OCI. To use this method, set the option value to *OCI_INSTANCE_PRINCIPAL*. There are no optional authentication parameters that can be set for this method.
-
-        - **Resource Principal Authentication**: The authentication to OCI is done using OCI resource principals. To use this method, you must set the option value to OCI_RESOURCE_PRINCIPAL. There are no optional authentication parameters that can be set for this method.
-
-        See `OCI Authentication Methods <https://docs.oracle.com/en-us/iaas/Content/API/Concepts/sdk_authentication_methods.htm>`__ for more information.
+      - The authentication method and its corresponding parameters to access the OCI Object Storage configuration provider. You can specify one of the following authentication methods: API Key-based authentication, Instance Principal Authentication, and Resource Principal Authentication. See :ref:`ociobjectstorageauthmethods` for more information.
       - Optional
 
 **OCI Object Storage Centralized Configuration Provider Examples**
@@ -1432,17 +1464,7 @@ The elements of the connection string are detailed in the table below.
       - The Azure App Configuration label name.
       - Optional
     * - <option>=<value>
-      - The authentication method and its corresponding parameters to access the Azure App Configuration provider. Depending on the specified authentication method, you must also set the corresponding authentication parameters in the connection string. You can specify one of the following authentication methods:
-
-        - **Default Azure Credential**: The authentication to Azure App Configuration is done as a service principal (using either a client secret or client certificate) or as a managed identity depending on which parameters are set. This authentication method also supports reading the parameters as environment variables. This is the default authentication method. This method is used when no authentication value is set or by setting the option value to *AZURE_DEFAULT*. The optional parameters that can be set for this option include *AZURE_CLIENT_ID*, *AZURE_CLIENT_SECRET*, *AZURE_CLIENT_CERTIFICATE_PATH*, *AZURE_TENANT_ID*, and *AZURE_MANAGED_IDENTITY_CLIENT_ID*.
-
-        - **Service Principal with Client Secret**: The authentication to Azure App Configuration is done using the client secret. To use this method, you must set the option value to *AZURE_SERVICE_PRINCIPAL*. The required parameters that must be set for this option include *AZURE_SERVICE_PRINCIPAL*, *AZURE_CLIENT_ID*, *AZURE_CLIENT_SECRET*, and *AZURE_TENANT_ID*.
-
-        - **Service Principal with Client Certificate**: The authentication to Azure App Configuration is done using the client certificate. To use this method, you must set the option value to *AZURE_SERVICE_PRINCIPAL*. The required parameters that must be set for this option are *AZURE_SERVICE_PRINCIPAL*, *AZURE_CLIENT_ID*, *AZURE_CLIENT_CERTIFICATE_PATH*, and *AZURE_TENANT_ID*.
-
-        - **Managed Identity**: The authentication to Azure App Configuration is done using managed identity or managed user identity credentials. To use this method, you must set the option value to *AZURE_MANAGED_IDENTITY*. If you want to use a user-assigned managed identity for authentication, then you must specify the required parameter *AZURE_MANAGED_IDENTITY_CLIENT_ID*.
-
-        See `Authentication Parameters for Azure App Configuration Store <https://www.oracle.com/pls/topic/lookup?ctx=dblatest&id=GUID-1EECAD82-6CE5-4F4F-A844-C75C7AA1F907>`__ for more information. Note that the Azure service principal with client certificate overrides Azure service principal with client secret.
+      - The authentication method and its corresponding parameters to access the Azure App Configuration provider. You can specify one of the following authentication methods: Default Azure Credential, Service Principal with Client Secret, Service Principal with Client Certificate, and Managed Identity. See :ref:`azureappauthmethods` for more information on these authentication methods and their corresponding parameters.
       - Optional
 
 **Azure App Centralized Configuration Examples**
@@ -1690,9 +1712,9 @@ hook function is expected to construct valid connection details, which
 python-oracledb will use to complete the connection or pool creation.
 
 You can also make use of a protocol hook function in python-oracledb Thick mode
-connection calls by setting :attr:`defaults.thick_mode_dsn_passthrough` to
-*False*. Alternatively use :meth:`ConnectParams.parse_connect_string()`, see
-:ref:`usingconnparams`.
+connection calls by setting :attr:`oracledb.defaults.thick_mode_dsn_passthrough
+<Defaults.thick_mode_dsn_passthrough>` to *False*. Alternatively use
+:meth:`ConnectParams.parse_connect_string()`, see :ref:`usingconnparams`.
 
 For example, the following hook function handles connection strings prefixed
 with the ``tcp://`` protocol. When :func:`oracledb.connect()` is called, the
@@ -1883,6 +1905,10 @@ creation calls. If you call :meth:`ConnectParams.parse_connect_string()`, the
 registered protocol hook method will be called but the parameter hook will not
 be.
 
+..
+   Note to doc writers: do not change the following heading because it is used
+   for a link emitted by ldap_hook() in src/oracledb/builtin_hooks.py
+
 .. _ldapconnections:
 
 LDAP Directory Naming
@@ -1899,7 +1925,7 @@ The DSN for LDAP connections can be an alias, as shown in the above references.
 Alternatively it can be an LDAP URL. The URL syntax removes the need for
 external LDAP and ``sqlnet.ora`` configuration files. See the technical brief
 `Oracle Client 23ai LDAP URL Syntax
-<https://www.oracle.com/a/otn/docs/database/oracle-net-23ai-ldap-url.  pdf>`__.
+<https://www.oracle.com/a/otn/docs/database/oracle-net-23ai-ldap-url.pdf>`__.
 
 **Python-oracledb Thick Mode LDAP Aliases**
 
@@ -1922,9 +1948,10 @@ connect with an LDAP URL. For example:
     connection = oracledb.connect(user="scott", password=pw, dsn=ldapurl)
 
 To use an LDAP URL in python-oracledb Thick mode when
-:attr:`defaults.thick_mode_dsn_passthrough` is *False*, a connection hook
-function is required as shown below for Thin mode. This lets LDAP URLs be
-utilized when python-oracledb uses any supported Oracle Client library version.
+:attr:`oracledb.defaults.thick_mode_dsn_passthrough
+<Defaults.thick_mode_dsn_passthrough>` is *False*, a connection hook function
+is required as shown below for Thin mode. This lets LDAP URLs be utilized when
+python-oracledb uses any supported Oracle Client library version.
 
 **Python-oracledb Thin Mode LDAP URLs**
 
@@ -1960,7 +1987,7 @@ For example:
 
     oracledb.register_protocol("ldap", ldap_hook)
 
-    connection = oracledb.connect(user="hr" password=userpwd,
+    connection = oracledb.connect(user="hr", password=userpwd,
                  dsn="ldap://ldapserver/dbname,cn=OracleContext,dc=dom,dc=com")
 
 You can modify or extend this as needed, for example to use an LDAP module that
@@ -1994,7 +2021,7 @@ See :ref:`endtoendtracing` for more information.
 **Application Contexts**
 
 An application context stores user identification that can enable or prevent a
-user from accessing data in the database.  See the Oracle Database
+user from accessing data in the database.  See the Oracle AI Database
 documentation `About Application Contexts <https://www.oracle.com/pls/topic/
 lookup?ctx=dblatest&id=GUID-6745DB10-F540-45D7-9761-9E8F342F1435>`__.
 
@@ -2051,7 +2078,7 @@ will display::
     ('1900', 'earth')
 
 You can use contexts to set up restrictive policies that are automatically
-applied to any query executed. See Oracle Database documentation `Oracle
+applied to any query executed. See Oracle AI Database documentation `Oracle
 Virtual Private Database (VPD) <https://www.oracle.com/pls/topic/lookup?ctx=
 dblatest&id=GUID-06022729-9210-4895-BF04-6177713C65A7>`__.
 
@@ -2060,12 +2087,89 @@ dblatest&id=GUID-06022729-9210-4895-BF04-6177713C65A7>`__.
 Connection Pooling
 ==================
 
-Python-oracledb's connection pooling lets applications create and maintain a
-pool of open connections to the database.  Connection pooling is available in
-both Thin and :ref:`Thick <enablingthick>` modes.  Connection pooling is
-important for performance and scalability when applications need to handle a
-large number of users who do database work for short periods of time but have
-relatively long periods when the connections are not needed.  The high
+Connection pooling can significantly improve application performance and
+scalability by allowing resource sharing. Pools also let applications use
+optional advanced Oracle High Availability features.
+
+Opening a connection to a database can be expensive: the connection string must
+be parsed, a network connection must be established, the Oracle Database
+network listener needs to be invoked, user authentication must be performed, a
+database server process must be created, and session memory must be allocated
+(and then the process is destroyed when the connection is closed). Connection
+pools remove the overhead of repeatedly opening and closing :ref:`standalone
+connections <standaloneconnection>` by establishing a pool of open connections
+that can be reused throughout the life of an application process.
+
+Various Oracle Database authentication methods are supported in
+python-oracledb, see :ref:`authenticationmethods`.
+
+The pooling solutions available to python-oracledb applications are:
+
+- :ref:`Driver Connection Pools <driverconnpool>`: These are managed by the
+  driver layer. They provide readily available database connections that can be
+  shared by multiple users and are quick for applications to obtain.  They help
+  make applications scalable and highly available. They are created with
+  :meth:`oracledb.create_pool()` or :meth:`oracledb.create_pool_async()`.
+
+  The main use case is for applications that hold connections for relatively
+  short durations while doing database work, and that acquire and release
+  connections back to the pool as needed to do those database operations.
+  Using a driver pool is recommended for applications that need to support
+  multiple users. High availability benefits also make driver pools useful for
+  single-user applications that do infrequent database operations.
+
+- :ref:`drcp`: This is pooling of server processes on the database host so they
+  can be shared between application connections. This reduces the number of
+  server processes that the database host needs to manage.
+
+  DRCP is useful if there are large number of application connections,
+  typically from having multiple application processes, and those applications
+  do frequent connection acquire and release calls as needed to do database
+  operations.  It is recommended to use DRCP in conjunction with a driver
+  connection pool, since this reduces the number of re-authentications and
+  session memory re-allocations.
+
+- `Proxy Resident Connection Pooling (PRCP)
+  <https://www.oracle.com/pls/topic/lookup?ctx=dblatest&id=GUID-E0032017-03B1-
+  4F14-AF9B-BCC87C982DA8>`__: This is connection pooling handled by Oracle's
+  mid-tier connection proxy solution, `CMAN-TDM <https://download.oracle.com/
+  ocomdocs/global/
+  CMAN_TDM_Oracle_DB_Connection_Proxy_for_scalable_apps.pdf>`__.
+
+  PRCP is useful for applications taking advantage of CMAN-TDM.
+
+- :ref:`implicitconnpool`: This can add pooling benefits to applications that
+  connect when they start, and only close the connection when the application
+  terminates — but relatively infrequently do database work. It makes use of
+  DRCP or PRCP, but instead of relying on the application to explicitly acquire
+  and release connections, Implicit Connection Pooling automatically detects
+  when applications are not performing database work. It then allows the
+  associated database server process to be used by another connection that
+  needs to do a database operation.
+
+  Implicit Connection Pooling is useful for legacy applications or third-party
+  code that cannot be updated to use a driver connection pool.
+
+Python-oracledb :ref:`driver connection pools <driverconnpool>` are the first
+choice for performance, scalability, and high availability.  If your database
+is under memory pressure from having too many applications opening too many
+connections, then consider either :ref:`DRCP <drcp>` or :ref:`Implicit
+Connection Pooling <implicitconnpool>`, depending on your application’s
+connection life-cycle. If you are utilizing CMAN-TDM, then using `PRCP
+<https://www.oracle.com/pls/topic/lookup?ctx=dblatest&id=GUID-
+E0032017-03B1-4F14-AF9B-BCC87C982DA8>`__ can be considered.
+
+.. _driverconnpool:
+
+Driver Connection Pooling
+-------------------------
+
+Python-oracledb's driver connection pooling lets applications create and
+maintain a pool of open connections to the database.  Connection pooling is
+available in both Thin and :ref:`Thick <enablingthick>` modes.  Connection
+pooling is important for performance and scalability when applications need to
+handle a large number of users who do database work for short periods of time
+but have relatively long periods when the connections are not needed.  The high
 availability features of pools also make small pools useful for applications
 that want a few connections available for infrequent use and requires them to
 be immediately usable when acquired.  Applications that would benefit from
@@ -2081,8 +2185,8 @@ Oracle Database features, for example some advanced :ref:`high availability
 
 .. note::
 
-    Python-oracledb connection pools must be created, used and closed within
-    the same process. Sharing pools or connections across processes has
+    Python-oracledb driver connection pools must be created, used, and closed
+    within the same process. Sharing pools or connections across processes has
     unpredictable behavior.
 
     Using connection pools in multi-threaded architectures is supported.
@@ -2090,11 +2194,10 @@ Oracle Database features, for example some advanced :ref:`high availability
     Multi-process architectures that cannot be converted to threading may get
     some benefit from :ref:`drcp`.
 
-
 Creating a Connection Pool
---------------------------
+++++++++++++++++++++++++++
 
-A connection pool is created by calling :meth:`oracledb.create_pool()`.
+A driver connection pool is created by calling :meth:`oracledb.create_pool()`.
 Various pool options can be specified as described in
 :meth:`~oracledb.create_pool()` and detailed below.
 
@@ -2177,6 +2280,11 @@ server process to be released, use :meth:`ConnectionPool.drop()`:
         . . .
 
         pool.drop(connection)
+
+Avoid doing this unnecessarily because it shrinks the pool. A future
+:meth:`~ConnectionPool.acquire()` call may suffer the overhead of establishing
+a new connection to the database, instead of being able to reuse a connection
+already available in the pool.
 
 Closing a Connection Pool
 +++++++++++++++++++++++++
@@ -2326,10 +2434,12 @@ Having a fixed size will also guarantee that the database can handle the upper
 pool size.  For example, if a dynamically sized pool needs to grow but the
 database resources are limited, then :meth:`ConnectionPool.acquire()` may
 return errors such as `ORA-28547 <https://docs.oracle.com/error-help/db/ora-
-28547/>`__.  With a fixed pool size, this class of error will occur when the
-pool is created, allowing you to change the pool size or reconfigure the
-database before users access the application.  With a dynamically growing pool,
-the error may occur much later while the application is in use.
+28547/>`__, or the database may simply drop connection attempts and
+python-oracledb will show :ref:`DPY-4011 <dpy4011>`. With a fixed pool size,
+this class of error will generally occur when the pool is created, allowing you
+to change the pool size or reconfigure the database before users access the
+application.  With a dynamically growing pool, the error may occur much later
+while the application is in use.
 
 The Real-World Performance Group also recommends keeping pool sizes small
 because they often can perform better than larger pools. The pool attributes
@@ -2365,10 +2475,10 @@ immediately return an available connection.  Some users set larger
 ``increment`` values even for fixed-size pools because it can help a pool
 re-establish itself if all connections become invalid, for example after a
 network dropout.  In the common case of Thin mode with the default ``getmode``
-of ``POOL_GETMODE_WAIT``, any :meth:`~ConnectionPool.acquire()` call that
-initiates pool growth will return after the first new connection is created,
-regardless of how big ``increment`` is.  The pool will then continue to
-re-establish connections in a background thread.
+of :data:`oracledb.POOL_GETMODE_WAIT`, any :meth:`~ConnectionPool.acquire()`
+call that initiates pool growth will return after the first new connection is
+created, regardless of how big ``increment`` is.  The pool will then continue
+to re-establish connections in a background thread.
 
 A connection pool can shrink back to its minimum size ``min`` when connections
 opened by the pool are not used by the application. This frees up database
@@ -2448,7 +2558,7 @@ The :meth:`Connection.is_healthy()` method is an alternative to
 it does not perform a full connection check.
 
 If the ``getmode`` parameter in :meth:`oracledb.create_pool()` is set to
-:data:`oracledb.POOL_GETMODE_TIMEDWAIT`, then the maxium amount of time an
+:data:`oracledb.POOL_GETMODE_TIMEDWAIT`, then the maximum amount of time an
 :meth:`~ConnectionPool.acquire()` call will wait to get a connection from the
 pool is limited by the value of the :data:`ConnectionPool.wait_timeout`
 parameter.  A call that cannot be immediately satisfied will wait no longer
@@ -2608,7 +2718,7 @@ session states.  In order to retrieve a connection with a desired state, the
 
 .. note::
 
-    Connection tagging is only supported in the python-oracledb Thick mode. See
+    Connection tagging is only supported in python-oracledb Thick mode. See
     :ref:`enablingthick` .
 
 When python-oracledb is using Oracle Client libraries 12.2 or later, then
@@ -2654,7 +2764,7 @@ PL/SQL Callback
 
 .. note::
 
-    PL/SQL Callbacks are only supported in the python-oracledb Thick mode. See
+    PL/SQL Callbacks are only supported in python-oracledb Thick mode. See
     :ref:`enablingthick`.
 
 When python-oracledb uses Oracle Client 12.2 or later, the session callback can
@@ -2786,7 +2896,7 @@ sharing for applications which use a large number of connections that run in
 multiple client processes or run on multiple middle-tier application servers.
 By default, each connection from Python will use one database server process.
 DRCP allows pooling of these server processes.  This reduces the amount of
-memory required on the database host.  The DRCP pool can be shared by multiple
+memory required on the database host.  A DRCP pool can be shared by multiple
 applications.
 
 DRCP is useful for applications which share the same database credentials, have
@@ -2811,29 +2921,35 @@ using DRCP connections for long-running operations.
 For more information about DRCP, see the technical brief `Extreme Oracle
 Database Connection Scalability with Database Resident Connection Pooling
 (DRCP) <https://www.oracle.com/docs/tech/drcp-technical-brief.pdf>`__, the user
-documentation `Oracle Database Concepts Guide
+documentation `Oracle AI Database Concepts Guide
 <https://www.oracle.com/pls/topic/lookup?ctx=dblatest&
 id=GUID-531EEE8A-B00A-4C03-A2ED-D45D92B3F797>`__, and for DRCP Configuration
-see `Oracle Database Administrator's Guide
+see `Oracle AI Database Administrator's Guide
 <https://www.oracle.com/pls/topic/lookup?ctx=dblatest&
 id=GUID-82FF6896-F57E-41CF-89F7-755F3BC9C924>`__.
 
 Using DRCP with python-oracledb applications involves the following steps:
 
-1. Configuring and enabling DRCP in the database
-2. Configuring the application to use a DRCP connection
-3. Deploying the application
+1. Enabling DRCP in the database
+2. Configuring the application to use DRCP pooled servers
 
 Enabling DRCP in Oracle Database
 --------------------------------
 
-Every Oracle Database uses a single, default DRCP connection pool.  From Oracle
-Database 21c, each pluggable database can optionally have its own pool.  Note
-that DRCP is already enabled in Oracle Autonomous Database and pool management
-is different to the steps below.
+Oracle Database versions prior to 21c can have a single DRCP connection pool.
+From Oracle Database 21c, each pluggable database can optionally have its own
+pool, or can use the container level pool. From Oracle Database 23.4, you can
+create multiple pools at the pluggable, or container, database level. This
+multi-pool feature is useful where different applications connect to the same
+database, but there is a concern that one application's use of the pool may
+impact other applications. If this is not the case, a single pool may allow
+best resource sharing on the database host.
 
-DRCP pools can be configured and administered by a DBA using the
-``DBMS_CONNECTION_POOL`` package:
+Note that DRCP is already enabled in Oracle Autonomous Database and pool
+management is different to the steps below.
+
+In the basic scenario, DRCP pools can be configured and administered by a DBA
+using the ``DBMS_CONNECTION_POOL`` package:
 
 .. code-block:: sql
 
@@ -2878,13 +2994,14 @@ Otherwise, server processes will continue to use old settings.
 There is a ``DBMS_CONNECTION_POOL.RESTORE_DEFAULTS()`` procedure to
 reset all values.
 
-When DRCP is used with RAC, each database instance has its own connection
-broker and pool of servers.  Each pool has the identical configuration.  For
-example, all pools start with ``minsize`` server processes.  A single
-DBMS_CONNECTION_POOL command will alter the pool of each instance at the same
-time.  The pool needs to be started before connection requests begin.  The
-command below does this by bringing up the broker, which registers itself with
-the database listener:
+When DRCP is used with `Oracle RAC
+<https://www.oracle.com/database/real-application-clusters/>`__, each database
+instance has its own connection broker and pool of servers.  Each pool has the
+identical configuration.  For example, all pools start with ``minsize`` server
+processes.  A single DBMS_CONNECTION_POOL command will alter the pool of each
+instance at the same time.  The pool needs to be started before connection
+requests begin.  The command below does this by bringing up the broker, which
+registers itself with the database listener:
 
 .. code-block:: sql
 
@@ -2898,29 +3015,47 @@ instance restarts, unless explicitly stopped with the
 
     EXECUTE DBMS_CONNECTION_POOL.STOP_POOL()
 
-The pool cannot be stopped while connections are open.
+Oracle Database version 23 allows a ``DRAINTIME`` argument to be passed to
+``STOP_POOL()``, indicating that the pool will only be closed after the
+specified time.  This allows in-progress application work to continue. A
+draintime value of 0 can be used to immediately close the pool. See the
+database documentation on `DBMS_CONNECTION_POOL.STOP_POOL()
+<https://www.oracle.com/pls/topic/lookup?ctx=dblatest&id=GUID-3FF5F327-7BE3-
+4EA8-844F-29554EE00B5F>`__.
+
+In older database versions, the pool cannot be stopped while connections are
+open.
 
 Coding Applications to use DRCP
 -------------------------------
 
 To use DRCP, application connection establishment must request a DRCP pooled
-server.  The best practice is also to specify a user-chosen connection class
-name when creating a connection pool.  A 'purity' of the connection session
-state can optionally be specified. See the Oracle Database documentation on
-`benefiting from scalability <https://www.oracle.com/pls/topic/lookup?ctx=
+server and should specify a user-chosen connection class name. A 'purity' of
+the connection session state can optionally be specified. See the Oracle
+Database documentation on `benefiting from scalability
+<https://www.oracle.com/pls/topic/lookup?ctx=
 dblatest&id=GUID-661BB906-74D2-4C5D-9C7E-2798F76501B3>`__ for more information
 on purity and connection classes.
 
-Note that when using DRCP with a python-oracledb local :ref:`connection pool
-<connpooling>` in Thick mode, the local connection pool ``min`` value is
-ignored and the pool will be created with zero connections.
+The best practice is to use DRCP in conjunction with a local driver
+:ref:`connection pool <connpooling>` created with
+:meth:`oracledb.create_pool()` or :meth:`oracledb.create_pool_async()`. The
+python-oracledb connection pool size does not need to match the DRCP pool size.
+The limit on overall execution parallelism is determined by the DRCP pool
+size. Note that when using DRCP with a python-oracledb local connection pool in
+Thick mode, the local connection pool ``min`` value is ignored and the pool
+will be created with zero connections.
 
-**Requesting a Pooled Server**
+See `drcp_pool.py
+<https://github.com/oracle/python-oracledb/tree/main/samples/drcp_pool.py>`__
+for a runnable example of DRCP.
 
-To request a DRCP pooled server, you can:
+**Requesting Pooled Servers be Used**
+
+To enable connections to use DRCP pooled servers, you can:
 
 - Use a specific connection string in :meth:`oracledb.create_pool()` or
-  :meth:`oracledb.connect()`. For example with the
+  :meth:`oracledb.connect()` to request a pooled server. For example with the
   :ref:`Easy Connect syntax <easyconnect>`:
 
   .. code-block:: python
@@ -2949,23 +3084,24 @@ To request a DRCP pooled server, you can:
                                 server_type="pooled",
                                 cclass="MYAPP")
 
-
-**DRCP Connection Class Names**
+**DRCP Connection Classes**
 
 The best practice is to specify a ``cclass`` class name when creating a
 python-oracledb connection pool.  This user-chosen name provides some
 partitioning of DRCP session memory so reuse is limited to similar
 applications.  It provides maximum pool sharing if multiple application
-processes are started.  A class name also allows better DRCP usage tracking in
-the database.  In the database monitoring views, the class name shown will be
-the value specified in the application prefixed with the user name.
+processes are started and use the same class name.  A class name also allows
+better DRCP usage tracking in the database.  In the database monitoring views,
+the class name shown will be the value specified in the application prefixed
+with the user name.
 
-If ``cclass`` was not specified during pool creation, then the python-oracledb
-Thin mode generates a unique connection class with the prefix "DPY" while the
-Thick mode generates a unique connection class with the prefix "OCI".
+If ``cclass`` was not specified during pool creation, then python-oracledb Thin
+mode generates a unique connection class with the prefix "DPY" while
+python-oracledb Thick mode generates a unique connection class with the prefix
+"OCI".
 
-To create a connection pool requesting a DRCP pooled server and specifying a
-class name, you can call:
+To create a connection pool requesting DRCP pooled servers be used, and
+specifying a class name, you can call:
 
 .. code-block:: python
 
@@ -2973,18 +3109,100 @@ class name, you can call:
                                 min=2, max=5, increment=1,
                                 cclass="MYAPP")
 
-Once the pool has been created, your application can get a connection from it
-by calling:
+If ``cclass`` is not set, then the pooled server sessions will not be reused
+optimally, and the :ref:`DRCP statistic views <monitoringdrcp>` may record
+large values for NUM_MISSES.
+
+**DRCP Connection Purity**
+
+DRCP allows the connection session memory to be reused or cleaned each time a
+connection is acquired from the pool.  The pool or connection creation
+``purity`` parameter can be one of ``PURITY_NEW``, ``PURITY_SELF``, or
+``PURITY_DEFAULT``.  The value ``PURITY_SELF`` allows reuse of both the pooled
+server process and session memory, giving maximum benefit from DRCP.  By
+default, python-oracledb pooled connections use ``PURITY_SELF`` and standalone
+connections use ``PURITY_NEW``.
+
+To limit session sharing, you can explicitly require that new session memory be
+allocated each time :meth:`~ConnectionPool.acquire()` is called. Do this when
+creating a driver connection pool by specifying the ``purity`` as
+``PURITY_NEW``:
+
+.. code-block:: python
+
+    pool = oracledb.create_pool(user="hr", password=userpwd, dsn="dbhost.example.com/orclpdb:pooled",
+                                min=2, max=5, increment=1,
+                                cclass="MYAPP", purity=oracledb.PURITY_NEW)
+
+The overheads can impact ultimate scalability.
+
+.. _poolnames:
+
+**DRCP Pool Names**
+
+From Oracle Database 23.4, multiple DRCP pools can be created by setting a pool
+name at DRCP pool creation time. Applications using python-oracledb Thin mode
+can specify which DRCP pool to use by passing the ``pool_name`` parameter
+during connection or connection pool creation, for example:
+
+.. code-block:: python
+
+    pool = oracledb.create_pool(user="hr", password=userpwd,
+                                dsn="dbhost.example.com/orclpdb:pooled",
+                                min=2, max=5, increment=1,
+                                cclass="MYAPP", pool_name="MYPOOL")
+
+When specifying a pool name, you should still set a connection class name to
+allow efficient use of the pool's resources.
+
+If you are using python-oracledb Thick mode and the
+``thick_mode_dsn_passthrough`` value in effect is *True*, you can use the
+``pool_name`` parameter only if the ``dsn`` parameter is not specified when
+creating a standalone or pooled connection, for example:
+
+.. code-block:: python
+
+    oracledb.init_oracle_client()
+
+    pool = oracledb.create_pool(user="hr", password=userpwd,
+                                host="localhost", service_name="orclpdb",
+                                server_type="pooled", min=2, max=5,
+                                increment=1, cclass="MYAPP",
+                                pool_name="MYPOOL")
+
+If both the ``pool_name`` and ``dsn`` parameters are set when using Thick mode,
+the ``pool_name`` parameter is ignored.
+
+For Thick mode, you may prefer to set the Oracle Net
+Services parameter `POOL_NAME <https://www.oracle.com/pls/topic/lookup?ctx=
+dblatest&id=GUID-C2DA6A42-C30A-4E4C-9833-51CB383FE08B>`__ parameter in the
+:ref:`easy connect string <easyconnect>` or
+:ref:`connect descriptor <conndescriptor>`, for example:
+
+.. code-block:: python
+
+    oracledb.init_oracle_client()
+
+    pool = oracledb.create_pool(user="hr", password=userpwd,
+                                dsn="dbhost.example.com/orclpdb:pooled?pool_name=mypool",
+                                min=2, max=5, increment=1,
+                                cclass="MYAPP")
+
+You can also define the DRCP pool name with the
+:ref:`ConnectParams class <connparam>` when using python-oracledb Thin or Thick
+mode. See :ref:`usingconnparams`.
+
+**Acquiring a DRCP Connection**
+
+Once DRCP has been enabled and the driver connection pool has been created with
+the appropriate connection string, then your application can get a connection
+that uses DRCP by calling:
 
 .. code-block:: python
 
     connection = pool.acquire()
 
-The python-oracledb connection pool size does not need to match the DRCP pool
-size.  The limit on overall execution parallelism is determined by the DRCP
-pool size.
-
-Connection class names can also be passed to :meth:`~ConnectionPool.acquire()`,
+Connection class names can also be passed to :meth:`~ConnectionPool.acquire()`
 if you want to use a connection with a different class:
 
 .. code-block:: python
@@ -2998,47 +3216,6 @@ if you want to use a connection with a different class:
 If a pooled server of a requested class is not available, a server with new
 session state is used.  If the DRCP pool cannot grow, a server with a different
 class may be used and its session state cleared.
-
-If ``cclass`` is not set, then the pooled server sessions will not be reused
-optimally, and the DRCP statistic views may record large values for NUM_MISSES.
-
-**DRCP Connection Purity**
-
-DRCP allows the connection session memory to be reused or cleaned each time a
-connection is acquired from the pool.  The pool or connection creation
-``purity`` parameter can be one of ``PURITY_NEW``, ``PURITY_SELF``, or
-``PURITY_DEFAULT``.  The value ``PURITY_SELF`` allows reuse of both the pooled
-server process and session memory, giving maximum benefit from DRCP.  By
-default, python-oracledb pooled connections use ``PURITY_SELF`` and standalone
-connections use ``PURITY_NEW``.
-
-To limit session sharing, you can explicitly require that new session memory be
-allocated each time :meth:`~ConnectionPool.acquire()` is called:
-
-.. code-block:: python
-
-    pool = oracledb.create_pool(user="hr", password=userpwd, dsn="dbhost.example.com/orclpdb:pooled",
-                                min=2, max=5, increment=1,
-                                cclass="MYAPP", purity=oracledb.PURITY_NEW)
-
-**Setting the Connection Class and Purity in the Connection String**
-
-Using python-oracledb Thin mode with Oracle Database 21c, or later, you can
-specify the class and purity in the connection string itself.  This removes the
-need to modify an existing application when you want to use DRCP:
-
-.. code-block:: python
-
-    dsn = "localhost/orclpdb:pooled?pool_connection_class=MYAPP&pool_purity=self"
-
-For python-oracledb Thick mode, this syntax is supported if you are using
-Oracle Database 21c (or later) and Oracle Client 19c (or later). However,
-explicitly specifying the purity as *SELF* in this way may cause some unusable
-connections in a python-oracledb Thick mode connection pool to not be
-terminated.  In summary, if you cannot programmatically set the class name and
-purity, or cannot use python-oracledb Thin mode, then avoid explicitly setting
-the purity as a connection string parameter when using a python-oracledb
-connection pooling in Thick mode.
 
 **Closing Connections when using DRCP**
 
@@ -3058,7 +3235,7 @@ other users:
     # Do some database operations
     connection = mypool.acquire()
     . . .
-    connection.close();             # <- Add this to release the DRCP pooled server
+    connection.close()              # <- Add this to release the DRCP pooled server
 
     # Do lots of non-database work
     . . .
@@ -3066,11 +3243,42 @@ other users:
     # Do some more database operations
     connection = mypool.acquire()   # <- And get a new pooled server only when needed
     . . .
-    connection.close();
+    connection.close()
 
-See `drcp_pool.py
-<https://github.com/oracle/python-oracledb/tree/main/samples/drcp_pool.py>`__
-for a runnable example of DRCP.
+Setting DRCP Parameters in Connection Strings
+---------------------------------------------
+
+Setting the DRCP connection class, purity, and pool name as function parameters
+in the application is preferred, but sometimes it is not possible to modify an
+existing code base. For these applications, you can specify the values along
+with the pooled server option in the connection string.
+
+You can specify the class and purity options in connection strings when using
+Oracle Database 21c, or later. You can specify the pool name when using Oracle
+Database 23.4, or later.
+
+For example with the :ref:`Easy Connect <easyconnect>` syntax::
+
+    dbhost.example.com/orclpdb:pooled?pool_connection_class=MYAPP&pool_purity=self&pool_name=MYPOOL
+
+Or by using a :ref:`TNS Alias <netservice>` in a
+:ref:`tnsnames.ora <optnetfiles>` file::
+
+    customerpool = (DESCRIPTION=(ADDRESS=(PROTOCOL=tcp)
+              (HOST=dbhost.example.com)
+              (PORT=1521))(CONNECT_DATA=(SERVICE_NAME=orclpdb)
+              (SERVER=POOLED)
+              (POOL_CONNECTION_CLASS=MYAPP)
+              (POOL_PURITY=SELF)
+              (POOL_NAME=MYPOOL)))
+
+Explicitly specifying the purity as *SELF* in a connection string may cause
+some unusable connections in a python-oracledb Thick mode connection pool to
+not be terminated, potentially eventually rendering all connections in the pool
+to be unusable. If you cannot programmatically set the class name and purity,
+or cannot use python-oracledb Thin mode, then avoid explicitly setting the
+purity as a connection string parameter when using a local python-oracledb
+Thick mode connection pool.
 
 .. _monitoringdrcp:
 
@@ -3192,9 +3400,9 @@ feature is enabled by adding a ``pool_boundary`` parameter to the application's
 acquire, or release, connections to be able use a DRCP or PRCP pool.
 
 Implicit connection pooling is available in python-oracledb Thin and
-:ref:`Thick <enablingthick>` modes.  It requires Oracle Database
-23ai. Python-oracledb Thick mode additionally requires Oracle Client 23ai
-libraries.
+:ref:`Thick <enablingthick>` modes. It requires Oracle Database
+version 23. Python-oracledb Thick mode additionally requires Oracle Client
+version 23 libraries.
 
 With implicit connection pooling, connections are internally acquired from the
 DRCP or PRCP pool when they are actually used by the application to do database
@@ -3344,1285 +3552,6 @@ It is recommended to use python-oracledb's local :ref:`connpooling` where
 possible instead of implicit connection pooling.  This gives multi-user
 applications more control over pooled server reuse.
 
-
-.. _proxyauth:
-
-Connecting Using Proxy Authentication
-=====================================
-
-Proxy authentication allows a user (the "session user") to connect to Oracle
-Database using the credentials of a "proxy user".  Statements will run as the
-session user.  Proxy authentication is generally used in three-tier applications
-where one user owns the schema while multiple end-users access the data.  For
-more information about proxy authentication, see the `Oracle documentation
-<https://www.oracle.com/pls/topic/lookup?ctx=dblatest&
-id=GUID-D77D0D4A-7483-423A-9767-CBB5854A15CC>`__.
-
-An alternative to using proxy users is to set
-:attr:`Connection.client_identifier` after connecting and use its value in
-statements and in the database, for example for :ref:`monitoring
-<endtoendtracing>`.
-
-The following proxy examples use these schemas.  The ``mysessionuser`` schema is
-granted access to use the password of ``myproxyuser``:
-
-.. code-block:: sql
-
-    CREATE USER myproxyuser IDENTIFIED BY myproxyuserpw;
-    GRANT CREATE SESSION TO myproxyuser;
-
-    CREATE USER mysessionuser IDENTIFIED BY itdoesntmatter;
-    GRANT CREATE SESSION TO mysessionuser;
-
-    ALTER USER mysessionuser GRANT CONNECT THROUGH myproxyuser;
-
-After connecting to the database, the following query can be used to show the
-session and proxy users:
-
-.. code-block:: sql
-
-    SELECT SYS_CONTEXT('USERENV', 'PROXY_USER'),
-           SYS_CONTEXT('USERENV', 'SESSION_USER')
-    FROM DUAL;
-
-Standalone connection examples:
-
-.. code-block:: python
-
-    # Basic Authentication without a proxy
-    connection = oracledb.connect(user="myproxyuser", password="myproxyuserpw",
-                                  dsn="dbhost.example.com/orclpdb")
-    # PROXY_USER:   None
-    # SESSION_USER: MYPROXYUSER
-
-    # Basic Authentication with a proxy
-    connection = oracledb.connect(user="myproxyuser[mysessionuser]", password="myproxyuserpw",
-                                  dsn="dbhost.example.com/orclpdb")
-    # PROXY_USER:   MYPROXYUSER
-    # SESSION_USER: MYSESSIONUSER
-
-Pooled connection examples:
-
-.. code-block:: python
-
-    # Basic Authentication without a proxy
-    pool = oracledb.create_pool(user="myproxyuser", password="myproxyuserpw",
-                                dsn="dbhost.example.com/orclpdb")
-    connection = pool.acquire()
-    # PROXY_USER:   None
-    # SESSION_USER: MYPROXYUSER
-
-    # Basic Authentication with proxy
-    pool = oracledb.create_pool(user="myproxyuser[mysessionuser]", password="myproxyuserpw",
-                                dsn="dbhost.example.com/orclpdb",
-                                homogeneous=False)
-
-    connection = pool.acquire()
-    # PROXY_USER:   MYPROXYUSER
-    # SESSION_USER: MYSESSIONUSER
-
-Note the use of a :ref:`heterogeneous <connpooltypes>` pool in the example
-above.  This is required in this scenario.
-
-.. _extauth:
-
-Connecting Using External Authentication
-========================================
-
-Instead of storing the database username and password in Python scripts or
-environment variables, database access can be authenticated by an outside
-system.  External Authentication allows applications to validate user access
-with an external password store (such as an
-:ref:`Oracle Wallet <extauthwithwallet>`), with the
-:ref:`operating system <opsysauth>`, or with an external authentication
-service.
-
-.. note::
-
-    Connecting to Oracle Database using external authentication is only
-    supported in the python-oracledb Thick mode. See :ref:`enablingthick`.
-
-.. _extauthwithwallet:
-
-Using an Oracle Wallet for External Authentication
---------------------------------------------------
-
-The following steps give an overview of using an Oracle Wallet.  Wallets should
-be kept securely.  Wallets can be managed with `Oracle Wallet Manager
-<https://www.oracle.com/pls/topic/lookup?ctx=dblatest&
-id=GUID-E3E16C82-E174-4814-98D5-EADF1BCB3C37>`__.
-
-In this example the wallet is created for the ``myuser`` schema in the directory
-``/home/oracle/wallet_dir``.  The ``mkstore`` command is available from a full
-Oracle client or Oracle Database installation.  If you have been given wallet by
-your DBA, skip to step 3.
-
-1.  First create a new wallet as the ``oracle`` user::
-
-        mkstore -wrl "/home/oracle/wallet_dir" -create
-
-    This will prompt for a new password for the wallet.
-
-2.  Create the entry for the database user name and password that are currently
-    hardcoded in your Python scripts.  Use either of the methods shown below.
-    They will prompt for the wallet password that was set in the first step.
-
-    **Method 1 - Using an Easy Connect string**::
-
-        mkstore -wrl "/home/oracle/wallet_dir" -createCredential dbhost.example.com/orclpdb myuser myuserpw
-
-    **Method 2 - Using a connect name identifier**::
-
-        mkstore -wrl "/home/oracle/wallet_dir" -createCredential mynetalias myuser myuserpw
-
-    The alias key ``mynetalias`` immediately following the
-    ``-createCredential`` option will be the connect name to be used in Python
-    scripts.  If your application connects with multiple different database
-    users, you could create a wallet entry with different connect names for
-    each.
-
-    You can see the newly created credential with::
-
-        mkstore -wrl "/home/oracle/wallet_dir" -listCredential
-
-3.  Skip this step if the wallet was created using an Easy Connect String.
-    Otherwise, add an entry in :ref:`tnsnames.ora <optnetfiles>` for the
-    connect name as follows::
-
-        mynetalias =
-            (DESCRIPTION =
-                (ADDRESS = (PROTOCOL = TCP)(HOST = dbhost.example.com)(PORT = 1521))
-                (CONNECT_DATA =
-                    (SERVER = DEDICATED)
-                    (SERVICE_NAME = orclpdb)
-                )
-            )
-
-    The file uses the description for your existing database and sets the
-    connect name alias to ``mynetalias``, which is the identifier used when
-    adding the wallet entry.
-
-4.  Add the following wallet location entry in the :ref:`sqlnet.ora
-    <optnetfiles>` file, using the ``DIRECTORY`` you created the wallet in::
-
-        WALLET_LOCATION =
-            (SOURCE =
-                (METHOD = FILE)
-                (METHOD_DATA =
-                    (DIRECTORY = /home/oracle/wallet_dir)
-                )
-            )
-        SQLNET.WALLET_OVERRIDE = TRUE
-
-    Examine the Oracle documentation for full settings and values.
-
-5.  Ensure the configuration files are in a default location or TNS_ADMIN is
-    set to the directory containing them.  See :ref:`optnetfiles`.
-
-With an Oracle wallet configured, and readable by you, your scripts
-can connect to Oracle Database with:
-
-- Standalone connections by setting the ``externalauth`` parameter to *True*
-  in :meth:`oracledb.connect()`:
-
-  .. code-block:: python
-
-    connection = oracledb.connect(externalauth=True, dsn="mynetalias")
-
-- Or pooled connections by setting the ``externalauth`` parameter to *True*
-  in :meth:`oracledb.create_pool()`.  Additionally in python-oracledb Thick
-  mode, you must set the ``homogeneous`` parameter to *False* as shown below
-  since heterogeneous pools can only be used with external authentication:
-
-  .. code-block:: python
-
-    pool = oracledb.create_pool(externalauth=True, homogeneous=False,
-                                dsn="mynetalias")
-    pool.acquire()
-
-The ``dsn`` used in :meth:`oracledb.connect()` and
-:meth:`oracledb.create_pool()` must match the one used in the wallet.
-
-After connecting, the query::
-
-    SELECT SYS_CONTEXT('USERENV', 'SESSION_USER') FROM DUAL;
-
-will show::
-
-    MYUSER
-
-.. note::
-
-    Wallets are also used to configure Transport Layer Security (TLS) connections.
-    If you are using a wallet like this, you may need a database username and password
-    in :meth:`oracledb.connect()` and :meth:`oracledb.create_pool()` calls.
-
-**External Authentication and Proxy Authentication**
-
-The following examples show external wallet authentication combined with
-:ref:`proxy authentication <proxyauth>`.  These examples use the wallet
-configuration from above, with the addition of a grant to another user::
-
-    ALTER USER mysessionuser GRANT CONNECT THROUGH myuser;
-
-After connection, you can check who the session user is with:
-
-.. code-block:: sql
-
-    SELECT SYS_CONTEXT('USERENV', 'PROXY_USER'),
-           SYS_CONTEXT('USERENV', 'SESSION_USER')
-    FROM DUAL;
-
-Standalone connection example:
-
-.. code-block:: python
-
-    # External Authentication with proxy
-    connection = oracledb.connect(user="[mysessionuser]", dsn="mynetalias")
-    # PROXY_USER:   MYUSER
-    # SESSION_USER: MYSESSIONUSER
-
-You can also explicitly set the ``externalauth`` parameter to True in standalone
-connections as shown below. The ``externalauth`` parameter is optional.
-
-.. code-block:: python
-
-    # External Authentication with proxy when externalauth is set to True
-    connection = oracledb.connect(user="[mysessionuser]", dsn="mynetalias",
-                                  externalauth=True)
-    # PROXY_USER:   MYUSER
-    # SESSION_USER: MYSESSIONUSER
-
-Pooled connection example:
-
-.. code-block:: python
-
-    # External Authentication with proxy
-    pool = oracledb.create_pool(externalauth=True, homogeneous=False,
-                                dsn="mynetalias")
-    pool.acquire(user="[mysessionuser]")
-    # PROXY_USER:   MYUSER
-    # SESSION_USER: MYSESSIONUSER
-
-The following usage is not supported:
-
-.. code-block:: python
-
-    pool = oracledb.create_pool(user="[mysessionuser]", externalauth=True,
-                                homogeneous=False, dsn="mynetalias")
-    pool.acquire()
-
-.. _opsysauth:
-
-Operating System Authentication
--------------------------------
-
-With `Operating System <https://www.oracle.com/pls/topic/lookup?ctx=dblatest&
-id=GUID-37BECE32-58D5-43BF-A098-97936D66968F>`__ authentication, Oracle allows
-user authentication to be performed by the operating system.  The following
-steps give an overview of how to implement OS Authentication on Linux.
-
-1.  Log in to your computer. The commands used in these steps assume the
-    operating system user name is "oracle".
-
-2.  Log in to SQL*Plus as the SYSTEM user and verify the value for the
-    ``OS_AUTHENT_PREFIX`` parameter::
-
-        SQL> SHOW PARAMETER os_authent_prefix
-
-        NAME                                 TYPE        VALUE
-        ------------------------------------ ----------- ------------------------------
-        os_authent_prefix                    string      ops$
-
-3.  Create an Oracle database user using the ``os_authent_prefix`` determined in
-    step 2, and the operating system user name:
-
-   .. code-block:: sql
-
-        CREATE USER ops$oracle IDENTIFIED EXTERNALLY;
-        GRANT CONNECT, RESOURCE TO ops$oracle;
-
-In Python, connect using the following code:
-
-.. code-block:: python
-
-       connection = oracledb.connect(dsn="mynetalias")
-
-Your session user will be ``OPS$ORACLE``.
-
-If your database is not on the same computer as Python, you can perform testing
-by setting the database configuration parameter ``remote_os_authent=true``.
-Beware of security concerns because this is insecure.
-
-See `Oracle Database Security Guide
-<https://www.oracle.com/pls/topic/lookup?ctx=dblatest&
-id=GUID-37BECE32-58D5-43BF-A098-97936D66968F>`__ for more information about
-Operating System Authentication.
-
-.. _tokenauth:
-
-Token-Based Authentication
-==========================
-
-Token-Based Authentication allows users to connect to a database by using an
-encrypted authentication token without having to enter a database username and
-password.  The authentication token must be valid and not expired for the
-connection to be successful.  Users already connected will be able to continue
-work after their token has expired but they will not be able to reconnect
-without getting a new token.
-
-The two authentication methods supported by python-oracledb are
-:ref:`Open Authorization (OAuth 2.0) <oauth2>` and :ref:`Oracle
-Cloud Infrastructure (OCI) Identity and Access Management (IAM) <iamauth>`.
-These authentication methods can use Cloud Native Authentication with the
-support of the Azure SDK or OCI SDK to generate access tokens and connect to
-Oracle Database. Alternatively, these methods can use a Python script that
-contains a class to generate access tokens to connect to Oracle Database.
-
-.. _oauth2:
-
-Connecting Using OAuth 2.0 Token-Based Authentication
------------------------------------------------------
-
-Oracle Cloud Infrastructure (OCI) users can be centrally managed in a Microsoft
-Entra ID (formerly Microsoft Azure Active Directory) service. Open
-Authorization (OAuth 2.0) token-based authentication allows users to
-authenticate to Oracle Database using Entra ID OAuth2 tokens. Ensure that you
-have a Microsoft Azure account and your Oracle Database is registered with
-Microsoft Entra ID. See `Configuring the Oracle Database for Microsoft Entra
-ID Integration <https://www.oracle.com/pls/topic/lookup?ctx=dblatest&id=
-GUID-0A60F22D-56A3-408D-8EC8-852C38C159C0>`_ for more information. Both Thin
-and Thick modes of the python-oracledb driver support OAuth 2.0 token-based
-authentication.
-
-When using python-oracledb in Thick mode, Oracle Client libraries 19.15 (or
-later), or 21.7 (or later) are needed.
-
-Standalone connections and pooled connections can be created in python-oracledb
-Thick and Thin modes using OAuth 2.0 token-based authentication. This can be
-done or by using a class such as the example :ref:`TokenHandlerOAuth Class
-<oauthhandler>` or by using python-oracledb's :ref:`Azure Cloud Native
-Authentication Plugin (azure_tokens) <cloudnativeauthoauth>`. Tokens can be
-specified using the connection parameter introduced in python-oracledb 1.1.
-Users of earlier python-oracledb versions can alternatively use :ref:`OAuth 2.0
-Token-Based Authentication Connection Strings <oauth2connstr>`.
-
-OAuth2 Token Generation And Extraction
-++++++++++++++++++++++++++++++++++++++
-
-There are different ways to retrieve Entra ID OAuth2 tokens. You can use
-python-oracledb's :ref:`azure_tokens <cloudnativeauthoauth>` plugin to generate
-tokens. Some of the other ways to retrieve OAuth2 tokens are detailed in
-`Examples of Retrieving Entra ID OAuth2 Tokens <https://www.oracle.com/pls/
-topic/lookup?ctx=dblatest&id=GUID-3128BDA4-A233-48D8-A2B1-C8380DBDBDCF>`_. You
-can also retrieve Entra ID OAuth2 tokens by using `Azure Identity client
-library for Python <https://docs.microsoft.com/en-us/python/api/overview/azure/
-identity-readme?view=azure-python>`_.
-
-.. _oauthhandler:
-
-**Example of Generating an OAuth2 Token**
-
-An example of automating the process of generating and reading Entra ID OAuth2
-tokens is:
-
-.. code:: python
-
-    import json
-    import os
-
-    import oracledb
-    import requests
-
-    class TokenHandlerOAuth:
-
-        def __init__(self,
-                     file_name="cached_token_file_name",
-                     api_key="api_key",
-                     client_id="client_id",
-                     client_secret="client_secret"):
-            self.token = None
-            self.file_name = file_name
-            self.url = \
-                f"https://login.microsoftonline.com/{api_key}/oauth2/v2.0/token"
-            self.scope = \
-                f"https://oracledevelopment.onmicrosoft.com/{client_id}/.default"
-            if os.path.exists(file_name):
-                with open(file_name) as f:
-                    self.token = f.read().strip()
-            self.api_key = api_key
-            self.client_id = client_id
-            self.client_secret = client_secret
-
-        def __call__(self, refresh):
-            if self.token is None or refresh:
-                post_data = dict(client_id=self.client_id,
-                                 grant_type="client_credentials",
-                                 scope=self.scope,
-                                 client_secret=self.client_secret)
-                r = requests.post(url=self.url, data=post_data)
-                result = json.loads(r.text)
-                self.token = result["access_token"]
-                with open(self.file_name, "w") as f:
-                    f.write(self.token)
-            return self.token
-
-The TokenHandlerOAuth class uses a callable to generate and read OAuth2
-tokens. When the callable in the TokenHandlerOAuth class is invoked for the
-first time to create a standalone connection or pool, the ``refresh`` parameter
-is *False* which allows the callable to return a cached token, if desired. The
-expiry date is then extracted from this token and compared with the current
-date. If the token has not expired, then it will be used directly. If the token
-has expired, the callable is invoked the second time with the ``refresh``
-parameter set to *True*.
-
-The TokenHandlerOAuth class defined here is used in the examples shown in
-:ref:`conncreationoauth2`.
-
-**Example of Using a Curl Command**
-
-See using a :ref:`curl <curl>` command for an alternative way to generate the
-tokens.
-
-.. _conncreationoauth2:
-
-Connection Creation with OAuth2 Access Tokens
-+++++++++++++++++++++++++++++++++++++++++++++
-
-For OAuth 2.0 Token-Based Authentication using a class such as the sample
-:ref:`TokenHandlerOAuth class <oauthhandler>`, the ``access_token`` connection
-parameter must be specified. This parameter should be a string (or a callable
-that returns a string) specifying an Entra ID OAuth2 token. In the examples
-used below, the ``access_token`` parameter is set to a callable.
-
-The examples used in the subsequent sections use the
-:ref:`TokenHandlerOAuth class <oauthhandler>` to generate OAuth2 tokens to
-connect to Oracle Autonomous Database with mutual TLS (mTLS). See
-:ref:`autonomousdb`.
-
-**Standalone Connections in Thin Mode Using OAuth2 Tokens**
-
-When using a class such as the :ref:`TokenHandlerOAuth class <oauthhandler>` to
-generate OAuth2 tokens to connect to Oracle Autonomous Database in Thin mode,
-you need to explicitly set the ``access_token``, ``config_dir``,
-``wallet_location``, and ``wallet_password`` parameters of
-:func:`~oracledb.connect`. For example:
-
-.. code:: python
-
-    connection = oracledb.connect(
-        access_token=TokenHandlerOAuth(),
-        dsn=mydb_low,
-        config_dir="path_to_unzipped_wallet",
-        wallet_location="location_of_pem_file",
-        wallet_password=wp)
-
-**Connection Pools in Thin Mode Using OAuth2 Tokens**
-
-When using a class such as the :ref:`TokenHandlerOAuth class <oauthhandler>` to
-generate OAuth2 tokens to connect to Oracle Autonomous Database in Thin mode,
-you need to explicitly set the ``access_token``, ``homogeneous``,
-``config_dir``, ``wallet_location``, and ``wallet_password`` parameters of
-:func:`~oracledb.create_pool`. For example:
-
-.. code:: python
-
-    connection = oracledb.create_pool(
-        access_token=TokenHandlerOAuth(),
-        homogeneous=True, # must always be True for connection pools
-        dsn=mydb_low,
-        config_dir="path_to_unzipped_wallet",
-        wallet_location="location_of_pem_file",
-        wallet_password=wp
-        min=1, max=5, increment=2)
-
-Note that the ``access_token`` parameter should be set to a callable. This is
-useful when the connection pool needs to expand and create new connections but
-the current token has expired. In such a case, the callable should return a
-string specifying the new, valid Entra ID OAuth2 token.
-
-**Standalone Connections Thick Mode Using OAuth2 Tokens**
-
-When using a class such as the :ref:`TokenHandlerOAuth class <oauthhandler>`
-to generate OAuth2 tokens to connect to Oracle Autonomous Database in Thick
-mode, you need to explicitly set the ``access_token`` and ``externalAuth``
-parameters of :func:`~oracledb.connect`. For example:
-
-.. code:: python
-
-    connection = oracledb.connect(
-        access_token=TokenHandlerOAuth(),
-        externalauth=True, # must always be True in Thick mode
-        dsn=mydb_low)
-
-**Connection Pools in Thick Mode Using OAuth2 Tokens**
-
-When using a class such as the :ref:`TokenHandlerOAuth class <oauthhandler>` to
-generate OAuth2 tokens to connect to Oracle Autonomous Database in Thick mode,
-you need to explicitly set the ``access_token``, ``externalauth``, and
-``homogeneous`` parameters of :func:`~oracledb.create_pool`. For example:
-
-.. code:: python
-
-    pool = oracledb.create_pool(
-        access_token=TokenHandlerOAuth(),
-        externalauth=True, # must always be True in Thick mode
-        homogeneous=True,  # must always be True in connection pools
-        dsn=mydb_low, min=1, max=5, increment=2)
-
-Note that the ``access_token`` parameter should be set to a callable. This is
-useful when the connection pool needs to expand and create new connections but
-the current token has expired. In such a case, the callable should return a
-string specifying the new, valid Entra ID OAuth2 token.
-
-.. _oauth2connstr:
-
-OAuth 2.0 Token-Based Authentication Connection Strings
-+++++++++++++++++++++++++++++++++++++++++++++++++++++++
-
-The connection string used by python-oracledb can specify the directory where
-the token file is located. This syntax is usable with older versions of
-python-oracledb. However, it is recommended to use connection parameters
-introduced in python-oracledb 1.1 instead. See
-:ref:`OAuth 2.0 Token-Based Authentication<oauth2>`.
-
-.. note::
-
-    OAuth 2.0 Token-Based Authentication Connection Strings is only supported in
-    the python-oracledb Thick mode. See :ref:`enablingthick`.
-
-There are different ways to retrieve Entra ID OAuth2 tokens. Some of the ways to
-retrieve OAuth2 tokens are detailed in `Examples of Retrieving Entra ID OAuth2
-Tokens <https://www.oracle.com/pls/topic/lookup?ctx=dblatest&id=
-GUID-3128BDA4-A233-48D8-A2B1-C8380DBDBDCF>`_. You can also retrieve Entra ID OAuth2
-tokens by using `Azure Identity client library for Python
-<https://docs.microsoft.com/en-us/python/api/overview/azure/identity-readme?view=
-azure-python>`_.
-
-.. _curl:
-
-**Example of Using a Curl Command**
-
-Here, as an example, we are using Curl with a Resource Owner
-Password Credential (ROPC) Flow, that is, a ``curl`` command is used against
-the Entra ID API to get the Entra ID OAuth2 token::
-
-    curl -X POST -H 'Content-Type: application/x-www-form-urlencoded'
-    https://login.microsoftonline.com/your_tenant_id/oauth2/v2.0/token
-    -d 'client_id=your_client_id'
-    -d 'grant_type=client_credentials'
-    -d 'scope=https://oracledevelopment.onmicrosoft.com/your_client_id/.default'
-    -d 'client_secret=your_client_secret'
-
-This command generates a JSON response with token type, expiration, and access
-token values. The JSON response needs to be parsed so that only the access
-token is written and stored in a file. You can save the value of
-``access_token`` generated to a file and set ``TOKEN_LOCATION`` to the location
-of token file. See :ref:`TokenHandlerOAuth class <oauthhandler>` for an example
-of generating tokens.
-
-The Oracle Net parameters ``TOKEN_AUTH`` and ``TOKEN_LOCATION`` must be set when
-you are using the connection string syntax. Also, the ``PROTOCOL``
-parameter must be ``tcps`` and ``SSL_SERVER_DN_MATCH`` should be ``ON``.
-
-You can set ``TOKEN_AUTH=OAUTH``. There is no default location set in this
-case, so you must set ``TOKEN_LOCATION`` to either of the following:
-
-*  A directory, in which case, you must create a file named ``token`` which
-   contains the token value
-*  A fully qualified file name, in which case, you must specify the entire path
-   of the file which contains the token value
-
-You can either set ``TOKEN_AUTH`` and ``TOKEN_LOCATION`` in a :ref:`sqlnet.ora
-<optnetfiles>` file or alternatively, you can specify it inside a :ref:`Connect
-Descriptor <conndescriptor>`, for example when using a :ref:`tnsnames.ora
-<optnetfiles>` file::
-
-    db_alias =
-        (DESCRIPTION =
-            (ADDRESS=(PROTOCOL=TCPS)(PORT=1522)(HOST=xxx.oraclecloud.com))
-            (CONNECT_DATA=(SERVICE_NAME=xxx.adb.oraclecloud.com))
-            (SECURITY =
-                (SSL_SERVER_CERT_DN="CN=xxx.oraclecloud.com, \
-                 O=Oracle Corporation,L=Redwood City,ST=California,C=US")
-                (TOKEN_AUTH=OAUTH)
-                (TOKEN_LOCATION="/home/user1/mytokens/oauthtoken")
-            )
-        )
-
-The ``TOKEN_AUTH`` and ``TOKEN_LOCATION`` values in a connection string take
-precedence over the ``sqlnet.ora`` settings.
-
-Standalone connection example:
-
-.. code-block:: python
-
-    connection = oracledb.connect(dsn=db_alias, externalauth=True)
-
-Connection pool example:
-
-.. code-block:: python
-
-    pool = oracledb.create_pool(dsn=db_alias, externalauth=True,
-                                homogeneous=False, min=1, max=2, increment=1)
-
-    connection = pool.acquire()
-
-.. _cloudnativeauthoauth:
-
-Azure Cloud Native Authentication with the azure_tokens Plugin
-++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
-
-With Cloud Native Authentication, python-oracledb's :ref:`azure_tokens
-<azurecloudnativeauthplugin>` plugin can automatically generate and refresh
-OAuth2 tokens when required with the support of the `Microsoft Authentication
-Library (MSAL) <https://learn.microsoft.com/en-us/
-entra/msal/python/?view=msal-py-latest>`__.
-
-The :ref:`azure_tokens <azurecloudnativeauthplugin>` plugin can be imported
-like:
-
-.. code-block:: python
-
-    import oracledb.plugins.azure_tokens
-
-The plugin has a Python package dependency which needs to be installed
-separately before the plugin can be used, see :ref:`azuretokenmodules`.
-
-The ``azure_tokens`` plugin defines and registers a :ref:`parameter hook
-<registerparamshook>` function which uses the connection parameter
-``extra_auth_params`` passed to :meth:`oracledb.connect()`,
-:meth:`oracledb.create_pool()`, :meth:`oracledb.connect_async()`, or
-:meth:`oracledb.create_pool_async()`. Using this parameter's values, the hook
-function sets the ``access_token`` parameter of a :ref:`ConnectParams object
-<connparam>` to a callable which generates an OAuth2 token. Python-oracledb
-then acquires and uses a token to transparently complete connection or pool
-creation calls.
-
-For OAuth 2.0 Token-Based Authentication connection and pool creation, the
-``extra_auth_params`` parameter should be a dictionary with keys as shown in
-the following table.
-
-.. list-table-with-summary:: Azure Cloud Native Authentication Configuration Keys
-    :header-rows: 1
-    :class: wy-table-responsive
-    :widths: 10 30 10
-    :name: _azure_configuration_parameters
-    :summary: The first column displays the dictionary key. The second column displays the description of the key. The third column displays whether the parameter is required or optional.
-
-    * - Key
-      - Description
-      - Required or Optional
-    * - ``auth_type``
-      - The authentication type.
-
-        This must be the string "AzureServicePrincipal". This type makes the plugin acquire Azure service principal access tokens through a client credential flow.
-      - Required
-    * - ``authority``
-      - This parameter must be set as a string in the URI format with the tenant ID, for example ``https://{identity provider instance}/{tenantId}``.
-
-        The tenantId is the directory tenant against which the application operates, in either GUID or domain-name format.
-      - Required
-    * - ``client_id``
-      - The application ID that is assigned to your application.
-
-        This information can be found in the portal where the application was registered.
-      - Required
-    * - ``client_credential``
-      - The client secret that was generated for your application in the application registration portal.
-      - Required
-    * - ``scopes``
-      - This parameter represents the value of the scope for the request.
-
-        It should be the resource identifier (application ID URI) of the desired resource, with the suffix ".default". For example, ``https://{uri}/clientID/.default``.
-      - Required
-
-All keys and values other than ``auth_type`` are used by the `Microsoft
-Authentication Library (MSAL) <https://learn.microsoft.com/en-us/
-entra/msal/python/?view=msal-py-latest>`__ API calls in the plugin.  The plugin
-implementation can be seen in `plugins/azure_tokens.py
-<https://github.com/oracle/python-oracledb/blob/main/src/oracledb/plugins/azure_tokens.py>`__.
-
-For information on the Azure specific configuration parameters, see `MSAL
-<https://learn.microsoft.com/en-us/entra/identity-platform/v2-oauth2-client
--creds-grant-flow>`__.
-
-The examples in the subsequent sections use the :ref:`azure_tokens
-<azurecloudnativeauthplugin>` plugin to generate OAuth2 tokens to connect to
-Oracle Autonomous Database with mutual TLS (mTLS). See :ref:`autonomousdb`.
-
-**Standalone Connections in Thin Mode Using OAuth2 Tokens**
-
-When using the :ref:`azure_tokens <azurecloudnativeauthplugin>` plugin to
-generate OAuth2 tokens to connect to Oracle Autonomous Database in Thin mode,
-you need to explicitly set the ``extra_auth_params``, ``config_dir``,
-``wallet_location``, and ``wallet_password`` parameter of
-:func:`~oracledb.connect`. For example:
-
-.. code:: python
-
-    import oracledb.plugins.azure_tokens
-
-    token_based_auth = {
-        "auth_type": "AzureServicePrincipal", # Azure specific configuration
-        "authority": <authority>,             # parameters to be set when using
-        "client_id": <client_id>,             # the azure_tokens plugin
-        "client_credential": <client_credential>,
-        "scopes": <scopes>
-    }
-
-    connection = oracledb.connect(
-        dsn=mydb_low,
-        config_dir="path_to_unzipped_wallet",
-        wallet_location="location_of_pem_file",
-        wallet_password=wp,
-        extra_auth_params=token_based_auth)
-
-**Connection Pools in Thin Mode Using OAuth2 Tokens**
-
-When using the :ref:`azure_tokens <azurecloudnativeauthplugin>` plugin to
-generate OAuth2 tokens to connect to Oracle Autonomous Database in Thin mode,
-you need to explicitly set the ``homogeneous``, ``extra_auth_params``,
-``config_dir``, ``wallet_location``, and ``wallet_password`` parameters of
-:func:`~oracledb.create_pool`. For example:
-
-.. code:: python
-
-    import oracledb.plugins.azure_tokens
-
-    token_based_auth = {
-        "auth_type": "AzureServicePrincipal", # Azure specific configuration
-        "authority": <authority>,             # parameters to be set when using
-        "client_id": <client_id>,             # the azure_tokens plugin
-        "client_credential": <client_credential>,
-        "scopes": <scopes>
-    }
-
-    connection = oracledb.create_pool(
-        dsn=mydb_low,
-        config_dir="path_to_unzipped_wallet",
-        homogeneous=true,          # must always be True for connection pools
-        wallet_location="location_of_pem_file",
-        wallet_password=wp,
-        extra_auth_params=token_based_auth)
-
-**Standalone Connections Thick Mode Using OAuth2 Tokens**
-
-When using the :ref:`azure_tokens <azurecloudnativeauthplugin>` plugin to
-generate OAuth2 tokens to connect to Oracle Autonomous Database in Thick mode,
-you need to explicitly set the ``extra_auth_params`` and ``externalauth``
-parameter of :func:`~oracledb.connect`. For example:
-
-.. code:: python
-
-    import oracledb.plugins.azure_tokens
-
-    token_based_auth = {
-        "auth_type": "AzureServicePrincipal", # Azure specific configuration
-        "authority": <authority>,             # parameters to be set when using
-        "client_id": <client_id>,             # the azure_tokens plugin
-        "client_credential": <client_credential>,
-        "scopes": <scopes>
-    }
-
-    connection = oracledb.connect(
-        externalauth=True,  # must always be True in Thick mode
-        dsn=mydb_low,
-        extra_auth_params=token_based_auth)
-
-**Connection Pools in Thick Mode Using OAuth2 Tokens**
-
-When using the :ref:`azure_tokens <azurecloudnativeauthplugin>` plugin to
-generate OAuth2 tokens to connect to Oracle Autonomous Database in Thick mode,
-you need to explicitly set the ``extra_auth_params``, ``externalauth``, and
-``homogeneous`` parameters of :func:`~oracledb.create_pool`.
-
-.. code:: python
-
-    import oracledb.plugins.azure_tokens
-
-    token_based_auth = {
-        "auth_type": "AzureServicePrincipal", # Azure specific configuration
-        "authority": <authority>,             # parameters to be set when using
-        "client_id": <client_id>,             # the azure_tokens plugin
-        "client_credential": <client_credential>,
-        "scopes": <scopes>
-    }
-
-    connection = oracledb.create_pool(
-        externalauth=True, # must always be True in Thick mode
-        homogeneous=True,  # must always be True for connection pools
-        dsn=mydb_low,
-        extra_auth_params=token_based_auth)
-
-.. _iamauth:
-
-Connecting Using OCI IAM Token-Based Authentication
----------------------------------------------------
-
-Oracle Cloud Infrastructure (OCI) Identity and Access Management (IAM) provides
-its users with a centralized database authentication and authorization system.
-Using this authentication method, users can use the database access token
-issued by OCI IAM to authenticate to the Oracle Autonomous Database. Both Thin
-and Thick modes of the python-oracledb driver support OCI IAM token-based
-authentication.
-
-When using python-oracledb in Thick mode, Oracle Client libraries 19.14 (or later),
-or 21.5 (or later) are needed.
-
-Standalone connections and pooled connections can be created in python-oracledb
-Thick and Thin modes using OCI IAM token-based authentication. This can be done
-by using a class like the sample :ref:`TokenHandlerIAM class <iamhandler>` or
-by using python-oracledb's :ref:`OCI Cloud Native Authentication Plugin
-(oci_tokens) <cloudnativeauthoci>`. Tokens can be specified using the
-connection parameter introduced in python-oracledb 1.1. Users of earlier
-python-oracledb versions can alternatively use :ref:`OCI IAM Token-Based
-Authentication Connection Strings <iamauthconnstr>`.
-
-OCI IAM Token Generation and Extraction
-+++++++++++++++++++++++++++++++++++++++
-
-Authentication tokens can be generated using python-oracledb's
-:ref:`oci_tokens <ocicloudnativeauthplugin>` plugin.
-
-Alternatively, authentication tokens can be generated through execution of an
-Oracle Cloud Infrastructure command line interface (OCI-CLI) command ::
-
-    oci iam db-token get
-
-On Linux, a folder ``.oci/db-token`` will be created in your home directory.
-It will contain the token and private key files needed by python-oracledb.
-
-.. _iamhandler:
-
-**Example of Generating an IAM Token**
-
-Here, as an example, we are using a Python script to automate the process of
-generating and reading OCI IAM tokens.
-
-.. code:: python
-
-    import os
-
-    import oracledb
-
-    class TokenHandlerIAM:
-
-        def __init__(self,
-                     dir_name="dir_name",
-                     command="oci iam db-token get"):
-            self.dir_name = dir_name
-            self.command = command
-            self.token = None
-            self.private_key = None
-
-        def __call__(self, refresh):
-            if refresh:
-                if os.system(self.command) != 0:
-                    raise Exception("token command failed!")
-            if self.token is None or refresh:
-                self.read_token_info()
-            return (self.token, self.private_key)
-
-        def read_token_info(self):
-            token_file_name = os.path.join(self.dir_name, "token")
-            pkey_file_name = os.path.join(self.dir_name, "oci_db_key.pem")
-            with open(token_file_name) as f:
-                self.token = f.read().strip()
-            with open(pkey_file_name) as f:
-                if oracledb.is_thin_mode():
-                    self.private_key = f.read().strip()
-                else:
-                    lines = [s for s in f.read().strip().split("\n")
-                             if s not in ('-----BEGIN PRIVATE KEY-----',
-                                          '-----END PRIVATE KEY-----')]
-                    self.private_key = "".join(lines)
-
-The TokenHandlerIAM class uses a callable to generate and read OCI IAM tokens.
-When the callable in the TokenHandlerIAM class is invoked for the first time
-to create a standalone connection or pool, the ``refresh`` parameter is
-*False* which allows the callable to return a cached token, if desired. The
-expiry date is then extracted from this token and compared with the current
-date. If the token has not expired, then it will be used directly. If the token
-has expired, the callable is invoked the second time with the ``refresh``
-parameter set to *True*.
-
-The TokenHandlerIAM class defined here is used in the examples shown in
-:ref:`conncreationociiam`.
-
-.. _conncreationociiam:
-
-Connection Creation with OCI IAM Access Tokens
-++++++++++++++++++++++++++++++++++++++++++++++
-
-For OCI IAM Token-Based Authentication with a class such as the sample
-:ref:`TokenHandlerIAM class <iamhandler>`, the ``access_token`` connection
-parameter must be specified. This parameter should be a 2-tuple (or a callable
-that returns a 2-tuple) containing the token and private key. In the examples
-used below, the ``access_token`` parameter is set to a callable.
-
-The examples used in the subsequent sections use the
-:ref:`TokenHandlerIAM class <iamhandler>` to generate OCI IAM tokens to connect
-to Oracle Autonomous Database with mutual TLS (mTLS). See :ref:`autonomousdb`.
-
-**Standalone Connections in Thin Mode Using OCI IAM Tokens**
-
-When using a class such as the :ref:`TokenHandlerIAM class <iamhandler>` to
-generate OCI IAM tokens to connect to Oracle Autonomous Database in Thin mode,
-you need to explicitly set the ``access_token``, ``config_dir``,
-``wallet_location``, and ``wallet_password`` parameters of
-:func:`~oracledb.connect`. For example:
-
-.. code:: python
-
-    connection = oracledb.connect(
-        access_token=TokenHandlerIAM(),
-        dsn=mydb_low,
-        config_dir="path_to_unzipped_wallet",
-        wallet_location="location_of_pem_file",
-        wallet_password=wp)
-
-**Connection Pools in Thin Mode Using OCI IAM Tokens**
-
-When using a class such as :ref:`TokenHandlerIAM class <iamhandler>` to
-generate OCI IAM tokens to connect to Oracle Autonomous Database in Thin mode,
-you need to explicitly set the ``access_token``, ``homogeneous``,
-``config_dir``, ``wallet_location``, and ``wallet_password`` parameters of
-:func:`~oracledb.create_pool`. For example:
-
-.. code:: python
-
-    connection = oracledb.create_pool(
-        access_token=TokenHandlerIAM(),
-        homogeneous=True, # must always be set to True for connection pools
-        dsn=mydb_low,
-        config_dir="path_to_unzipped_wallet",
-        wallet_location="location_of_pem_file",
-        wallet_password=wp
-        min=1, max=5, increment=2)
-
-Note that the ``access_token`` parameter should be set to a callable. This is
-useful when the connection pool needs to expand and create new connections but
-the current token has expired. In such a case, the callable should return a
-string specifying the new, valid access token.
-
-**Standalone Connections in Thick Mode Using OCI IAM Tokens**
-
-When using a class such as :ref:`TokenHandlerIAM class <iamhandler>` to
-generate OCI IAM tokens to connect to Oracle Autonomous Database in Thick mode,
-you need to explicitly set the ``access_token`` and ``externalAuth`` parameters
-of :func:`~oracledb.connect`. For example:
-
-.. code:: python
-
-    connection = oracledb.connect(
-        access_token=TokenHandlerIAM(),
-        externalauth=True, # must always be True in Thick mode
-        dsn=mydb_low)
-
-**Connection Pools in Thick Mode Using OCI IAM Tokens**
-
-When using a class such as :ref:`TokenHandlerIAM class <iamhandler>` to
-generate OCI IAM tokens to connect to Oracle Autonomous Database in Thick mode,
-you need to explicitly set the ``access_token``, ``externalauth``, and
-``homogeneous`` parameters of :func:`oracledb.create_pool`. For example:
-
-.. code:: python
-
-    pool = oracledb.create_pool(
-        access_token=TokenHandlerIAM(),
-        externalauth=True, # must always be True in Thick mode
-        homogeneous=True,  # must always be True in connection pools
-        dsn=mydb_low, min=1, max=5, increment=2)
-
-Note that the ``access_token`` parameter should be set to a callable. This is
-useful when the connection pool needs to expand and create new connections but
-the current token has expired. In such a case, the callable should return a
-string specifying the new, valid access token.
-
-.. _iamauthconnstr:
-
-OCI IAM Token-Based Authentication Connection Strings
-+++++++++++++++++++++++++++++++++++++++++++++++++++++
-
-The connection string used by python-oracledb can specify the directory where
-the token and private key files are located. This syntax is usable with older
-versions of python-oracledb. However, it is recommended to use connection
-parameters introduced in python-oracledb 1.1 instead. See
-:ref:`OCI IAM Token-Based Authentication<iamauth>`.
-
-.. note::
-
-    OCI IAM Token-Based Authentication Connection Strings is only supported in
-    the python-oracledb Thick mode. See :ref:`enablingthick`.
-
-The Oracle Cloud Infrastructure command line interface (OCI-CLI) can be used
-externally to get tokens and private keys from OCI IAM, for example with the
-OCI-CLI ``oci iam db-token get`` command.
-
-The Oracle Net parameter ``TOKEN_AUTH`` must be set when you are using the
-connection string syntax. Also, the ``PROTOCOL`` parameter must be ``tcps``
-and ``SSL_SERVER_DN_MATCH`` should be ``ON``.
-
-You can set ``TOKEN_AUTH=OCI_TOKEN`` in a ``sqlnet.ora`` file.  Alternatively,
-you can specify it in a :ref:`Connect Descriptor <conndescriptor>`, for example
-when using a :ref:`tnsnames.ora <optnetfiles>` file::
-
-    db_alias =
-        (DESCRIPTION =
-            (ADDRESS=(PROTOCOL=TCPS)(PORT=1522)(HOST=xxx.oraclecloud.com))
-            (CONNECT_DATA=(SERVICE_NAME=xxx.adb.oraclecloud.com))
-            (SECURITY =
-                (SSL_SERVER_CERT_DN="CN=xxx.oraclecloud.com, \
-                 O=Oracle Corporation,L=Redwood City,ST=California,C=US")
-                (TOKEN_AUTH=OCI_TOKEN)
-            )
-        )
-
-The default location for the token and private key is the same default location
-that the OCI-CLI tool writes to. For example ``~/.oci/db-token/`` on Linux.
-
-If the token and private key files are not in the default location then their
-directory must be specified with the ``TOKEN_LOCATION`` parameter in a
-:ref:`sqlnet.ora <optnetfiles>` file or in a :ref:`Connect Descriptor
-<conndescriptor>`, for example when using a :ref:`tnsnames.ora <optnetfiles>`
-file::
-
-    db_alias =
-        (DESCRIPTION =
-            (ADDRESS=(PROTOCOL=TCPS)(PORT=1522)(HOST=xxx.oraclecloud.com))
-            (CONNECT_DATA=(SERVICE_NAME=xxx.adb.oraclecloud.com))
-            (SECURITY =
-                (SSL_SERVER_CERT_DN="CN=xxx.oraclecloud.com, \
-                 O=Oracle Corporation,L=Redwood City,ST=California,C=US")
-                (TOKEN_AUTH=OCI_TOKEN)
-                (TOKEN_LOCATION="/path/to/token/folder")
-            )
-        )
-
-The ``TOKEN_AUTH`` and ``TOKEN_LOCATION`` values in a connection string take
-precedence over the ``sqlnet.ora`` settings.
-
-Standalone connection example:
-
-.. code-block:: python
-
-    connection = oracledb.connect(dsn=db_alias, externalauth=True)
-
-Connection pool example:
-
-.. code-block:: python
-
-    pool = oracledb.create_pool(dsn=db_alias, externalauth=True,
-                                homogeneous=False, min=1, max=2, increment=1)
-
-    connection = pool.acquire()
-
-.. _cloudnativeauthoci:
-
-OCI Cloud Native Authentication with the oci_tokens Plugin
-++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
-
-With Cloud Native Authentication, python-oracledb's :ref:`oci_tokens
-<ocicloudnativeauthplugin>` plugin can automatically generate and refresh OCI
-IAM tokens when required with the support of the `Oracle Cloud Infrastructure
-(OCI) Software Development Kit (SDK)
-<https://docs.oracle.com/en-us/iaas/tools/python/latest/index.html>`__.
-
-The :ref:`oci_tokens <ocicloudnativeauthplugin>` plugin can be imported
-like:
-
-.. code-block:: python
-
-    import oracledb.plugins.oci_tokens
-
-The plugin has a Python package dependency which needs to be installed
-separately before the plugin can be used, see :ref:`ocitokenmodules`.
-
-The ``oci_tokens`` plugin defines and registers a :ref:`parameter hook
-<registerparamshook>` function which uses the connection parameter
-``extra_auth_params`` passed to :meth:`oracledb.connect()`,
-:meth:`oracledb.create_pool()`, :meth:`oracledb.connect_async()`, or
-:meth:`oracledb.create_pool_async()`. Using this parameter's values, the hook
-function sets the ``access_token`` parameter of a :ref:`ConnectParams object
-<connparam>` to a callable which generates an OCI IAM token. Python-oracledb
-then acquires and uses a token to transparently complete connection or pool
-creation calls.
-
-For OCI Cloud Native Authentication connection and pool creation, the
-``extra_auth_params`` parameter should be a dictionary with keys as shown in
-the following table.
-
-.. list-table-with-summary:: OCI Cloud Native Authentication Configuration Keys
-    :header-rows: 1
-    :class: wy-table-responsive
-    :widths: 10 25 15
-    :name: _oci_configuration_parameters
-    :summary: The first column displays the name of the dictionary key. The second column displays its description. The third column displays whether the attribute is required or optional.
-
-    * - Key
-      - Description
-      - Required or Optional
-    * - ``auth_type``
-      - The authentication type. The value should be the string "ConfigFileAuthentication" or "SimpleAuthentication".
-
-        In Configuration File Authentication, the location of the configuration file containing the necessary information must be provided. By default, this file is located at */home/username/.oci/config*, unless a custom location is specified during OCI IAM setup.
-
-        In Simple Authentication, the individual configuration parameters can be provided at runtime.
-      - Required
-    * - ``user``
-      - The Oracle Cloud Identifier (OCID) of the user invoking the API. For example, *ocid1.user.oc1..<unique_ID>*.
-
-        This parameter can be specified when the value of the ``auth_type`` key is "SimpleAuthentication".
-      - Required
-    * - ``key_file``
-      - The full path and filename of the private key.
-
-        This parameter can be specified when the value of the ``auth_type`` key is "SimpleAuthentication".
-      - Required
-    * - ``fingerprint``
-      - The fingerprint associated with the public key that has been added to this user.
-
-        This parameter can be specified when the value of the ``auth_type`` key is "SimpleAuthentication".
-      - Required
-    * - ``tenancy``
-      - The OCID of your tenancy. For example, *ocid1.tenancy.oc1..<unique_ID>*.
-
-        This parameter can be specified when the value of the ``auth_type`` key is "SimpleAuthentication".
-      - Required
-    * - ``region``
-      - The Oracle Cloud Infrastructure region. For example, *ap-mumbai-1*.
-
-        This parameter can be specified when the value of the ``auth_type`` key is "SimpleAuthentication".
-      - Required
-    * - ``profile``
-      - The configuration profile name to load.
-
-        Multiple profiles can be created, each with distinct values for necessary parameters. If not specified, the DEFAULT profile is used.
-
-        This parameter can be specified when the value of the ``auth_type`` key is "SimpleAuthentication" or "ConfigFileAuthentication". If it is not specified when using "ConfigFileAuthentication", the default value is taken.
-      - Required
-    * - ``file_location``
-      - The configuration file location. The default value is *~/.oci/config*.
-
-        This parameter can be specified when the value of the ``auth_type`` key is "ConfigFileAuthentication".
-      - Optional
-
-All keys and values other than ``auth_type`` are used by the `OCI SDK
-<https://docs.oracle.com/en-us/iaas/Content/API/Concepts/sdkconfig.htm>`__ API
-calls in the plugin.  The plugin implementation can be seen in
-`plugins/oci_tokens.py
-<https://github.com/oracle/python-oracledb/blob/main/src/oracledb/plugins/oci_tokens.py>`__.
-
-For information on the OCI specific configuration parameters, see `OCI SDK
-<https://docs.oracle.com/en-us/iaas/Content/API/Concepts/sdkconfig.htm>`__.
-
-The examples in the subsequent sections use the :ref:`oci_tokens
-<ocicloudnativeauthplugin>` plugin to generate OCI IAM tokens to connect to
-Oracle Autonomous Database with mutual TLS (mTLS). See :ref:`autonomousdb`.
-
-**Standalone Connections in Thin Mode Using OCI IAM Tokens**
-
-When using the :ref:`oci_tokens <ocicloudnativeauthplugin>` plugin to generate
-OCI IAM tokens to connect to Oracle Autonomous Database in Thin mode, you need
-to explicitly set the ``config_dir``, ``wallet_location``, ``wallet_password``
-and ``extra_auth_params`` parameters of :func:`~oracledb.connect`. For example:
-
-.. code:: python
-
-    import oracledb.plugins.oci_tokens
-
-    token_based_auth = {                             # OCI specific configuration
-        "auth_type": "ConfigFileAuthentication",     # parameters to be set when using
-        "profile": <profile>,                        # the oci_tokens plugin with
-        "file_location": <filelocation>,             # configuration file authentication
-    }
-
-    connection = oracledb.connect(
-        dsn=mydb_low,
-        config_dir="path_to_unzipped_wallet",
-        wallet_location="location_of_pem_file",
-        wallet_password=wp,
-        extra_auth_params=token_based_auth)
-
-**Connection Pools in Thin Mode Using OCI IAM Tokens**
-
-When using the :ref:`oci_tokens <ocicloudnativeauthplugin>` plugin to generate
-OCI IAM tokens to connect to Oracle Autonomous Database in Thin mode, you need
-to explicitly set the ``config_dir``, ``homogeneous``, ``wallet_location``,
-``wallet_password``, and ``extra_auth_params`` parameters of
-:func:`~oracledb.create_pool`. For example:
-
-.. code:: python
-
-    import oracledb.plugins.oci_tokens
-
-    token_based_auth = {
-        "auth_type": "SimpleAuthentication", # OCI specific configuration
-        "user": <user>,                      # parameters to be set when using
-        "key_file": <key_file>,              # the oci_tokens plugin with
-        "fingerprint": <fingerprint>,        # simple authentication
-        "tenancy": <tenancy>,
-        "region": <region>,
-        "profile": <profile>
-    }
-
-    connection = oracledb.create_pool(
-        dsn=mydb_low,
-        config_dir="path_to_unzipped_wallet",
-        homogeneous=true,           # must always be True for connection pools
-        wallet_location="location_of_pem_file",
-        wallet_password=wp,
-        extra_auth_params=token_based_auth)
-
-**Standalone Connections in Thick Mode Using OCI IAM Tokens**
-
-When using the :ref:`oci_tokens <ocicloudnativeauthplugin>` plugin to generate
-OCI IAM tokens to connect to Oracle Autonomous Database in Thick mode, you need
-to explicitly set the ``externalauth`` and ``extra_auth_params`` parameters of
-:func:`oracledb.connect`. For example:
-
-.. code:: python
-
-    import oracledb.plugins.oci_tokens
-
-    token_based_auth = {
-        "auth_type": "SimpleAuthentication", # OCI specific configuration
-        "user": <user>,                      # parameters to be set when using
-        "key_file": <key_file>,              # the oci_tokens plugin with
-        "fingerprint": <fingerprint>,        # simple authentication
-        "tenancy": <tenancy>,
-        "region": <region>,
-        "profile": <profile>
-    }
-    connection = oracledb.connect(
-        externalauth=True,
-        dsn=mydb_low,
-        extra_auth_params=token_based_auth)
-
-**Connection Pools in Thick Mode Using OCI IAM Tokens**
-
-When using the :ref:`oci_tokens <ocicloudnativeauthplugin>` plugin to generate
-OCI IAM tokens to connect to Oracle Autonomous Database in Thick mode, you
-need to explicitly set the ``externalauth``, ``homogeneous``, and
-``extra_auth_params`` parameters of :func:`~oracledb.create_pool`. For example:
-
-.. code:: python
-
-    import oracledb.plugins.oci_tokens
-
-    token_based_auth = {                             # OCI specific configuration
-        "auth_type": "ConfigFileAuthentication",     # parameters to be set when using
-        "profile": <profile>,                        # the oci_tokens plugin with
-        "file_location": <filelocation>,             # configuration file authentication
-    }
-
-    connection = oracledb.create_pool(
-        externalauth=True, # must always be True in Thick mode
-        homogeneous=True,  # must always be True for connection pools
-        dsn=mydb_low,
-        extra_auth_params=token_based_auth)
-
 Privileged Connections
 ======================
 
@@ -4675,7 +3604,7 @@ You can encrypt data transferred between the Oracle Database and
 python-oracledb so that unauthorized parties are not able to view plain text
 values as the data passes over the network.
 
-Both python-oracledb Thin and Thick modes support TLS.  Refer to the `Oracle
+Both python-oracledb Thin and Thick modes support TLS. Refer to the `Oracle
 Database Security Guide <https://www.oracle.com/pls/topic/lookup?ctx=dblatest&
 id=GUID-41040F53-D7A6-48FA-A92A-0C23118BC8A0>`__ for more configuration
 information.
@@ -4686,9 +3615,8 @@ Native Network Encryption
 -------------------------
 
 The python-oracledb :ref:`Thick mode <enablingthick>` can additionally use
-Oracle Database's `native network encryption
-<https://www.oracle.com/pls/topic/lookup?ctx=dblatest&
-id=GUID-7F12066A-2BA1-476C-809B-BB95A3F727CF>`__.
+Oracle Database's `native network encryption <https://www.oracle.com/pls/topic/
+lookup?ctx=dblatest&id=GUID-7F12066A-2BA1-476C-809B-BB95A3F727CF>`__.
 
 With native network encryption, the client and database server negotiate a key
 using Diffie-Hellman key exchange.  This provides protection against
@@ -4761,7 +3689,7 @@ available encryption and crypto-checksumming services in the output. For example
 
 For more information about Oracle Data Network Encryption and Integrity,
 and for information about configuring TLS network encryption, refer to
-the `Oracle Database Security Guide <https://www.oracle.com/pls/topic/
+the `Oracle AI Database Security Guide <https://www.oracle.com/pls/topic/
 lookup?ctx=dblatest&id=DBSEG>`__.
 
 Resetting Passwords
@@ -4798,80 +3726,103 @@ Connecting to Oracle Cloud Autonomous Databases
 ================================================
 
 Python applications can connect to Oracle Autonomous Database (ADB) in Oracle
-Cloud using one-way TLS (Transport Layer Security) or mutual TLS
-(mTLS). One-way TLS and mTLS provide enhanced security for authentication and
-encryption.
+Cloud using one-way TLS (Transport Layer Security) or mutual TLS (mTLS),
+depending on how the database instance is configured. One-way TLS and mTLS
+provide enhanced security for authentication and encryption.
 
 A database username and password are still required for your application
-connections.  If you need to create a new database schema so you do not login
-as the privileged ADMIN user, refer to the relevant Oracle Cloud documentation,
-for example see `Create Database Users
-<https://docs.oracle.com/en/cloud/paas/autonomous-database/adbdu/managing-database-
-users.html#GUID-5B94EA60-554A-4BA4-96A3-1D5A3ED5878D>`__ in the Oracle
-Autonomous Database manual.
+connections. Refer to the relevant Oracle Cloud documentation, for example see
+`Create Database Users <https://www.oracle.com/pls/topic/
+lookup?ctx=dblatest&id=GUID-B5846072-995B-4B81-BDCB-AF530BC42847>`__.
 
 .. _onewaytls:
 
 One-way TLS Connection to Oracle Autonomous Database
 ----------------------------------------------------
 
-With one-way TLS, python-oracledb applications can connect to Oracle ADB
-without using a wallet.  Both Thin and Thick modes of the python-oracledb
-driver support one-way TLS.  Applications that use the python-oracledb Thick
-mode, can connect to the Oracle ADB through one-way TLS only when using Oracle
-Client library versions 19.14 (or later) or 21.5 (or later).
+With one-way TLS, the python-oracledb host machine must be in the Access
+Control List (ACL) of the ADB instance. Applications then connect to Oracle ADB
+by passing the database username, password, and appropriate connection
+string. A wallet is not used.
 
-To enable one-way TLS for an ADB instance, complete the following steps in an
-Oracle Cloud console in the **Autonomous Database Information** section of the
-ADB instance details:
+Both python-oracledb Thin and Thick modes support one-way TLS.
+
+Allowing One-way TLS Access to Oracle Autonomous Database
++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
+
+To create an ADB instance that allows one-way TLS, choose the access setting
+*Secure access from allowed IPs and VCNs only* in the Oracle Cloud console
+during instance creation. Then specify the IP addresses, hostnames, CIDR
+blocks, Virtual Cloud networks (VCN), or Virtual Cloud network OCIDs where
+Python will be running. The ACL limits access to only the resources that have
+been defined and blocks all other incoming traffic.
+
+Alternatively, to enable one-way TLS on an existing database, complete the
+following steps in the Oracle Cloud console in the **Autonomous Database
+Information** section of the ADB instance:
 
 1. Click the **Edit** link next to *Access Control List* to update the Access
-   Control List (ACL). The **Edit Access Control List** dialog box is displayed.
+   Control List (ACL).
 
-2. In the **Edit Access Control List** dialog box, select the type of address
-   list entries and the corresponding values. You can include the required IP
-   addresses, hostnames, or Virtual Cloud Networks (VCNs).  The ACL limits
-   access to only the IP addresses or VCNs that have been defined and blocks
-   all other incoming traffic.
+2. In the displayed **Edit Access Control List** dialog box, select the type of
+   address list entries and the corresponding values. You can include the IP
+   addresses, hostnames, CIDR blocks, Virtual Cloud networks (VCN), or Virtual
+   Cloud network OCIDs where Python will be running.
 
 3. Navigate back to the ADB instance details page and click the **Edit** link
-   next to *Mutual TLS (mTLS) Authentication*. The **Edit Mutual TLS Authentication**
-   is displayed.
+   next to *Mutual TLS (mTLS) Authentication*.
 
-4. In the **Edit Mutual TLS Authentication** dialog box, deselect the
+4. In the displayed **Edit Mutual TLS Authentication** dialog box, deselect the
    **Require mutual TLS (mTLS) authentication** check box to disable the mTLS
    requirement on Oracle ADB and click **Save Changes**.
 
-5. Navigate back to the ADB instance details page and click **DB Connection** on
-   the top of the page. A **Database Connection** dialog box is displayed.
+Connecting with python-oracledb Thin or Thick modes using One-way TLS
++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
 
-6. In the Database Connection dialog box, select TLS from the **Connection Strings**
-   drop-down list.
+When your database has been enabled to allow one-way TLS, you can connect with
+python-oracledb by following these steps:
 
-7. Copy the appropriate Connection String of the database instance used by your application.
+1. Navigate to the ADB instance details page on the Cloud console and click
+   **Database connection** at the top of the page.
 
-Applications can connect to your Oracle ADB instance using the database
-credentials and the copied :ref:`Connect Descriptor <conndescriptor>`.  For
+2. In the displayed **Database Connection** dialog box, select TLS from the
+   **Connection Strings** drop-down list.
+
+3. Copy the appropriate Connection String for the connection service level you
+   want.
+
+Applications can connect using database credentials and the copied
+:ref:`connection string <conndescriptor>`. Do *not* pass wallet parameters. For
 example, to connect as the ADMIN user:
 
 .. code-block:: python
 
-    cs = '''(description = (retry_count=20)(retry_delay=3)(address=(protocol=tcps)
-               (port=1522)(host=xxx.oraclecloud.com))(connect_data=(service_name=xxx.adb.oraclecloud.com))
-               (security=(ssl_server_dn_match=yes)(ssl_server_cert_dn="CN=xxx.oraclecloud.com,
-               O=Oracle Corporation, L=Redwood City, T=California, C=US")))'''
+    cs = '''(description= (retry_count=20)(retry_delay=3)(address=(protocol=tcps)(port=1521)
+            (host=adb.abcdef.oraclecloud.com))
+            (connect_data=(service_name=abcde_mydb_high.adb.oraclecloud.com))
+            (security=(ssl_server_dn_match=yes)))'''
 
     connection = oracledb.connect(user="admin", password=pw, dsn=cs)
 
 
-You can download the ADB connection wallet using the **DB Connection** button
-and extract the :ref:`tnsnames.ora <optnetfiles>` file, or create one yourself
-if you prefer to keep connections strings out of application code, see
-:ref:`netservice`.
+If you prefer to keep connection descriptors out of application code, you can
+add the descriptor with a :ref:`TNS Alias <netservice>` to a :ref:`tnsnames.ora
+<optnetfiles>` file, and use the TNS alias as the ``dsn`` value.
 
-You may be interested in the blog post `Easy wallet-less connections to Oracle
-Autonomous Databases in Python
-<https://blogs.oracle.com/opal/post/easy-way-to-connect-python-applications-to-oracle-autonomous-databases>`__.
+Not having the ACL correctly configured is a common cause of connection
+errors. To aid troubleshooting, remove ``(retry_count=20)(retry_delay=3)`` from
+the connect descriptor so that errors are returned faster. If network
+configuration issues are suspected then, for initial troubleshooting with a
+disposable database, you can update the ACL to contain a CIDR block of
+``0.0.0.0/0``, however this means *anybody* can attempt to connect to your
+database so you should recreate the database immediately after identifying a
+working, more restrictive ACL.
+
+To connect with python-oracledb Thick mode requires Oracle Client library
+versions 19.14 (or later), or 21.5 (or later), or 23.3 (or later). If you have
+also been experimenting with mTLS and your environment has ``sqlnet.ora`` and
+``tnsnames.ora`` files set up, then remove these before using python-oracledb
+Thick mode with one-way TLS to avoid configuration clashes.
 
 .. _twowaytls:
 
@@ -4882,101 +3833,124 @@ To enable python-oracledb connections to Oracle Autonomous Database in Oracle
 Cloud using mTLS, a wallet needs to be downloaded from the cloud console.  mTLS
 is sometimes called Two-way TLS.
 
-Install the Wallet and Network Configuration Files
+Allowing mTLS Access to Oracle Autonomous Database
 ++++++++++++++++++++++++++++++++++++++++++++++++++
 
-From the Oracle Cloud console for the database, download the wallet zip file
-using the **DB Connection** button.  The zip contains the wallet and network
-configuration files.  When downloading the zip, the cloud console will ask you
-to create a wallet password.  This password is used by python-oracledb in Thin
-mode, but not in Thick mode.
+When creating an ADB instance in the Oracle Cloud console, choose the access
+setting "Secure access from everywhere".
 
-Note: keep wallet files in a secure location and only share them and the
+.. _getwallet:
+
+Downloading the Database Wallet
++++++++++++++++++++++++++++++++
+
+After your Autonomous Database has been enabled to allow mTLS, download its
+``wallet.zip`` file which contains the certificate and network configuration
+files:
+
+1. Navigate to the ADB instance details page on the Oracle Cloud console and
+   click **Database connection** at the top of the page.
+
+2. In the displayed **Database Connection** dialog box, select the "Download
+   Wallet" button in the *Download client credentials (Wallet)* section. The
+   cloud console will ask you to create a wallet password. This password is
+   required by python-oracledb in Thin mode, but not used in Thick mode.
+
+**Note**: Keep wallet files in a secure location and only share them and the
 password with authorized users.
 
-**In python-oracledb Thin mode**
+Connecting with python-oracledb Thin mode using mTLS
+++++++++++++++++++++++++++++++++++++++++++++++++++++
 
-For python-oracledb in Thin mode, only two files from the zip are needed:
+For python-oracledb Thin mode, unzip the :ref:`wallet.zip <getwallet>` file.
+Only two files from it are needed:
 
-- ``tnsnames.ora`` - Maps net service names used for application connection
-  strings to your database services
+- ``tnsnames.ora`` - Maps TNS Aliases used for application connection strings
+  to your database services
 - ``ewallet.pem`` - Enables SSL/TLS connections in Thin mode. Keep this file
   secure
 
 If you do not have a PEM file, see :ref:`createpem`.
 
-Unzip the wallet zip file and move the required files to a location such as
+Move the two files to a directory that is accessible by your application. In
+this example, the files are located in the same directory,
 ``/opt/OracleCloud/MYDB``.
 
-Connection can be made using your database credentials and setting the ``dsn``
-parameter to the desired network alias from the :ref:`tnsnames.ora
-<optnetfiles>` file.  The ``config_dir`` parameter indicates the directory
-containing :ref:`tnsnames.ora <optnetfiles>`.  The ``wallet_location``
-parameter is the directory containing the PEM file.  In this example the files
-are in the same directory.  The ``wallet_password`` parameter should be set to
-the password created in the cloud console when downloading the wallet. For
-example, to connect as the ADMIN user using the ``mydb_low`` network service
-name:
+A connection can be made by using your database credentials and setting the
+``dsn`` parameter to the desired :ref:`TNS Alias <netservice>` from the
+:ref:`tnsnames.ora <optnetfiles>` file. The ``config_dir`` parameter indicates
+the directory containing :ref:`tnsnames.ora <optnetfiles>`. The
+``wallet_location`` parameter is the directory containing the PEM file. The
+``wallet_password`` parameter should be set to the password created in the
+cloud console when downloading the wallet. It is not the database user or ADMIN
+password. For example, to connect as the ADMIN user using the ``mydb_low`` TNS
+Alias:
 
 .. code-block:: python
 
-    connection = oracledb.connect(user="admin", password=pw, dsn="mydb_low",
-                                  config_dir="/opt/OracleCloud/MYDB",
-                                  wallet_location="/opt/OracleCloud/MYDB",
-                                  wallet_password=wp)
+    connection = oracledb.connect(
+        user="admin",
+        password=pw,                               # database password for ADMIN
+        dsn="mydb_low",                            # TNS Alias from tnsnames.ora
+        config_dir="/opt/OracleCloud/MYDB",        # directory with tnsnames.ora
+        wallet_location="/opt/OracleCloud/MYDB",   # directory with ewallet.pem
+        wallet_password=wp                         # not a database user password
+    )
 
-**In python-oracledb Thick mode**
+Connecting with python-oracledb Thick mode using mTLS
++++++++++++++++++++++++++++++++++++++++++++++++++++++
 
-For python-oracledb in Thick mode, only these files from the zip are needed:
+For python-oracledb Thick mode, unzip the :ref:`wallet.zip <getwallet>` file.
+Only three files from it are needed:
 
-- ``tnsnames.ora`` - Maps net service names used for application connection
-  strings to your database services
+- ``tnsnames.ora`` - Maps :ref:`TNS Aliases <netservice>` used for application
+  connection strings to your database services
 - ``sqlnet.ora`` - Configures Oracle Network settings
-- ``cwallet.sso`` - Enables SSL/TLS connections in Thick mode.  Keep this file
-  secure
+- ``cwallet.sso`` - Enables SSL/TLS connections in python-oracledb Thick mode.
+  Keep this file secure
 
-Unzip the wallet zip file.  There are two options for placing the required
-files:
+There are two options for placing the required files:
 
-- Move the three files to the ``network/admin`` directory of the client
-  libraries used by your application. For example if you are using Instant
-  Client 19c and it is in ``$HOME/instantclient_19_15``, then you would put the
-  wallet files in ``$HOME/instantclient_19_15/network/admin/``.
+1. Move the three files to the ``network/admin`` directory of the client
+   libraries used by your application. For example, if you are using Oracle
+   Instant Client version 23 and it is in ``$HOME/instantclient_23_9``, then
+   you would put the wallet files in
+   ``$HOME/instantclient_23_9/network/admin/``.
 
-  Connection can be made using your database credentials and setting the
-  ``dsn`` parameter to the desired network alias from the :ref:`tnsnames.ora
-  <optnetfiles>` file.  For example, to connect as the ADMIN user using the
-  ``mydb_low`` network service name:
+   A connection can be made using your database credentials and setting the
+   ``dsn`` parameter to the desired :ref:`TNS Alias <netservice>` from the
+   :ref:`tnsnames.ora <optnetfiles>` file.  For example, to connect as the ADMIN
+   user using the ``mydb_low`` TNS Alias:
 
-  .. code-block:: python
+   .. code-block:: python
 
-       connection = oracledb.connect(user="admin", password=pw, dsn="mydb_low")
+        connection = oracledb.connect(user="admin", password=pw, dsn="mydb_low")
 
-- Alternatively, move the three files to any accessible directory, for example
-  ``/opt/OracleCloud/MYDB``.
+2. Alternatively, move the three files to any accessible directory, for example
+   ``/opt/OracleCloud/MYDB``.
 
-  Then edit ``sqlnet.ora`` and change the wallet location directory to the
-  directory containing the ``cwallet.sso`` file.  For example::
+   Then edit ``sqlnet.ora`` and change the wallet location directory to the
+   directory containing the ``cwallet.sso`` file.  For example::
 
-    WALLET_LOCATION = (SOURCE = (METHOD = file) (METHOD_DATA = (DIRECTORY="/opt/OracleCloud/MYDB")))
-    SSL_SERVER_DN_MATCH=yes
+     WALLET_LOCATION = (SOURCE = (METHOD = file) (METHOD_DATA = (DIRECTORY="/opt/OracleCloud/MYDB")))
+     SSL_SERVER_DN_MATCH=yes
 
-  Since the ``tnsnames.ora`` and ``sqlnet.ora`` files are not in the default
-  location, your application needs to indicate where they are, either with the
-  ``config_dir`` parameter to :meth:`oracledb.init_oracle_client()`, or using
-  the ``TNS_ADMIN`` environment variable.  See :ref:`Optional Oracle Net
-  Configuration Files <optnetfiles>`.  (Neither of these settings are needed,
-  and you do not need to edit ``sqlnet.ora``, if you have put all the files in
-  the ``network/admin`` directory.)
+   Since the ``tnsnames.ora`` and ``sqlnet.ora`` files are not in the default
+   location, your application needs to indicate where they are, either with the
+   ``config_dir`` parameter to :meth:`oracledb.init_oracle_client()`, or by
+   using the ``TNS_ADMIN`` environment variable.  See :ref:`Optional Oracle Net
+   Configuration Files <optnetfiles>`.  (Neither of these settings are needed,
+   and you do not need to edit ``sqlnet.ora``, if you have put all the files in
+   the ``network/admin`` directory.)
 
-  For example, to connect as the ADMIN user using the ``mydb_low`` network
-  service name:
+   For example, to connect as the ADMIN user using the ``mydb_low`` TNS
+   alias:
 
-  .. code-block:: python
+   .. code-block:: python
 
-       oracledb.init_oracle_client(config_dir="/opt/OracleCloud/MYDB")
+        oracledb.init_oracle_client(config_dir="/opt/OracleCloud/MYDB")
 
-       connection = oracledb.connect(user="admin", password=pw, dsn="mydb_low")
+        connection = oracledb.connect(user="admin", password=pw, dsn="mydb_low")
 
 
 In python-oracle Thick mode, to create mTLS connections in one Python process
@@ -4986,12 +3960,16 @@ its own directory.  For each connection use different connection string
 file.  It is recommended to use Oracle Client libraries 19.17 (or later) when
 using :ref:`multiple wallets <connmultiwallets>`.
 
+If you are behind a firewall, see :ref:`firewallproxy`.
+
 Using the Easy Connect Syntax with Oracle Autonomous Database
 +++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
 
 When python-oracledb is using Oracle Client libraries 19c, or later, you can
 optionally use :ref:`Easy Connect <easyconnect>` syntax to connect to Oracle
 Autonomous Database.
+
+This section discuss the parameters for mTLS connection.
 
 The mapping from the cloud :ref:`tnsnames.ora <optnetfiles>` entries to an Easy
 Connect string is::
@@ -5014,11 +3992,12 @@ Then your applications can connect using the connection string:
     connection = oracledb.connect(user="hr", password=userpwd, dsn=dsn)
 
 The ``wallet_location`` parameter needs to be set to the directory containing
-the ``cwallet.sso`` or ``ewallet.pem`` file from the wallet zip.  The other
-wallet files, including ``tnsnames.ora``, are not needed when you use the Easy
-Connect syntax.
+the ``cwallet.sso`` or ``ewallet.pem`` file extracted from the :ref:`wallet.zip
+<getwallet>` file. The other files, including ``tnsnames.ora``, are not needed
+when you use the Easy Connect syntax.
 
-You can add other Easy Connect parameters to the connection string, for example::
+You can add other Easy Connect parameters to the connection string, for
+example::
 
     dsn = dsn + "&https_proxy=myproxy.example.com&https_proxy_port=80"
 
@@ -5191,11 +4170,11 @@ connection strings, wallet locations, and wallet password (if required) in each
                                   wallet_password=walletpw)
 
 The ``config_dir`` parameter is the directory containing the :ref:`tnsnames.ora
-<optnetfiles>` file.  The ``wallet_location`` parameter is the directory
-containing the ``ewallet.pem`` file.  If you are using Oracle Autonomous
+<optnetfiles>` file. The ``wallet_location`` parameter is the directory
+containing the ``ewallet.pem`` file. If you are using Oracle Autonomous
 Database, both of these paths are typically the same directory where the
-``wallet.zip`` file was extracted.  The ``dsn`` should specify a TCPS
-connection.
+:ref:`wallet.zip <getwallet>` file was extracted. The ``dsn`` should specify a
+TCPS connection.
 
 **In python-oracledb Thick mode**
 
@@ -5204,7 +4183,7 @@ containing the ``MY_WALLET_DIRECTORY`` option needs to be created:
 
 .. code-block:: python
 
-    dsn = "mydb_high"   # one of the network aliases from tnsnames.ora
+    dsn = "mydb_high"   # one of the TNS Aliases from tnsnames.ora
     params = oracledb.ConnectParams(config_dir="path_to_unzipped_wallet",
                                     wallet_location="path_location_of_sso_file")
     params.parse_connect_string(dsn)
@@ -5212,16 +4191,17 @@ containing the ``MY_WALLET_DIRECTORY`` option needs to be created:
     connection = oracledb.connect(user=user_name, password=password, dsn=dsn)
 
 The ``config_dir`` parameter should be the directory containing the
-:ref:`tnsnames.ora <optnetfiles>` and ``sqlnet.ora`` files.  The
+:ref:`tnsnames.ora <optnetfiles>` and ``sqlnet.ora`` files. The
 ``wallet_location`` parameter is the directory containing the ``cwallet.sso``
-file.  If you are using Oracle Autonomous Database, both of these paths are
-typically the same directory where the ``wallet.zip`` file was extracted.
+file. If you are using Oracle Autonomous Database, both of these paths are
+typically the same directory where the :ref:`wallet.zip <getwallet>` file was
+extracted.
 
 .. note::
 
-       Use Oracle Client libraries 19.17, or later, or use Oracle Client 21c or
-       23ai.  They contain important bug fixes for using multiple wallets in
-       the one process.
+       Use Oracle Client libraries 19.17, or later, or use Oracle Client
+       version 21 or 23. These contain important bug fixes for using multiple
+       wallets in the one process.
 
 .. _connsharding:
 
@@ -5235,19 +4215,19 @@ across a pool of Oracle databases that share no hardware or software.  It was
 previously known as Oracle Sharding.  It allows a database table to be split so
 each database contains a table with the same columns but a different subset of
 rows.  These tables are known as sharded tables.  From the perspective of an
-application, a sharded table in Oracle Globally Distributed Database looks like
-a single table: the distribution of data across those shards is completely
+application, a sharded table in Oracle Globally Distributed AI Database looks
+like a single table: the distribution of data across those shards is completely
 transparent to the application.
 
-Sharding is configured in
-Oracle Database, see the `Oracle Globally Distributed Database
-<https://www.oracle.com/pls/topic/lookup?ctx=dblatest&id=SHARD>`__ manual.  It
-requires Oracle Database and Oracle Client libraries 12.2, or later.
+Sharding is configured in Oracle Database, see the `Oracle Globally Distributed
+AI Database <https://www.oracle.com/pls/topic/lookup?ctx=dblatest&id=SHARD>`__
+manual.  It requires Oracle Database and Oracle Client libraries 12.2, or
+later.
 
 .. note::
 
-    Oracle Globally Distributed Database is only supported in the
-    python-oracledb Thick mode.  See :ref:`enablingthick`.
+    Oracle Globally Distributed Database is only supported in python-oracledb
+    Thick mode.  See :ref:`enablingthick`.
 
 The :meth:`oracledb.connect()` and :meth:`ConnectionPool.acquire()` functions
 accept ``shardingkey`` and ``supershardingkey`` parameters that are a sequence

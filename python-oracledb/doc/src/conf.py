@@ -12,10 +12,14 @@
 # serve to show the default value.
 
 import os
+import pathlib
 import sys
 
 # If your extensions are in another directory, add it here.
 sys.path.append(os.path.abspath("_ext"))
+
+# include the path of the source so that autodoc will function
+sys.path.insert(0, str(pathlib.Path("..", "src").resolve()))
 
 # General configuration
 # ---------------------
@@ -27,13 +31,20 @@ extensions = [
     "oracle_deprecated",
     "dbapi_extension",
     "sphinx_rtd_theme",
+    "sphinx.ext.autodoc",
 ]
+
+# preserve defaults in function signatures
+autodoc_preserve_defaults = True
+
+# ensure that the constructor documentation is used in class documentation
+autoclass_content = "init"
 
 # Add any paths that contain templates here, relative to this directory.
 templates_path = [".templates"]
 
 # The suffix of source filenames.
-source_suffix = ".rst"
+source_suffix = {".rst": "restructuredtext"}
 
 # The root toctree document.
 root_doc = master_doc = "index"

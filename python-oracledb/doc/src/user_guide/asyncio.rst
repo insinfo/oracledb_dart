@@ -1,12 +1,14 @@
 .. _asyncio:
 
+.. currentmodule:: oracledb
+
 **************************************************
 Concurrent Programming with asyncio and Pipelining
 **************************************************
 
-:ref:`concurrentprogramming` and :ref:`Oracle Database Pipelining <pipelining>`
-significantly enhances the overall performance and responsiveness of
-applications.
+:ref:`concurrentprogramming` and :ref:`Oracle Database Pipelining
+<pipelining>` significantly enhances the overall performance and responsiveness
+of applications.
 
 .. _concurrentprogramming:
 
@@ -24,13 +26,20 @@ useful tips.
 
 The python-oracledb asynchronous API is a part of the standard python-oracledb
 module. All the synchronous methods that require a round-trip to the database
-now have corresponding asynchronous counterparts. You can choose whether to
-use the synchronous API or the asynchronous API in your code. It is
-recommended to *not* use both at the same time in your application.
+have corresponding asynchronous counterparts. You can choose whether to use the
+synchronous API or the asynchronous API in your code. It is recommended to
+*not* use both at the same time in your application.
 
 The asynchronous API classes are :ref:`AsyncConnection <asyncconnobj>`,
 :ref:`AsyncConnectionPool <asyncconnpool>`,
 :ref:`AsyncCursor <asynccursorobj>`, and :ref:`AsyncLOB <asynclobobj>`.
+
+Unlike their synchronous counterparts, asynchronous connections and cursors are
+not automatically closed at the end of scope. These asynchronous resources
+should either be explicitly closed, or have been initially created via a
+`context manager
+<https://docs.python.org/3/library/stdtypes.html#context-manager-types>`__
+``with`` block.
 
 .. note::
 
@@ -105,6 +114,8 @@ when they are no longer needed, for example:
     cursor.close()
     await connection.close()
 
+Note asynchronous connections are not automatically closed at the end of
+scope. This is different to synchronous connection behavior.
 
 .. _asyncconnpool:
 
@@ -158,14 +169,19 @@ Executing SQL Using Asynchronous Methods
 This section covers executing SQL using the asynchronous programming model.
 For discussion of synchronous programming, see :ref:`sqlexecution`.
 
-Your application communicates with Oracle Database by executing SQL
-statements. Statements such as queries (statements beginning with SELECT or
-WITH), Data Manipulation Language (DML), and Data Definition Language (DDL) are
-executed using the asynchronous methods :meth:`AsyncCursor.execute()` or
+Your application communicates with Oracle Database by executing SQL statements.
+Statements such as queries (statements beginning with SELECT or WITH), Data
+Manipulation Language (DML), and Data Definition Language (DDL) are executed
+using the asynchronous methods :meth:`AsyncCursor.execute()` or
 :meth:`AsyncCursor.executemany()`. Rows can be iterated over, or fetched using
 one of the methods :meth:`AsyncCursor.fetchone()`,
 :meth:`AsyncCursor.fetchone()`, :meth:`AsyncCursor.fetchmany()`, or
-:meth:`AsyncCursor.fetchall()`.
+:meth:`AsyncCursor.fetchall()`.  Note that explicitly opened asynchronous
+cursors are not automatically closed at the end of scope. This is different to
+synchronous behavior.  Asynchronous cursors should either be explicitly closed,
+or have been initially created via a `context manager
+<https://docs.python.org/3/library/stdtypes.html#context-manager-types>`__
+``with`` block.
 
 You can also use shortcut methods on the :ref:`asyncconnobj` object such as
 :meth:`AsyncConnection.execute()` or
@@ -297,6 +313,40 @@ is recommended to use autocommit mode only for the last DML statement in the
 sequence of operations. Unnecessarily committing causes extra database load,
 and can destroy transactional consistency.
 
+.. _sessionlesstxnasync:
+
+Managing Sessionless Transactions Using Asynchronous Methods
+++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
+
+When :meth:`AsyncConnection.begin_sessionless_transaction()` is executed using
+a user-chosen or python-oracledb generated transaction identifier, a
+sessionless transaction is started. Once started, all the SQL statements are
+executed as a part of that sessionless transaction. Use
+:meth:`AsyncConnection.suspend_sessionless_transaction()` to explicitly
+suspend an active transaction once the database operations have been executed.
+This releases the connection which can be used by another user while the
+transaction remains open and can be resumed later by a connection using
+:meth:`AsyncConnection.resume_sessionless_transaction()`. The methods
+:meth:`AsyncConnection.commit()` and :meth:`AsyncConnection.rollback()` can be
+used to explicitly commit or roll back a transaction. For example:
+
+.. code-block:: python
+
+    async def main():
+        txn_id = b"new_sessionless_txn"
+        # Begin and suspend a sessionless transaction in a connection
+        async with oracledb.connect_async(user="hr", password=userpwd,
+                                          dsn="localhost/orclpdb") as connection1:
+            await connection1.begin_sessionless_transaction(transaction_id=txn_id, timeout=120)
+            await connection1.execute("INSERT INTO mytab (name) VALUES ('John')")
+            await connection1.suspend_sessionless_transaction()
+
+        # Resume the sessionless transaction in another connection
+        async with oracledb.connect_async(user="hr", password=userpwd,
+                                          dsn="localhost/orclpdb") as connection2:
+            await connection2.resume_sessionless_transaction(transaction_id=txn_id)
+            await connection2.commit()
+
 .. _pipelining:
 
 Pipelining Database Operations
@@ -313,9 +363,9 @@ Pipelined operations are executed sequentially by the database. They do not
 execute concurrently. It is local tasks that can be executed at the same time
 the database is working.
 
-Effective use of Oracle Database Pipelining can increase the responsiveness of
-an application and improve overall system throughput. Pipelining is useful when
-many small operations are being performed in rapid succession. It is most
+Effective use of Oracle Database Pipelining can increase the responsiveness
+of an application and improve overall system throughput. Pipelining is useful
+when many small operations are being performed in rapid succession. It is most
 beneficial when the network to the database is slow. This is because of its
 reduction in :ref:`round-trips <roundtrips>` compared with those required if
 the equivalent SQL statements were individually executed with calls like
@@ -331,7 +381,8 @@ about Oracle Database Pipelining.
 
 .. note::
 
-    True pipelining only occurs when you are connected to Oracle Database 23ai.
+    True pipelining only occurs when you are connected to Oracle AI Database
+    26ai, or later.
 
     When you connect to an older database, operations are sequentially
     executed by python-oracledb. Each operation concludes before the next is
@@ -388,14 +439,14 @@ operation. The objects contain information about the execution of the relevant
 operation, such as any error number, PL/SQL function return value, or any query
 rows and column metadata.
 
-
 The :attr:`Connection.call_timeout` value has no effect on pipeline operations.
 To limit the time for a pipeline, use an `asyncio timeout
 <https://docs.python.org/3/library/asyncio-task.html#timeouts>`__, available
 from Python 3.11.
 
 To tune fetching of rows with :meth:`Pipeline.add_fetchall()`, set
-:attr:`defaults.arraysize` or pass the ``arraysize`` parameter.
+:attr:`oracledb.defaults.arraysize <Defaults.arraysize>` or pass the
+``arraysize`` parameter.
 
 Pipelining Examples
 +++++++++++++++++++

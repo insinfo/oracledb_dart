@@ -3,7 +3,7 @@
 # -----------------------------------------------------------------------------
 
 # -----------------------------------------------------------------------------
-# Copyright (c) 2022, 2023, Oracle and/or its affiliates.
+# Copyright (c) 2022, 2025, Oracle and/or its affiliates.
 #
 # This software is dual-licensed to you under the Universal Permissive License
 # (UPL) 1.0 as shown at https://oss.oracle.com/licenses/upl and Apache License
@@ -28,13 +28,6 @@
 
 import os
 import sys
-
-# default values
-DEFAULT_MAIN_USER = "pythondemo"
-DEFAULT_EDITION_USER = "pythoneditions"
-DEFAULT_EDITION_NAME = "python_e1"
-DEFAULT_CONNECT_STRING = "localhost/orclpdb"
-DEFAULT_DRCP_CONNECT_STRING = "localhost/orclpdb:pooled"
 
 
 def run_sql_script(conn, script_name, **kwargs):

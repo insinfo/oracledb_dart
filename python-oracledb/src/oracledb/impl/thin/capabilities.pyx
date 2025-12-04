@@ -106,7 +106,8 @@ cdef class Capabilities:
                 TNS_CCAP_O7LOGON | TNS_CCAP_O8LOGON_LONG_IDENTIFIER | \
                 TNS_CCAP_O9LOGON_LONG_PASSWORD
         self.compile_caps[TNS_CCAP_FEATURE_BACKPORT] = \
-                TNS_CCAP_CTB_IMPLICIT_POOL
+                TNS_CCAP_CTB_IMPLICIT_POOL | \
+                TNS_CCAP_CTB_OAUTH_MSG_ON_ERR
         self.compile_caps[TNS_CCAP_FIELD_VERSION] = self.ttc_field_version
         self.compile_caps[TNS_CCAP_SERVER_DEFINE_CONV] = 1
         self.compile_caps[TNS_CCAP_DEQUEUE_WITH_SELECTOR] = 1
@@ -138,10 +139,11 @@ cdef class Capabilities:
                 TNS_CCAP_EXPLICIT_BOUNDARY
         self.compile_caps[TNS_CCAP_TTC5] = TNS_CCAP_VECTOR_SUPPORT | \
                 TNS_CCAP_TOKEN_SUPPORTED | TNS_CCAP_PIPELINING_SUPPORT | \
-                TNS_CCAP_PIPELINING_BREAK
+                TNS_CCAP_PIPELINING_BREAK | TNS_CCAP_TTC5_SESSIONLESS_TXNS
         self.compile_caps[TNS_CCAP_VECTOR_FEATURES] = \
                 TNS_CCAP_VECTOR_FEATURE_BINARY | \
                 TNS_CCAP_VECTOR_FEATURE_SPARSE
+        self.compile_caps[TNS_CCAP_OCI3] = TNS_CCAP_OCI3_OCSSYNC
 
     @cython.boundscheck(False)
     cdef void _init_runtime_caps(self):

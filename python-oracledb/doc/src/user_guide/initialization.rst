@@ -1,5 +1,7 @@
 .. _initialization:
 
+.. currentmodule:: oracledb
+
 ****************************
 Initializing python-oracledb
 ****************************
@@ -10,6 +12,15 @@ some :ref:`additional functionality <featuresummary>` is available when
 python-oracledb uses them.  Python-oracledb is said to be in 'Thick' mode when
 Oracle Client libraries are used.  Both modes have comprehensive functionality
 supporting the Python Database API v2.0 Specification.
+
+Most applications can use python-oracledb Thin mode. The common reasons to use
+Thick mode are:
+
+- Your Oracle Database is version 11, or older
+- Your database connections require :ref:`Native Network Encryption (NNE) or
+  checksumming <nne>`
+- You desire to use :ref:`Application Continuity (AC) or Transparent
+  Application Continuity (TAC) <appcont>`
 
 All connections in an application use the same mode.  See :ref:`vsessconinfo`
 to verify which mode is in use.
@@ -37,8 +48,8 @@ To change from the default python-oracledb Thin mode to Thick mode:
   - A full Oracle Client installation (installed by running the Oracle
     Universal installer ``runInstaller``)
 
-  - An Oracle Database installation, if Python is running on the same
-    machine as the database
+  - An Oracle Database installation, if Python is running on the same machine
+    as the database
 
   The Client library version does not always have to match the Oracle Database
   version.
@@ -102,15 +113,15 @@ More details and options are shown in the later sections:
   platform-specific instructions below or see :ref:`DPI-1047 <dpi1047>`.
   Alternatively, remove the call to :meth:`~oracledb.init_oracle_client()` and
   use Thin mode. The features supported by Thin mode can be found in
-  :ref:`driverdiff`.
+  :ref:`featuresummary`.
 
-- On any operating system, if you set ``lib_dir`` to the library directory of a
-  full database or full client installation (such as from running
-  ``runInstaller``), you will need to have previously set the Oracle environment,
-  for example by setting the ``ORACLE_HOME`` environment variable. Otherwise you
-  will get errors like ``ORA-1804``. You should set this variable, and other
-  Oracle environment variables, before starting Python, as shown in :ref:`Oracle
-  Environment Variables <envset>`.
+- On any operating system, if you set the ``lib_dir`` parameter to the library
+  directory of a full database or full client installation (such as from
+  running ``runInstaller``), you will need to have previously set the Oracle
+  environment, for example by setting the ``ORACLE_HOME`` environment
+  variable. Otherwise you will get errors like ``ORA-1804``. You should set
+  this variable, and other Oracle environment variables, before starting
+  Python, as shown in :ref:`Oracle Environment Variables <envset>`.
 
 - The :meth:`~oracledb.init_oracle_client()` function may be called multiple
   times in your application but must always pass the same arguments.
@@ -312,12 +323,13 @@ terminal.
 Explicitly Enabling python-oracledb Thin Mode
 =============================================
 
-Python-oracledb defaults to Thin mode after determining that Thick mode is not
-going to be used.  In one special case, you may wish to explicitly enable Thin
-mode to prevent Thick mode from being enabled later.
+Python-oracledb defaults to Thin mode but can be changed to use Thick mode. In
+one special case, you may wish to explicitly enable Thin mode by calling
+:meth:`oracledb.enable_thin_mode()` which will prevent Thick mode from ever
+being used. Most applications will not need to call this method.
 
 To allow application portability, the driver's internal logic allows
-applications to initally attempt :ref:`standalone connection
+applications to initially attempt :ref:`standalone connection
 <standaloneconnection>` creation in Thin mode, but then lets them :ref:`enable
 Thick mode <enablingthick>` if that connection is unsuccessful.  An example is
 when trying to connect to an Oracle Database that turns out to be an old
@@ -325,7 +337,8 @@ version that requires Thick mode.  This heuristic means Thin mode is not
 enforced until the initial connection is successful.  Since all connections
 must be the same mode, any second and subsequent concurrent Thin mode
 connection attempt will wait for the initial standalone connection to succeed,
-meaning the driver mode is no longer potentially changeable to Thick mode.
+meaning the driver mode is no longer potentially changeable to Thick mode, thus
+letting those additional connections be established in Thin mode.
 
 If you have multiple threads concurrently creating standalone Thin mode
 connections, you may wish to call :meth:`oracledb.enable_thin_mode()` as part
@@ -483,9 +496,9 @@ one wins):
       params = oracledb.ConnectParams(config_dir="/opt/oracle/config")
       connection = oracledb.connect(user="hr", password=userpwd, dsn="orclpdb", params=params)
 
-- the value of :attr:`defaults.config_dir`, which may have been set explicitly
-  to a directory, or internally set during initialization to ``$TNS_ADMIN`` or
-  ``$ORACLE_HOME/network/admin``.
+- the value of :attr:`oracledb.defaults.config_dir <Defaults.config_dir>`,
+  which may have been set explicitly to a directory, or internally set during
+  initialization to ``$TNS_ADMIN`` or ``$ORACLE_HOME/network/admin``.
 
   .. code-block:: python
 
@@ -618,7 +631,7 @@ The common environment variables listed below are supported in python-oracledb.
     * - NLS_LANG
       - Determines the 'national language support' globalization options for python-oracledb.
 
-        Note that from cx_Oracle 8, the character set component is ignored and only the language and territory components of ``NLS_LANG`` are used. The character set can instead be specified during connection or connection pool creation. See :ref:`globalization`.
+        Note that the character set component is ignored and only the language and territory components of ``NLS_LANG`` are used. The character set can instead be specified during connection or connection pool creation. See :ref:`globalization`.
       - Thick
     * - ORA_SDTZ
       - The default session time zone.
@@ -659,8 +672,8 @@ setting the parameters is:
 
 The convention for ``driver_name`` is to separate the product name from the
 product version by a colon and single blank characters.  The value will be
-shown in Oracle Database views like V$SESSION_CONNECT_INFO.  If this
-parameter is not specified, then the value specified in the
+shown in Oracle Database views like V$SESSION_CONNECT_INFO.  If this parameter
+is not specified, then the value specified in the
 :attr:`oracledb.defaults.driver_name <defaults.driver_name>` attribute is used.
 If the value of this attribute is None, then a value like
 ``python-oracledb thk : 3.0.0`` is shown, see :ref:`vsessconinfo`.
@@ -700,3 +713,23 @@ V$SESSION_CONNECT_INFO and verifying if the value of the column begins with the
 text ``python-oracledb thn``. See :ref:`vsessconinfo`.
 
 Note all connections in a python-oracledb application must use the same mode.
+
+.. _settingdefaults:
+
+Changing python-oracledb Default Settings
+=========================================
+
+Python-oracledb has a singleton :ref:`Defaults <defaults>` object with
+attributes that set default behaviors of the driver. The object is accessed
+using the :data:`defaults` attribute of the imported driver.
+
+For example, to return queried LOB columns directly as strings or bytes:
+
+.. code-block:: python
+
+    import oracledb
+
+    oracledb.defaults.fetch_lobs = False
+
+
+See :ref:`defaultsattributes` for the attributes that can be set.

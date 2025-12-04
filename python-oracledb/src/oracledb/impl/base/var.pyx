@@ -252,22 +252,10 @@ cdef class BaseVarImpl:
         Creates an Arrow array based on the type information selected by the
         user.
         """
-        cdef ArrowTimeUnit time_unit = NANOARROW_TIME_UNIT_SECOND
-        self.metadata._set_arrow_type()
-        if self.metadata._arrow_type == NANOARROW_TYPE_TIMESTAMP:
-            if self.metadata.scale > 0 and self.metadata.scale <= 3:
-                time_unit = NANOARROW_TIME_UNIT_MILLI
-            elif self.metadata.scale > 3 and self.metadata.scale <= 6:
-                time_unit = NANOARROW_TIME_UNIT_MICRO
-            elif self.metadata.scale > 6 and self.metadata.scale <= 9:
-                time_unit = NANOARROW_TIME_UNIT_NANO
-        self._arrow_array = OracleArrowArray(
-            arrow_type=self.metadata._arrow_type,
-            name=self.metadata.name,
-            precision=self.metadata.precision,
-            scale=self.metadata.scale,
-            time_unit=time_unit,
-        )
+        if self.metadata._schema_impl is None:
+            self.metadata._create_arrow_schema()
+        self._arrow_array = ArrowArrayImpl.__new__(ArrowArrayImpl)
+        self._arrow_array.populate_from_schema(self.metadata._schema_impl)
 
     cdef int _finalize_init(self) except -1:
         """
@@ -278,13 +266,13 @@ cdef class BaseVarImpl:
             self.num_elements = 1
         self._has_returned_data = False
 
-    cdef OracleArrowArray _finish_building_arrow_array(self):
+    cdef ArrowArrayImpl _finish_building_arrow_array(self):
         """
         Finish building the Arrow array associated with the variable and then
         return that array (after clearing it in the variable so that a new
         array will be built if more rows are fetched).
         """
-        cdef OracleArrowArray array = self._arrow_array
+        cdef ArrowArrayImpl array = self._arrow_array
         array.finish_building()
         self._arrow_array = None
         return array
@@ -321,7 +309,8 @@ cdef class BaseVarImpl:
         """
         raise NotImplementedError()
 
-    cdef int _on_reset_bind(self, uint32_t num_rows) except -1:
+    cdef int _on_reset_bind(self, uint64_t array_offset,
+                            uint32_t num_rows) except -1:
         """
         Called when the bind variable is being reset, just prior to performing
         a bind operation.

@@ -1,5 +1,5 @@
 # -----------------------------------------------------------------------------
-# Copyright (c) 2024, Oracle and/or its affiliates.
+# Copyright (c) 2024, 2025, Oracle and/or its affiliates.
 #
 # This software is dual-licensed to you under the Universal Permissive License
 # (UPL) 1.0 as shown at https://oss.oracle.com/licenses/upl and Apache License
@@ -32,18 +32,16 @@
 import array
 from typing import Union
 
+from .base import BaseMetaClass
 from .base_impl import get_array_type_code_uint32, SparseVectorImpl
-from . import __name__ as MODULE_NAME
 
 ARRAY_TYPE_CODE_UINT32 = get_array_type_code_uint32()
 
 
-class SparseVector:
+class SparseVector(metaclass=BaseMetaClass):
     """
     Provides information about sparse vectors.
     """
-
-    __module__ = MODULE_NAME
 
     def __init__(
         self,
@@ -51,6 +49,17 @@ class SparseVector:
         indices: Union[list, array.array],
         values: Union[list, array.array],
     ):
+        """
+        Creates and returns a :ref:`SparseVector object <sparsevectorsobj>`.
+
+        The ``num_dimensions`` parameter is the number of dimensions contained
+        in the vector.
+
+        The ``indices`` parameter is the indices (zero-based) of non-zero
+        values in the vector.
+
+        The ``values`` parameter is the non-zero values stored in the vector.
+        """
         if (
             not isinstance(indices, array.array)
             or indices.typecode != ARRAY_TYPE_CODE_UINT32
@@ -65,8 +74,9 @@ class SparseVector:
         )
 
     def __repr__(self):
+        cls_name = self.__class__._public_name
         return (
-            f"{MODULE_NAME}.{self.__class__.__name__}({self.num_dimensions}, "
+            f"{cls_name}({self.num_dimensions}, "
             f"{self.indices}, {self.values})"
         )
 

@@ -284,15 +284,26 @@ cdef class ConnectParamsImpl:
         Gets the expiry date from the token.
         """
         cdef:
-            str header_seg
-            dict header
-            int num_pad
-        header_seg = token.split(".")[1]
-        num_pad = len(header_seg) % 4
-        if num_pad != 0:
-            header_seg += '=' * num_pad
-        header = json.loads(base64.b64decode(header_seg))
-        return datetime.datetime.utcfromtimestamp(header["exp"])
+            str payload_segment
+            dict payload
+            int pad_needed
+        payload_segment = token.split(".")[1]
+        pad_needed = len(payload_segment) % 4
+        if pad_needed != 0:
+            payload_segment += '=' * (4 - pad_needed)
+        payload = json.loads(base64.urlsafe_b64decode(payload_segment))
+        return datetime.datetime.utcfromtimestamp(payload["exp"])
+
+    cdef bint _get_uses_drcp(self):
+        """
+        Returns a boolean indicating if any of the descriptions associated with
+        the parameters make use of DRCP.
+        """
+        cdef Description description
+        for description in self.description_list.children:
+            if description.server_type == "pooled":
+                return True
+        return False
 
     cdef str _get_wallet_password(self):
         """
@@ -698,12 +709,17 @@ cdef class Address(ConnectParamsNode):
         """
         Resolve the host name associated with the address and store the IP
         address and family on the address. If multiple IP addresses are found,
-        duplicate the address and return one address for each IP address.
+        duplicate the address and return one address for each IP address. If a
+        proxy is being used, ensure that the proxy performs name resolution
+        instead.
         """
         cdef:
             list results = []
             Address address
             object info
+        if self.https_proxy is not None:
+            self.ip_address = self.host
+            return [self]
         for info in socket.getaddrinfo(self.host, self.port,
                                        proto=socket.IPPROTO_TCP,
                                        type=socket.SOCK_STREAM):
@@ -756,9 +772,10 @@ cdef class AddressList(ConnectParamsNode):
         cdef:
             list addresses = []
             Address address
-        for address in children:
+        ConnectParamsNode._set_active_children(self, children)
+        for address in self.active_children:
             addresses.extend(address.resolve_host_name())
-        ConnectParamsNode._set_active_children(self, addresses)
+        self.active_children = addresses
 
     cdef bint _uses_tcps(self):
         """
@@ -891,6 +908,8 @@ cdef class Description(ConnectParamsNode):
         else:
             if self.cclass is not None:
                 temp_parts.append(f"(POOL_CONNECTION_CLASS={self.cclass})")
+            if self.pool_name is not None:
+                temp_parts.append(f"(POOL_NAME={self.pool_name})")
             if self.purity == PURITY_SELF:
                 temp_parts.append(f"(POOL_PURITY=SELF)")
             elif self.purity == PURITY_NEW:
@@ -945,6 +964,7 @@ cdef class Description(ConnectParamsNode):
         description.cclass = self.cclass
         description.connection_id_prefix = self.connection_id_prefix
         description.pool_boundary = self.pool_boundary
+        description.pool_name = self.pool_name
         description.purity = self.purity
         description.ssl_server_dn_match = self.ssl_server_dn_match
         description.use_tcp_fast_open = self.use_tcp_fast_open
@@ -979,6 +999,7 @@ cdef class Description(ConnectParamsNode):
         _set_str_param(args, "cclass", self)
         _set_enum_param(args, "purity", ENUM_PURITY, &self.purity)
         _set_str_param(args, "pool_boundary", self)
+        _set_str_param(args, "pool_name", self)
         _set_str_param(args, "connection_id_prefix", self)
         _set_bool_param(args, "use_tcp_fast_open", &self.use_tcp_fast_open)
         extra_args = args.get("extra_connect_data_args")

@@ -94,6 +94,7 @@ cdef class ThickVarImpl(BaseVarImpl):
         """
         Internal method that finalizes initialization of the variable.
         """
+        cdef uint32_t i
         BaseVarImpl._finalize_init(self)
         if self.metadata.dbtype._native_num in (
             DPI_NATIVE_TYPE_LOB,
@@ -120,8 +121,12 @@ cdef class ThickVarImpl(BaseVarImpl):
             ThickCursorImpl cursor_impl
             object cursor
         cursor = self._values[pos]
-        if cursor is None:
-            cursor = self._conn.cursor()
+        if cursor is not None:
+            cursor_impl = <ThickCursorImpl> cursor._impl
+            if cursor_impl._handle == dbvalue.asStmt:
+                cursor_impl._fixup_ref_cursor = True
+                return cursor
+        cursor = self._conn.cursor()
         cursor_impl = <ThickCursorImpl> cursor._impl
         if dpiStmt_addRef(dbvalue.asStmt) < 0:
             _raise_from_odpi()
@@ -195,7 +200,8 @@ cdef class ThickVarImpl(BaseVarImpl):
             self._values[pos] = value
         return value
 
-    cdef int _on_reset_bind(self, uint32_t num_rows) except -1:
+    cdef int _on_reset_bind(self, uint64_t array_offset,
+                            uint32_t num_rows) except -1:
         """
         Called when the bind variable is being reset, just prior to performing
         a bind operation.
@@ -203,7 +209,10 @@ cdef class ThickVarImpl(BaseVarImpl):
         cdef:
             dpiStmtInfo stmt_info
             uint32_t i
-        BaseVarImpl._on_reset_bind(self, num_rows)
+        BaseVarImpl._on_reset_bind(self, array_offset, num_rows)
+        if self._arrow_array is not None:
+            for i in range(num_rows):
+                self._transform_element_from_arrow(array_offset, i)
         if self.metadata.dbtype.num == DB_TYPE_NUM_CURSOR:
             for i in range(self.num_elements):
                 if self._data[i].isNull:
@@ -348,6 +357,68 @@ cdef class ThickVarImpl(BaseVarImpl):
             cpython.PyList_SET_ITEM(return_value, i, element_value)
         return return_value
 
+    cdef int _transform_element_from_arrow(self, uint64_t offset,
+                                           uint32_t pos):
+        """
+        Transforms a single element from an Arrow array to the value required
+        by ODPI-C.
+        """
+        cdef:
+            dpiData *data = &self._data[pos]
+            dpiTimestamp *timestamp
+            uint32_t ora_type_num
+            OracleData ora_data
+            object value
+        value = convert_arrow_to_oracle_data(self.metadata, &ora_data,
+                                             self._arrow_array,
+                                             <int64_t> (offset + pos))
+        data.isNull = ora_data.is_null
+        if not ora_data.is_null:
+            ora_type_num = self.metadata.dbtype.num
+            if ora_type_num == DPI_ORACLE_TYPE_NATIVE_DOUBLE:
+                data.value.asDouble = ora_data.buffer.as_double
+            elif ora_type_num == DPI_ORACLE_TYPE_NATIVE_FLOAT:
+                data.value.asFloat = ora_data.buffer.as_float
+            elif ora_type_num == DPI_ORACLE_TYPE_BOOLEAN:
+                data.value.asBoolean = ora_data.buffer.as_bool
+            elif ora_type_num in (
+                DPI_ORACLE_TYPE_CHAR,
+                DPI_ORACLE_TYPE_LONG_NVARCHAR,
+                DPI_ORACLE_TYPE_LONG_VARCHAR,
+                DPI_ORACLE_TYPE_LONG_RAW,
+                DPI_ORACLE_TYPE_NCHAR,
+                DPI_ORACLE_TYPE_NUMBER,
+                DPI_ORACLE_TYPE_NVARCHAR,
+                DPI_ORACLE_TYPE_RAW,
+                DPI_ORACLE_TYPE_VARCHAR,
+            ):
+                if dpiVar_setFromBytes(
+                    self._handle,
+                    pos,
+                    <const char*> ora_data.buffer.as_raw_bytes.ptr,
+                    ora_data.buffer.as_raw_bytes.num_bytes
+                ) < 0:
+                    _raise_from_odpi()
+            elif ora_type_num in (
+                DPI_ORACLE_TYPE_DATE,
+                DPI_ORACLE_TYPE_TIMESTAMP,
+                DPI_ORACLE_TYPE_TIMESTAMP_LTZ,
+                DPI_ORACLE_TYPE_TIMESTAMP_TZ,
+            ):
+                timestamp = &data.value.asTimestamp
+                memset(timestamp, 0, sizeof(data.value.asTimestamp))
+                timestamp.year = cydatetime.PyDateTime_GET_YEAR(value)
+                timestamp.month = cydatetime.PyDateTime_GET_MONTH(value)
+                timestamp.day = cydatetime.PyDateTime_GET_DAY(value)
+                timestamp.hour = cydatetime.PyDateTime_DATE_GET_HOUR(value)
+                timestamp.minute = cydatetime.PyDateTime_DATE_GET_MINUTE(value)
+                timestamp.second = cydatetime.PyDateTime_DATE_GET_SECOND(value)
+                timestamp.fsecond = \
+                        cydatetime.PyDateTime_DATE_GET_MICROSECOND(value) * 1000
+            elif ora_type_num == DPI_ORACLE_TYPE_VECTOR:
+                _convert_from_python(value, self.metadata, &data.value,
+                                     None)
+
     cdef int _transform_element_to_arrow(self, uint32_t pos):
         """
         Transforms a single element from the value supplied by ODPI-C to its
@@ -355,35 +426,35 @@ cdef class ThickVarImpl(BaseVarImpl):
         """
         cdef:
             dpiData *data = &self._data[pos]
-            uint32_t ora_type_num
+            uint32_t native_type_num
+            OracleNumber *as_number
             OracleData ora_data
             dpiBytes *as_bytes
+            object vector
         ora_data.is_null = data.isNull
         if not data.isNull:
-            ora_type_num = self._fetch_metadata.dbtype.num
-            if ora_type_num == DPI_ORACLE_TYPE_NATIVE_DOUBLE:
-                ora_data.buffer.as_double = data.value.asDouble
-            elif ora_type_num == DPI_ORACLE_TYPE_NATIVE_FLOAT:
+            native_type_num = self.metadata.dbtype._native_num
+            if native_type_num == DPI_NATIVE_TYPE_FLOAT:
                 ora_data.buffer.as_float = data.value.asFloat
-            elif ora_type_num == DPI_ORACLE_TYPE_BOOLEAN:
+            elif native_type_num == DPI_NATIVE_TYPE_DOUBLE:
+                ora_data.buffer.as_double = data.value.asDouble
+            elif native_type_num == DPI_NATIVE_TYPE_BOOLEAN:
                 ora_data.buffer.as_bool = data.value.asBoolean
-            elif ora_type_num in (
-                DPI_ORACLE_TYPE_CHAR,
-                DPI_ORACLE_TYPE_LONG_VARCHAR,
-                DPI_ORACLE_TYPE_LONG_RAW,
-                DPI_ORACLE_TYPE_RAW,
-                DPI_ORACLE_TYPE_VARCHAR,
-            ):
+            elif native_type_num == DPI_NATIVE_TYPE_BYTES:
                 as_bytes = &data.value.asBytes;
-                ora_data.buffer.as_raw_bytes.ptr = \
-                        <const char_type *> as_bytes.ptr;
-                ora_data.buffer.as_raw_bytes.num_bytes = as_bytes.length;
-            elif ora_type_num in (
-                DPI_ORACLE_TYPE_DATE,
-                DPI_ORACLE_TYPE_TIMESTAMP,
-                DPI_ORACLE_TYPE_TIMESTAMP_LTZ,
-                DPI_ORACLE_TYPE_TIMESTAMP_TZ,
-            ):
+                if self._fetch_metadata.dbtype.num == DPI_ORACLE_TYPE_NUMBER:
+                    as_number = &ora_data.buffer.as_number
+                    as_number.is_max_negative_value = 0;
+                    as_number.is_integer = \
+                            memchr(as_bytes.ptr, b'.', as_bytes.length) == NULL;
+                    memcpy(as_number.chars, as_bytes.ptr, as_bytes.length)
+                    as_number.chars[as_bytes.length] = 0
+                    as_number.num_chars = as_bytes.length
+                else:
+                    ora_data.buffer.as_raw_bytes.ptr = \
+                            <const char_type *> as_bytes.ptr;
+                    ora_data.buffer.as_raw_bytes.num_bytes = as_bytes.length;
+            elif native_type_num == DPI_NATIVE_TYPE_TIMESTAMP:
                 ora_data.buffer.as_date.year = data.value.asTimestamp.year;
                 ora_data.buffer.as_date.month = data.value.asTimestamp.month;
                 ora_data.buffer.as_date.day = data.value.asTimestamp.day;
@@ -396,7 +467,7 @@ cdef class ThickVarImpl(BaseVarImpl):
                         data.value.asTimestamp.tzHourOffset;
                 ora_data.buffer.as_date.tz_minute_offset = \
                         data.value.asTimestamp.tzMinuteOffset;
-            elif ora_type_num == DPI_ORACLE_TYPE_INTERVAL_DS:
+            elif native_type_num == DPI_NATIVE_TYPE_INTERVAL_DS:
                 ora_data.buffer.as_interval_ds.days = \
                         data.value.asIntervalDS.days;
                 ora_data.buffer.as_interval_ds.hours = \
@@ -407,19 +478,14 @@ cdef class ThickVarImpl(BaseVarImpl):
                         data.value.asIntervalDS.seconds;
                 ora_data.buffer.as_interval_ds.fseconds = \
                         data.value.asIntervalDS.fseconds;
-            elif ora_type_num == DPI_ORACLE_TYPE_INTERVAL_YM:
+            elif native_type_num == DPI_NATIVE_TYPE_INTERVAL_YM:
                 ora_data.buffer.as_interval_ym.years = \
                         data.value.asIntervalYM.years;
                 ora_data.buffer.as_interval_ym.months = \
                         data.value.asIntervalYM.months;
-            elif ora_type_num == DPI_ORACLE_TYPE_NUMBER:
-                as_bytes = &data.value.asBytes;
-                ora_data.buffer.as_number.is_max_negative_value = 0;
-                ora_data.buffer.as_number.is_integer = \
-                        memchr(as_bytes.ptr, b'.', as_bytes.length) == NULL;
-                memcpy(ora_data.buffer.as_number.chars, as_bytes.ptr,
-                        as_bytes.length);
-                ora_data.buffer.as_number.num_chars = as_bytes.length;
+            elif native_type_num == DPI_NATIVE_TYPE_VECTOR:
+                vector = _convert_vector_to_python(data.value.asVector)
+                return convert_vector_to_arrow(self._arrow_array, vector)
             else:
                 errors._raise_err(errors.ERR_DB_TYPE_NOT_SUPPORTED,
                                   name=self._fetch_metadata.dbtype.name)

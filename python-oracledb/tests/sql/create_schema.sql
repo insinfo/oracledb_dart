@@ -153,6 +153,25 @@ create or replace type &main_user..udt_XmlTypeArray
 as table of sys.xmltype;
 /
 
+create or replace type &main_user..udt_TableOfNumber as table of number;
+/
+
+create or replace type &main_user..udt_TableOfTableOfNumber
+as table of &main_user..udt_TableOfNumber;
+/
+
+create or replace type &main_user..udt_VarrayOfTableOfNumber
+as varray(5) of &main_user..udt_TableOfNumber;
+/
+
+create or replace type &main_user..udt_VarrayOfNumber
+as varray(5) of number;
+/
+
+create or replace type &main_user..udt_TableOfVarrayOfNumber
+as table of &main_user..udt_VarrayOfNumber;
+/
+
 -- create tables
 create table &main_user..TestNumbers (
     IntCol                              number(9) not null,
@@ -355,6 +374,7 @@ create table &main_user..TestAllTypes (
     IntValue                            integer,
     SmallIntValue                       smallint,
     RealValue                           real,
+    DecimalValue                        number(20, 6),
     DoublePrecisionValue                double precision,
     FloatValue                          float,
     BinaryFloatValue                    binary_float,
@@ -388,7 +408,25 @@ create table &main_user..TestDataframe (
     DateOfBirth                         date,
     Salary                              number(9, 2),
     CreditScore                         number(3, 0),
-    LastUpdated                         timestamp
+    LastUpdated                         timestamp,
+    DecimalData                         number(15, 4),
+    IntegerData                         number(15),
+    LongIntegerData                     number(38),
+    FloatData                           binary_float,
+    DoubleData                          binary_double,
+    RawData                             raw(100),
+    LongData                            clob,
+    LongRawData                         blob
+)
+/
+
+create table &main_user..NestedCollectionTests (
+    Id                    number(9),
+    TableCol              &main_user..udt_TableOfTableOfNumber,
+    VarrayCol             &main_user..udt_VarrayOfTableOfNumber
+)
+nested table TableCol store as NestedCollectionTests_nt (
+    nested table column_value store as NestedCollectionTests_nti
 )
 /
 
@@ -624,10 +662,6 @@ insert into &main_user..TestObjects values (3,
 
 insert into &main_user..TestJsonCols values (1,
     '[1, 2, 3]', '[4, 5, 6]', utl_raw.cast_to_raw('[7, 8, 9]'))
-/
-
-insert into &main_user..TestJsonCols values (2,
-    'null', empty_clob(), empty_blob())
 /
 
 commit
@@ -1357,6 +1391,46 @@ create or replace package body &main_user..pkg_TestNestedRecords as
 end;
 /
 
+create or replace package &main_user..pkg_NestedTable as
+
+    function GetTableOfNumber
+    return udt_TableOfNumber;
+
+    function GetTableOfVarrayOfNumber
+    return udt_TableOfVarrayOfNumber;
+
+    function GetVarrayOfNumber
+    return udt_VarrayOfNumber;
+
+end;
+/
+
+create or replace package body &main_user..pkg_NestedTable as
+
+    function GetTableOfNumber
+    return udt_TableOfNumber is
+    begin
+        return udt_TableOfNumber(15, 25, 35, 45);
+    end;
+
+    function GetTableOfVarrayOfNumber
+    return udt_TableOfVarrayOfNumber is
+    begin
+        return udt_TableOfVarrayOfNumber(
+            udt_VarrayOfNumber(10, 20),
+            udt_VarrayOfNumber(30, 40)
+        );
+    end;
+
+    function GetVarrayOfNumber
+    return udt_VarrayOfNumber is
+    begin
+        return udt_VarrayOfNumber(10, 20, 30);
+    end;
+
+end;
+/
+
 create or replace package &main_user..pkg_SessionCallback as
 
     procedure TheCallback (
@@ -1485,6 +1559,11 @@ create or replace package &main_user..pkg_TestLOBs as
         a_ReplaceValue                  varchar2
     );
 
+    function GetLOB (
+        a_Num                           number,
+        a_Format                        varchar2
+    ) return clob;
+
 end;
 /
 
@@ -1515,6 +1594,14 @@ create or replace package body &main_user..pkg_TestLOBs as
         if a_SearchValue is not null then
             a_CLOB := replace(a_CLOB, a_SearchValue, a_ReplaceValue);
         end if;
+    end;
+
+    function GetLOB (
+        a_Num                           number,
+        a_Format                        varchar2
+    ) return clob is
+    begin
+        return to_clob(replace(a_Format, '{}', to_char(a_Num)));
     end;
 
 end;

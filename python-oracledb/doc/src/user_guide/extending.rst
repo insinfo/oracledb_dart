@@ -1,5 +1,7 @@
 .. _extendingpython-oracledb:
 
+.. currentmodule:: oracledb
+
 *************************
 Extending python-oracledb
 *************************
@@ -16,7 +18,7 @@ Subclassing Connections
 =======================
 
 Subclassing enables applications to change python-oracledb, for example by
-extending connection and statement execution behvior. This can be used to
+extending connection and statement execution behavior. This can be used to
 alter, or log, connection and execution parameters, or to further change
 python-oracledb functionality.
 
@@ -70,7 +72,7 @@ instead::
                 select department_name
                 from departments
                 where department_id = :id
-    ORA-00942: table or view does not exist
+    ORA-00942: table or view "HR"."DEPARTMENTS" does not exist
 
 In production applications, be careful not to log sensitive information.
 
@@ -135,16 +137,15 @@ packages, you can create a `namespace package <https://packaging.python.org/en
 can distribute plugin packages either internally within your organization, or
 on a package repository such as `PyPI <https://pypi.org/>`__.
 
+**Example 1**
+
 The following example creates a plugin that uses a :ref:`connection protocol
 hook function <registerprotocolhook>` to do special processing of connection
 strings prefixed with "myprefix://".
 
-1. In a terminal or IDE, create a working directory, for example ``myplugin``.
-   Inside the working directory create the subdirectory hierarchy
-   ``src/oracledb/plugins/``::
+1. In a terminal or IDE, create a working directory, for example ``myplugin``::
 
     mkdir myplugin
-    mkdir -p myplugin/src/oracledb/plugins
 
 2. In the ``myplugin`` directory, create the following files:
 
@@ -174,11 +175,19 @@ strings prefixed with "myprefix://".
            zip_safe = False
            package_dir =
                =src
+           install_requires = oracledb
 
            [options.packages.find]
            where = src
 
-3. Create the plugin code in ``myplugin/src/oracledb/plugins/myplugin.py``:
+3. In the ``myplugin`` directory, create the subdirectory hierarchy
+   ``src/oracledb/plugins/``:
+
+   .. code-block:: shell
+
+        mkdir -p src/oracledb/plugins
+
+4. Create the plugin's code in ``myplugin/src/oracledb/plugins/myplugin.py``:
 
   .. code-block:: python
 
@@ -190,25 +199,32 @@ strings prefixed with "myprefix://".
 
         oracledb.register_protocol("myprefix", myhookfunc)
 
+5. In the ``myplugin`` directory, build the sample package:
 
-4. Build the sample package::
+   .. code-block:: shell
 
-        cd myplugin
         python -m pip install build
         python -m build
 
-5. Install the sample package::
+   This creates your plugin package wheel in the ``dist`` subdirectory with a
+   name like ``myplugin-1.0.0-py3-none-any.whl``. You can distribute and
+   install this package.
+
+6. Install the sample package:
+
+   .. code-block:: shell
 
         python -m pip install dist/myplugin-1.0.0-py3-none-any.whl
 
-6. To show the plugin being used, create an application file containing:
+7. To show the plugin in use, create an application file in a working directory
+   containing:
 
    .. code-block:: python
 
         import oracledb
         import oracledb.plugins.myplugin
 
-        cs = 'myprefix://localhost/orclpdb1'
+        cs = "myprefix://localhost/orclpdb"
 
         cp = oracledb.ConnectParams()
         cp.parse_connect_string(cs)
@@ -217,12 +233,41 @@ strings prefixed with "myprefix://".
 
    Running this will print::
 
-        In myhookfunc: protocol=myprefix arg=localhost/orclpdb1
-        host=localhost, port=1521, service name=orclpdb1
+        In myhookfunc: protocol=myprefix arg=localhost/orclpdb
+        host=localhost, port=1521, service name=orclpdb
 
-7. To uninstall the plugin, simply remove the packge::
+8. To uninstall the plugin, remove the package:
+
+   .. code-block:: shell
 
        python -m pip uninstall myplugin
+
+**Example 2**
+
+The following sample plugin shows how all connection creations can be logged,
+regardless of the connection string. If the plugin
+``myplugin/src/oracledb/plugins/myplugin.py`` created above contained code to
+register a :ref:`connection parameter hook <paramshook>`:
+
+.. code-block:: python
+
+    import oracledb
+
+    def my_params_hook(params: oracledb.ConnectParams):
+        print(f"Connecting to the database as {params.user}")
+
+    oracledb.register_params_hook(my_params_hook)
+
+Then running an application that contains:
+
+.. code-block:: python
+
+    connection = oracledb.connect(user="hr", password=userpwd,
+                                  dsn="dbhost.example.com/orclpdb")
+
+will print the trace output::
+
+    Connecting to the database as hr
 
 .. _connectionhooks:
 

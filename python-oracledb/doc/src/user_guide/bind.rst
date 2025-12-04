@@ -1,12 +1,14 @@
 .. _bind:
 
+.. currentmodule:: oracledb
+
 ********************
 Using Bind Variables
 ********************
 
-SQL and PL/SQL statements that pass data to and from Oracle Database should use
-placeholders in SQL and PL/SQL statements that mark where data is supplied or
-returned.  A bind variable placeholder is a colon-prefixed identifier or
+SQL and PL/SQL statements that pass data to and from Oracle Database should
+use placeholders in SQL and PL/SQL statements that mark where data is supplied
+or returned.  A bind variable placeholder is a colon-prefixed identifier or
 numeral. For example, ``:dept_id`` and ``:dept_name`` are the two bind variable
 placeholders in this SQL statement:
 
@@ -29,7 +31,7 @@ more than once with different data values.  If you do not use bind variables,
 Oracle must reparse and cache multiple statements.  When using bind variables,
 Oracle Database may be able to reuse the statement execution plan and context.
 
-.. warning::
+.. important::
 
     Never concatenate or interpolate user data into SQL statements:
 
@@ -146,14 +148,36 @@ Python tuples can also be used for binding by position:
 If only a single bind placeholder is used in the SQL or PL/SQL statement, the
 data can be a list like ``[280]`` or a single element tuple like ``(280,)``.
 
-When using bind by position for SQL statements, the order of the bind values
-must exactly match the order of each bind variable and duplicated names must
-have their values repeated. For PL/SQL statements, however, the order of the
-bind values must exactly match the order of each **unique** bind variable found
-in the PL/SQL block and values should not be repeated. In order to avoid this
-difference, binding by name is recommended when bind variable names are
+.. _dupbindplaceholders:
+
+Duplicate Bind Variable Placeholders
+====================================
+
+:ref:`Binding by name <bindbyname>` is recommended when bind variable
+placeholder names are repeated in statements.
+
+In python-oracledb Thin mode, when :ref:`binding by position <bindbyposition>`
+for SQL statements, the order of the bind values must exactly match the order
+of each bind variable placeholder and duplicated names must have their values
+repeated:
+
+.. code-block:: python
+
+    cursor.execute("""
+            select dname from dept1 where deptno = :1
+            union all
+            select dname from dept2 where deptno = :1 = """, [30, 30])
+
+In some cases python-oracledb Thick mode may allow non-duplicated values for
+SQL statements, but this usage is not consistent and is not recommended. It
+will result in an error in python-oracledb Thin mode.
+
+When binding by position for PL/SQL calls in python-oracledb Thin or Thick
+modes, the order of the bind values must exactly match the order of each
+**unique** placeholder found in the PL/SQL block and values should not be
 repeated.
 
+Binding by name does not have these issues.
 
 Bind Direction
 ==============
@@ -772,9 +796,9 @@ unexpected values or the Python application segfaulting.
 Binding Spatial Data Types
 ==========================
 
-Oracle Spatial data types objects can be represented by Python objects and their
-attribute values can be read and updated. The objects can further be bound and
-committed to database. This is similar to the examples above.
+Oracle Spatial data types objects can be represented by Python objects and
+their attribute values can be read and updated. The objects can further be
+bound and committed to database. This is similar to the examples above.
 
 An example of fetching SDO_GEOMETRY is in :ref:`Oracle Database Objects and
 Collections <fetchobjects>`.
@@ -823,16 +847,16 @@ will accept them but there will be no processing benefit.
 It is not uncommon for SQL statements to have low hundreds of
 versions. Sometimes this is expected and not a result of any issue. To
 determine the reason, find the SQL identifier of the statement and then query
-the Oracle Database view `V$SQL_SHARED_CURSOR <https://docs.oracle.com/en/
-database/oracle/oracle-database/23/refrn/V-SQL_SHARED_CURSOR.html>`__.
+the Oracle Database view `V$SQL_SHARED_CURSOR <https://www.oracle.com/pls/
+topic/lookup?ctx=dblatest&id=GUID-4993A6DE-5658-4745-B43E-F5AD9DB8DCCC>`__.
 
 The SQL identifier of a statement can be found in Oracle Database views like
-`V$SQLAREA <https://docs.oracle.com/en/database/oracle/oracle-database/23/
-refrn/V-SQLAREA.html>`__ after you have run a statement, or you can find it
-*before* you execute the statement by using the `DBMS_SQL_TRANSLATOR.SQL_ID()
-<https://www.oracle.com/pls/topic/lookup?ctx=dblatest&id=GUID-DFFB611B-853A-
-434E-808D-D713671C3AA4>`__ function. Make sure to pass in exactly the same SQL
-text, including the same whitespace:
+`V$SQLAREA <https://www.oracle.com/pls/topic/lookup?ctx=dblatest&id=GUID-
+09D5169F-EE9E-4297-8E01-8D191D87BDF7>`__ after you have run a statement, or you
+can find it *before* you execute the statement by using the
+`DBMS_SQL_TRANSLATOR.SQL_ID() <https://www.oracle.com/pls/topic/lookup?ctx=
+dblatest&id=GUID-DFFB611B-853A-434E-808D-D713671C3AA4>`__ function. Make sure
+to pass in exactly the same SQL text, including the same whitespace:
 
 .. code-block:: python
 
@@ -989,8 +1013,8 @@ This will produce the same output as the original example.
 
 Reusing the same SQL statement like this for a variable number of values,
 instead of constructing a unique statement per set of values, allows best reuse
-of Oracle Database resources. Additionally, if a statement with a large number
-of bind variable placeholders is executed many times with varying string
+of Oracle Database resources. Additionally, if a statement with a large
+number of bind variable placeholders is executed many times with varying string
 lengths for each execution, then consider using :func:`Cursor.setinputsizes()`
 to reduce Oracle Database's SQL ":ref:`version count <sqlversioncount>`" for
 the statement. For example, if the columns are VARCHAR2(25), then add this
@@ -1032,10 +1056,10 @@ be dynamically built:
 Binding a Large Number of Items in an IN List
 ---------------------------------------------
 
-The number of items in an IN list is limited to 65535 in Oracle Database 23ai,
-and to 1000 in earlier versions. If you exceed the limit, the database will
-return an error like ``ORA-01795: maximum number of expressions in a list is
-65535``.
+The number of items in an IN list is limited to 65535 in Oracle Database
+version 23, and to 1000 in earlier versions. If you exceed the limit, the
+database will return an error like ``ORA-01795: maximum number of expressions
+in a list is 65535``.
 
 To use more values in the IN clause list, you can add OR clauses like:
 
@@ -1055,8 +1079,8 @@ The best way to do the '<something that returns a list of values>' depends on
 how the data is initially represented and the number of items. For example you
 might look at using a global temporary table.
 
-One method for large IN lists is to use an Oracle Database collection with the
-``TABLE()`` clause. For example, if the following type was created::
+One method for large IN lists is to use an Oracle Database collection with
+the ``TABLE()`` clause. For example, if the following type was created::
 
     SQL> CREATE OR REPLACE TYPE name_array AS TABLE OF VARCHAR2(25);
       2  /

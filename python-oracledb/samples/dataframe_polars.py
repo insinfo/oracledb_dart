@@ -36,7 +36,7 @@ import oracledb
 import sample_env
 
 # determine whether to use python-oracledb thin mode or thick mode
-if not sample_env.get_is_thin():
+if sample_env.run_in_thick_mode():
     oracledb.init_oracle_client(lib_dir=sample_env.get_oracle_client())
 
 connection = oracledb.connect(
@@ -52,15 +52,12 @@ connection = oracledb.connect(
 
 SQL1 = "select * from SampleQueryTab order by id"
 
-# Get an OracleDataFrame
+# Get a python-oracledb DataFrame
 # Adjust arraysize to tune the query fetch performance
 odf = connection.fetch_df_all(statement=SQL1, arraysize=100)
 
 # Convert to a Polars DataFrame
-pyarrow_table = pyarrow.Table.from_arrays(
-    odf.column_arrays(), names=odf.column_names()
-)
-p = polars.from_arrow(pyarrow_table)
+p = polars.from_arrow(odf)
 
 print(type(p))  # <class 'polars.dataframe.frame.DataFrame'>
 
@@ -76,7 +73,7 @@ print(p.sum())
 
 SQL2 = "select id from SampleQueryTab order by id"
 
-# Get an OracleDataFrame
+# Get a python-oracledb DataFrame
 # Adjust arraysize to tune the query fetch performance
 odf = connection.fetch_df_all(statement=SQL2, arraysize=100)
 

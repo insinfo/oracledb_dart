@@ -1,5 +1,7 @@
 .. _featuresummary:
 
+.. currentmodule:: oracledb
+
 *****************************************************************
 Appendix A: Oracle Database Features Supported by python-oracledb
 *****************************************************************
@@ -15,7 +17,7 @@ enable Thick mode.
 
 The following table summarizes the Oracle Database features supported by
 python-oracledb Thin and Thick modes, and by the obsolete cx_Oracle driver.
-For more details see :ref:`driverdiff` and :ref:`compatibility`.
+For more details see :ref:`driverdiff` and :ref:`upgrading83`.
 
 .. list-table-with-summary::  Features Supported by python-oracledb and cx_Oracle 8.3
     :header-rows: 1
@@ -51,7 +53,7 @@ For more details see :ref:`driverdiff` and :ref:`compatibility`.
       - Yes
       - Yes
       - Yes
-    * - Connection Pool Runtime Load Balancing (RLB) (see `Runtime Connection Load Balancing <https://www.oracle.com/pls/topic/lookup?ctx=dblatest&id=GUID-A8B79A40-C4AA-4FBA-8042-C70C8FD2D2EF>`__)
+    * - Connection Pool Runtime Load Balancing (RLB) (see `Runtime Connection Load Balancing <https://www.oracle.com/pls/topic/lookup?ctx=dblatest&id=GUID-25F85237-702B-4609-ACE2-1454EBC8284B>`__)
       - No
       - Yes
       - Yes
@@ -167,7 +169,7 @@ For more details see :ref:`driverdiff` and :ref:`compatibility`.
       - Yes
       - Yes
       - Yes
-    * - Oracle Database 23ai Implicit Connection Pooling with :ref:`DRCP <drcp>` and PRCP (see :ref:`implicitconnpool`)
+    * - Oracle Database version 23 Implicit Connection Pooling with :ref:`DRCP <drcp>` and PRCP (see :ref:`implicitconnpool`)
       - Yes
       - Yes
       - No
@@ -243,7 +245,11 @@ For more details see :ref:`driverdiff` and :ref:`compatibility`.
       - No
       - Yes
       - Yes
-    * - Oracle Database 23ai JSON-Relational Duality Views (see :ref:`jsondualityviews`)
+    * - Direct Path Loads (see :ref:`directpathloads`)
+      - Yes
+      - No
+      - No
+    * - Oracle Database version 23 JSON-Relational Duality Views (see :ref:`jsondualityviews`)
       - Yes
       - Yes
       - No
@@ -252,7 +258,7 @@ For more details see :ref:`driverdiff` and :ref:`compatibility`.
       - Yes
       - Yes
     * - Oracle Transactional Event Queues and Advanced Queuing (AQ) (see :ref:`aqusermanual`)
-      - Yes - only "Classic" queues are supported (RAW, named Oracle object, and JSON payloads)
+      - Yes
       - Yes
       - Yes
     * - Call timeouts (see :attr:`Connection.call_timeout`)
@@ -303,7 +309,7 @@ For more details see :ref:`driverdiff` and :ref:`compatibility`.
       - Yes
       - No
       - No
-    * - Oracle Database 23ai Pipelining (see :ref:`pipelining`)
+    * - Oracle Database version 23 Pipelining (see :ref:`pipelining`)
       - Yes
       - No
       - No
@@ -319,6 +325,10 @@ For more details see :ref:`driverdiff` and :ref:`compatibility`.
       - Yes
       - Yes
       - Yes
+    * - Oracle Database version 23 Sessionless Transactions (see :ref:`sessionlesstxns`)
+      - Yes
+      - Yes
+      - No
     * - Two-phase Commit (TPC) (see :ref:`tpc`)
       - Yes
       - Yes
@@ -357,149 +367,152 @@ For more details see :ref:`driverdiff` and :ref:`compatibility`.
 Supported Oracle Database Data Types
 ====================================
 
-The following table lists the Oracle Database types that are supported in the
-python-oracledb driver.  See `Oracle Database Types <https://www.oracle.com/
-pls/topic/lookup?ctx=dblatest&id=GUID-A3C0D836-BADB-44E5-A5D4-265BA5968483>`__
-and `PL/SQL Types <https://www.oracle.com/pls/topic/lookup?ctx=dblatest&id=GUID
--391C58FD-16AF-486C-AF28-173E309CDBA5>`__.  The python-oracledb constant shown
-is the common one.  In some python-oracledb APIs you may use other types, for
-example when binding numeric values.
+The following table lists the Oracle Database types that are supported in
+the python-oracledb driver.  See `Oracle Database Types <https://www.oracle.
+com/pls/topic/lookup?ctx=dblatest&id=GUID-A3C0D836-BADB-44E5-A5D4-
+265BA5968483>`__ and `PL/SQL Types <https://www.oracle.com/pls/topic/lookup?
+ctx=dblatest&id=GUID-391C58FD-16AF-486C-AF28-173E309CDBA5>`__.  The
+python-oracledb constant shown is the common one.  In some python-oracledb
+APIs you may use other types, for example when binding numeric values.
 
 .. list-table-with-summary::  Oracle Database Data Types Supported
     :header-rows: 1
     :class: wy-table-responsive
     :align: center
-    :summary: The first column displays the database data type. The second column displays the python-oracledb constant Name. The third column contains notes.  The fourth column shows Python types that can be used.
+    :summary: The first column displays the database data type. The second column displays the python-oracledb constant Name. The third column shows Python types that can be used. The fourth column contains notes.
 
     * - Oracle Database Type
       - python-oracledb Constant Name
-      - Notes
       - Supported Python Types
+      - Notes
     * - VARCHAR2
       - :data:`~oracledb.DB_TYPE_VARCHAR`
-      - No relevant notes
       - bytes, str
+      - No relevant notes
     * - NVARCHAR2
       - :data:`~oracledb.DB_TYPE_NVARCHAR`
-      - No relevant notes
       - bytes, str
+      - No relevant notes
     * - NUMBER, FLOAT
       - :data:`~oracledb.DB_TYPE_NUMBER`
-      - No relevant notes
       - bool, int, float, decimal.Decimal
+      - No relevant notes
     * - DATE
       - :data:`~oracledb.DB_TYPE_DATE`
-      - No relevant notes
       - datetime.date, datetime.datetime
-    * - BOOLEAN (PL/SQL and Oracle Database 23ai SQL)
-      - :data:`~oracledb.DB_TYPE_BOOLEAN`
       - No relevant notes
+    * - BOOLEAN (PL/SQL and Oracle Database version 23 SQL)
+      - :data:`~oracledb.DB_TYPE_BOOLEAN`
       - Any type convertible to bool
+      - No relevant notes
     * - BINARY_DOUBLE
       - :data:`~oracledb.DB_TYPE_BINARY_DOUBLE`
-      - No relevant notes
       - bool, int, float, decimal.Decimal
+      - No relevant notes
     * - BINARY_FLOAT
       - :data:`~oracledb.DB_TYPE_BINARY_FLOAT`
-      - No relevant notes
       - bool, int, float, decimal.Decimal
+      - No relevant notes
     * - TIMESTAMP
       - :data:`~oracledb.DB_TYPE_TIMESTAMP`
-      - No relevant notes
       - datetime.date, datetime.datetime
+      - No relevant notes
     * - TIMESTAMP WITH TIME ZONE
       - :data:`~oracledb.DB_TYPE_TIMESTAMP_TZ`
-      - No relevant notes
       - datetime.date, datetime.datetime
+      - No relevant notes
     * - TIMESTAMP WITH LOCAL TIME ZONE
       - :data:`~oracledb.DB_TYPE_TIMESTAMP_LTZ`
-      - No relevant notes
       - datetime.date, datetime.datetime
+      - No relevant notes
     * - INTERVAL YEAR TO MONTH
       - :data:`~oracledb.DB_TYPE_INTERVAL_YM`
-      - No relevant notes
       - :ref:`oracledb.IntervalYM <interval_ym>`
+      - No relevant notes
     * - INTERVAL DAY TO SECOND
       - :data:`~oracledb.DB_TYPE_INTERVAL_DS`
-      - No relevant notes
       - datetime.timedelta
+      - No relevant notes
     * - RAW
       - :data:`~oracledb.DB_TYPE_RAW`
-      - No relevant notes
       - bytes, str
+      - No relevant notes
     * - LONG
       - :data:`~oracledb.DB_TYPE_LONG`
-      - No relevant notes
       - bytes, str
+      - No relevant notes
     * - LONG RAW
       - :data:`~oracledb.DB_TYPE_LONG_RAW`
-      - No relevant notes
       - bytes, str
+      - No relevant notes
     * - ROWID
       - :data:`~oracledb.DB_TYPE_ROWID`
-      - No relevant notes
       - bytes, str
+      - No relevant notes
     * - UROWID
       - :data:`~oracledb.DB_TYPE_ROWID`, :data:`~oracledb.DB_TYPE_UROWID` (only supported in python-oracledb Thin mode)
-      - May show :data:`~oracledb.DB_TYPE_UROWID` in metadata. See :ref:`Query Metadata Differences <querymetadatadiff>`.
       - bytes, str
+      - May show :data:`~oracledb.DB_TYPE_UROWID` in metadata. See :ref:`Query Metadata Differences <querymetadatadiff>`.
     * - CHAR
       - :data:`~oracledb.DB_TYPE_CHAR`
-      - No relevant notes
       - bytes, str
+      - No relevant notes
     * - BLOB
       - :data:`~oracledb.DB_TYPE_BLOB`
-      - No relevant notes
       - :ref:`oracledb.LOB <lobobj>`, bytes, str
+      - No relevant notes
     * - CLOB
       - :data:`~oracledb.DB_TYPE_CLOB`
-      - No relevant notes
       - :ref:`oracledb.LOB <lobobj>`, bytes, str
+      - No relevant notes
     * - NCHAR
       - :data:`~oracledb.DB_TYPE_NCHAR`
-      - No relevant notes
       - bytes, str
+      - No relevant notes
     * - NCLOB
       - :data:`~oracledb.DB_TYPE_NCLOB`, :data:`~oracledb.DB_TYPE_LONG_NVARCHAR` (if fetching NCLOB as a string)
-      - No relevant notes
       - :ref:`oracledb.LOB <lobobj>`, bytes, str
+      - No relevant notes
     * - BFILE
       - :data:`~oracledb.DB_TYPE_BFILE`
-      - Can fetch a BFILE object and insert that object in a table. Cannot create BFILE objects.
       - :ref:`oracledb.LOB <lobobj>`, bytes
+      - Can fetch a BFILE object and insert that object in a table. Cannot create BFILE objects.
     * - JSON
       - :data:`~oracledb.DB_TYPE_JSON`
-      - No relevant notes
       - Any type convertible to Oracle JSON
+      - No relevant notes
     * - REF CURSOR (PL/SQL OR nested cursor)
       - :data:`~oracledb.DB_TYPE_CURSOR`
-      - No relevant notes
       - :ref:`oracledb.Cursor <cursorobj>`
+      - No relevant notes
     * - PLS_INTEGER
       - :data:`~oracledb.DB_TYPE_BINARY_INTEGER`
-      - No relevant notes
       - bool, int, float, decimal.Decimal
+      - No relevant notes
     * - BINARY_INTEGER
       - :data:`~oracledb.DB_TYPE_BINARY_INTEGER`
-      - No relevant notes
       - bool, int, float, decimal.Decimal
+      - No relevant notes
     * - REF
       - n/a
-      - Not supported in python-oracledb Thin mode
       - n/a
+      - Not supported in python-oracledb Thin mode
     * - XMLType
       - :data:`~oracledb.DB_TYPE_XMLTYPE`
-      - May need to use ``xmltype.getclobval()`` to fetch in python-oracledb Thick mode. See :ref:`xmldatatype`
       - bytes, str
+      - May need to use ``xmltype.getclobval()`` to fetch in python-oracledb Thick mode. See :ref:`xmldatatype`
     * - User-defined types (object type, VARRAY, records, collections, SDO_*types)
       - :data:`~oracledb.DB_TYPE_OBJECT`
-      - No relevant notes
       - OBJECT of specific type
+      - No relevant notes
     * - VECTOR
       - :data:`~oracledb.DB_TYPE_VECTOR`
-      - No relevant notes
       - array.array
+      - No relevant notes
 
 Binding of contiguous PL/SQL Index-by BINARY_INTEGER arrays of string, number, and date are
 supported in python-oracledb Thin and Thick modes. Use :meth:`Cursor.arrayvar()` to build
 these arrays.
+
+When fetching :ref:`data frames <dataframeformat>`, see :ref:`Data Frame Type
+Mapping <dftypemapping>` for type information.

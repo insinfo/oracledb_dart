@@ -12,12 +12,13 @@ concurrency:
 
 jobs:
   analyze:
-    name: Analyze and unit tests (Dart ${{ matrix.sdk }})
-    runs-on: ubuntu-latest
+    name: Analyze and unit tests (${{ matrix.os }}, Dart ${{ matrix.sdk }})
+    runs-on: ${{ matrix.os }}
     timeout-minutes: 15
     strategy:
       fail-fast: false
       matrix:
+        os: [ubuntu-latest, windows-latest, macos-latest]
         sdk: ['3.6.0', stable]
     steps:
       - uses: actions/checkout@v5
@@ -27,7 +28,7 @@ jobs:
       - name: Install dependencies
         run: dart pub get
       - name: Check formatting
-        if: matrix.sdk == '3.6.0'
+        if: matrix.sdk == '3.6.0' && matrix.os == 'ubuntu-latest'
         run: dart format --output=none --set-exit-if-changed lib test example benchmark
       - name: Analyze
         run: dart analyze --fatal-infos

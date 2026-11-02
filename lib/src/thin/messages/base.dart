@@ -1,6 +1,7 @@
 import 'dart:convert';
 import 'dart:typed_data';
 
+import '../../dbobject.dart';
 import '../../exceptions.dart';
 import '../buffer.dart';
 import '../codecs.dart';
@@ -231,7 +232,7 @@ abstract class Message {
     final bufferSize = buf.readUB4();
     buf.skipUB4(); // max number of array elements
     buf.skipUB8(); // cont flags
-    buf.readBytesWithLength(); // OID
+    final oid = buf.readBytesWithLength();
     buf.skipUB2(); // version
     buf.skipUB2(); // character set id
     final csfrm = buf.readUB1(); // character set form
@@ -276,10 +277,13 @@ abstract class Message {
       vectorFormat = buf.readUB1();
       vectorFlags = buf.readUB1();
     }
-    if (oraTypeNum == ORA_TYPE_NUM_OBJECT &&
-        schema == 'SYS' &&
-        typeName == 'XMLTYPE') {
-      dbType = DbType.xmltype;
+    OracleDbObjectType? objectType;
+    if (oraTypeNum == ORA_TYPE_NUM_OBJECT) {
+      if (schema == 'SYS' && typeName == 'XMLTYPE') {
+        dbType = DbType.xmltype;
+      } else {
+        objectType = conn.typeCache.typeForInfo(oid, schema, null, typeName);
+      }
     }
     return ColumnMetadata(
       name: name,
@@ -297,6 +301,7 @@ abstract class Message {
       vectorDimensions: vectorDimensions,
       vectorFormat: vectorFormat,
       vectorFlags: vectorFlags,
+      objectType: objectType,
     );
   }
 

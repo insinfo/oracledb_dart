@@ -2,6 +2,7 @@ import 'dart:convert';
 import 'dart:typed_data';
 
 import '../connect_params.dart';
+import '../dbobject.dart';
 import '../exceptions.dart';
 import '../utils.dart';
 import 'constants.dart';
@@ -25,6 +26,9 @@ class ThinConnImpl {
   /// Maximum time each round trip may take (null for no limit).
   late Duration? callTimeout = params.callTimeout;
   StatementCache statementCache;
+
+  /// Cache of the object types used by the connection.
+  late final DbObjectTypeCache typeCache = DbObjectTypeCache(this);
 
   Uint8List? comboKey;
   Uint8List? ltxid;

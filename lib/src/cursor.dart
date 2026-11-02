@@ -2,6 +2,7 @@ import 'dart:async';
 import 'dart:typed_data';
 
 import 'connection.dart';
+import 'dbobject.dart';
 import 'exceptions.dart';
 import 'placeholders.dart';
 import 'thin/cursor_impl.dart';
@@ -193,14 +194,21 @@ class OracleCursor {
     return params;
   }
 
-  /// Creates a variable for OUT or IN/OUT binds.
+  /// Creates a variable for OUT or IN/OUT binds. For objects and
+  /// collections, pass the [objectType] (with [DbType.object]).
   OracleVar variable(DbType type,
       {int size = 0,
       int arraySize = 1,
       bool isArray = false,
-      Object? inValue}) {
+      Object? inValue,
+      OracleDbObjectType? objectType}) {
+    objectType ??= inValue is OracleDbObject ? inValue.type : null;
+    if (type == DbType.object && objectType == null) {
+      throw ArgumentError.notNull('objectType');
+    }
     final v = BindVar.forType(type,
         size: size, numElements: arraySize, isArray: isArray);
+    v.metadata.objectType = objectType;
     if (type == DbType.cursor) {
       for (var i = 0; i < v.values.length; i++) {
         v.values[i] = ThinCursorImpl(connection.impl);
@@ -292,10 +300,12 @@ class OracleCursor {
     await execute('begin $name($placeholders); end;', params);
   }
 
-  /// Calls a stored function returning a value of [returnType].
+  /// Calls a stored function returning a value of [returnType]; functions
+  /// returning objects also require the [returnObjectType].
   Future<Object?> callFunc(String name, DbType returnType,
-      [List<Object?> params = const []]) async {
-    final ret = variable(returnType);
+      [List<Object?> params = const [],
+      OracleDbObjectType? returnObjectType]) async {
+    final ret = variable(returnType, objectType: returnObjectType);
     final placeholders =
         [for (var i = 0; i < params.length; i++) ':${i + 2}'].join(', ');
     await execute('begin :1 := $name($placeholders); end;', [ret, ...params]);

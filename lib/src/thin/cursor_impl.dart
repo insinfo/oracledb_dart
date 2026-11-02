@@ -394,6 +394,9 @@ class ThinCursorImpl {
     warning = message.warning;
     _bufferMinRow = rowCount + 1;
     _bufferMaxRow = _bufferMinRow + _rows.length;
+    if (conn.typeCache.hasPartialTypes) {
+      await conn.typeCache.populatePartialTypes();
+    }
     await _readLobsBack();
   }
 

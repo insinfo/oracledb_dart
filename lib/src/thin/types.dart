@@ -1,3 +1,4 @@
+import '../dbobject.dart';
 import '../exceptions.dart';
 import 'constants.dart';
 
@@ -135,6 +136,26 @@ class DbType {
     throw dpyError(ERR_ORACLE_TYPE_NOT_SUPPORTED, args: {'num': oraTypeNum});
   }
 
+  static final Map<String, DbType> _byOraName = {
+    for (final t in all) t.oraName: t,
+    'BINARY_INTEGER': binaryInteger,
+    'PL/SQL BOOLEAN': boolean,
+    'PL/SQL BINARY INTEGER': binaryInteger,
+    'PL/SQL PLS INTEGER': binaryInteger,
+    'PLS_INTEGER': binaryInteger,
+    'TIMESTAMP WITH TZ': timestampTZ,
+    'TIMESTAMP WITH LOCAL TZ': timestampLTZ,
+    'UNDEFINED': unknown,
+  };
+
+  /// Returns the type with the given Oracle name (as found in the data
+  /// dictionary).
+  static DbType fromOraName(String name) {
+    final t = _byOraName[name];
+    if (t != null) return t;
+    throw dpyError(ERR_ORACLE_TYPE_NAME_NOT_SUPPORTED, args: {'name': name});
+  }
+
   /// Returns the type for the given metadata, retrying with a zero character
   /// set form as some types are sent with an invalid one.
   static DbType fromMetadata(int oraTypeNum, int csfrm) =>
@@ -168,6 +189,7 @@ class ColumnMetadata {
     this.vectorDimensions = 0,
     this.vectorFormat = 0,
     this.vectorFlags = 0,
+    this.objectType,
   });
 
   /// The name of the column.
@@ -188,6 +210,9 @@ class ColumnMetadata {
   final int vectorDimensions;
   final int vectorFormat;
   final int vectorFlags;
+
+  /// The type of the column when it is an object or collection.
+  OracleDbObjectType? objectType;
 
   /// The display size of the column (for strings, the maximum number of
   /// characters; for numbers, an estimate based on the precision).
@@ -211,6 +236,7 @@ class ColumnMetadata {
   }
 
   ColumnMetadata copyWith({DbType? dbType}) => ColumnMetadata(
+        objectType: objectType,
         name: name,
         dbType: dbType ?? this.dbType,
         precision: precision,

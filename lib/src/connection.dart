@@ -2,6 +2,7 @@ import 'dart:async';
 import 'dart:io';
 
 import 'connect_params.dart';
+import 'dbobject.dart';
 import 'cursor.dart';
 import 'thin/types.dart';
 import 'exceptions.dart';
@@ -364,6 +365,14 @@ class OracleConnection {
 
   /// Whether the database supports pipelining (Oracle Database 23ai).
   bool get supportsPipelining => impl.protocol.caps.supportsPipelining;
+
+  /// Returns the object or collection type with the given name (for
+  /// example `SCHEMA.TYPE_NAME` or `SCHEMA.PACKAGE.TYPE_NAME` for PL/SQL
+  /// types). Use [OracleDbObjectType.newObject] to create objects to bind.
+  Future<OracleDbObjectType> getType(String name) {
+    checkConnected();
+    return impl.typeCache.getType(name);
+  }
 
   /// Creates a temporary LOB of the given type (CLOB, NCLOB or BLOB),
   /// optionally writing [data] to it. Temporary LOBs can be bound to

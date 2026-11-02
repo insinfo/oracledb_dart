@@ -1,6 +1,7 @@
 import 'dart:convert';
 import 'dart:typed_data';
 
+import '../../dbobject.dart';
 import '../../exceptions.dart';
 import '../../lob.dart';
 import '../buffer.dart';
@@ -213,6 +214,8 @@ abstract class MessageWithData extends Message {
                   : decodeVector(data);
             }
           }
+        case ORA_TYPE_NUM_OBJECT:
+          value = _readDbObject(buf, metadata.objectType);
         case ORA_TYPE_NUM_CURSOR:
           buf.skipUB1(); // length (fixed value)
           final child = ThinCursorImpl(conn);
@@ -249,6 +252,20 @@ abstract class MessageWithData extends Message {
       buf.skipUB4(); // return code
     }
     return value;
+  }
+
+  /// Reads an object (or an XMLType value when [type] is null).
+  Object? _readDbObject(ReadBuffer buf, OracleDbObjectType? type) {
+    final toid = buf.readUB4() > 0 ? buf.readBytes() : null;
+    final oid = buf.readUB4() > 0 ? buf.readBytes() : null;
+    if (buf.readUB4() > 0) buf.readBytes(); // snapshot
+    buf.skipUB2(); // version
+    final numBytes = buf.readUB4(); // length of data
+    buf.skipUB2(); // flags
+    if (numBytes == 0) return null;
+    final packed = buf.readBytes()!;
+    if (type == null) return readXmlType(packed);
+    return OracleDbObject.fromPacked(type, toid, oid, packed);
   }
 
   void _processDescribeInfo(ReadBuffer buf, ThinCursorImpl cursor) {
@@ -499,8 +516,15 @@ abstract class MessageWithData extends Message {
       buf.writeUB4(bufferSize);
       buf.writeUB4(variable.isArray ? variable.numElements : 0);
       buf.writeUB8(contFlag);
-      buf.writeUB4(0); // OID
-      buf.writeUB2(0); // version
+      final objectType = metadata.objectType;
+      if (objectType != null) {
+        buf.writeUB4(objectType.oid!.length);
+        buf.writeBytesWithLength(objectType.oid!);
+        buf.writeUB4(objectType.version);
+      } else {
+        buf.writeUB4(0); // OID
+        buf.writeUB2(0); // version
+      }
       buf.writeUB2(metadata.dbType.csfrm != 0 ? TNS_CHARSET_UTF8 : 0);
       buf.writeUint8(metadata.dbType.csfrm);
       buf.writeUB4(lobPrefetchLength); // max chars (LOB prefetch)
@@ -517,6 +541,13 @@ abstract class MessageWithData extends Message {
       if (oraTypeNum == ORA_TYPE_NUM_BOOLEAN) {
         buf.writeUint8(TNS_ESCAPE_CHAR);
         buf.writeUint8(1);
+      } else if (oraTypeNum == ORA_TYPE_NUM_OBJECT) {
+        buf.writeUB4(0); // TOID
+        buf.writeUB4(0); // OID
+        buf.writeUB4(0); // snapshot
+        buf.writeUB2(0); // version
+        buf.writeUB4(0); // packed data length
+        buf.writeUB4(TNS_OBJ_TOP_LEVEL); // flags
       } else {
         buf.writeUint8(0);
       }
@@ -596,6 +627,23 @@ abstract class MessageWithData extends Message {
         final data = encodeVector(value);
         buf.writeQLocator(data.length);
         buf.writeBytesWithLength(data);
+      case ORA_TYPE_NUM_OBJECT:
+        final obj = value as OracleDbObject;
+        final toid = obj.toid!, oid = obj.oid;
+        buf.writeUB4(toid.length);
+        buf.writeBytesWithLength(toid);
+        if (oid == null) {
+          buf.writeUB4(0);
+        } else {
+          buf.writeUB4(oid.length);
+          buf.writeBytesWithLength(oid);
+        }
+        buf.writeUB4(0); // snapshot
+        buf.writeUB4(0); // version
+        final packed = obj.packedData();
+        buf.writeUB4(packed.length);
+        buf.writeUB4(obj.flags);
+        buf.writeBytesWithLength(packed);
       case ORA_TYPE_NUM_CURSOR:
         final child = value as ThinCursorImpl;
         child.statement ??= conn.statementCache.getStatement(null, false);

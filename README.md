@@ -20,14 +20,19 @@ package.
   IAM database tokens), privileged modes, password change, editions,
   application context
 - Easy Connect strings, connect descriptors and `tnsnames.ora` aliases
-- Connection pools
+- Connection pools and Database Resident Connection Pooling (DRCP)
 - Call timeouts and cancellation of calls in progress
 - Queries, DML, DDL and PL/SQL with binds by position, by name or with `?`
   placeholders
 - Efficient fetching in batches, row streaming, statement caching (cursors
   are re-executed without being parsed again)
 - `executeMany()` with batch errors and DML row counts
-- OUT and IN OUT binds, DML `RETURNING`, REF CURSORs, implicit results
+- OUT and IN OUT binds, DML `RETURNING`, REF CURSORs, implicit results,
+  scrollable cursors
+- Object types and collections (VARRAYs, nested tables, PL/SQL records and
+  associative arrays) and `XMLType`
+- Pipelining (many operations in a single round trip on Oracle Database
+  23ai) and two-phase commit
 - LOBs as values or as locators with streaming reads, writes and temporary
   LOBs
 - Native `JSON` (OSON) and `VECTOR` types (dense, binary and sparse vectors)
@@ -348,6 +353,65 @@ await conn.execute('insert into embeddings values (:1, :2)',
 Text and BLOB columns with an `IS JSON` check constraint are decoded
 automatically as well.
 
+### Objects and collections
+
+```dart
+final personType = await conn.getType('HR.PERSON_T');
+final person = personType.newObject({'ID': 1, 'NAME': 'Ada'});
+person['ADDRESS'] = (await conn.getType('HR.ADDRESS_T'))
+    .newObject({'STREET': 'Main St', 'CITY': 'London'});
+await conn.execute('insert into people values (:1)', [person]);
+
+final row = await conn.queryOne('select p from people p');
+final fetched = row![0] as OracleDbObject;
+print(fetched['NAME']); // Ada
+print(fetched.asMap()); // all attributes
+
+// VARRAYs and nested tables hold lists; PL/SQL associative arrays use
+// integer indexes
+final tags = (await conn.getType('HR.TAGS_T')).newObject(['a', 'b']);
+tags.append('c');
+final table = (await conn.getType('HR.PKG.NUM_TAB')).newObject({1: 10, 5: 50});
+
+// OUT binds and function results need the type
+final cursor = conn.cursor();
+final out = cursor.variable(DbType.object, objectType: personType);
+await cursor.callProc('hr.pkg.get_person', [1, out]);
+```
+
+Types used by queries are discovered automatically from the query metadata.
+Collections support `length`, `append()`, `extend()`, `getElement()`,
+`setElement()`, `delete()`, `exists()`, `trim()`, `firstIndex`, `lastIndex`,
+`nextIndex()` and `prevIndex()`. `XMLType` values are returned as strings.
+
+### Scrollable cursors, pipelining and two-phase commit
+
+```dart
+final cursor = conn.cursor()..scrollable = true;
+await cursor.execute('select id from t order by id');
+await cursor.scroll(0, ScrollMode.last);
+await cursor.scroll(-10); // relative to the current row
+final row = await cursor.fetchOne();
+
+// several operations in one round trip (Oracle Database 23ai)
+final pipeline = OraclePipeline()
+  ..addExecute('insert into t values (:1)', [1])
+  ..addFetchAll('select * from t')
+  ..addCommit();
+final results = await conn.runPipeline(pipeline);
+print(results[1].rows);
+
+// two-phase commit
+final xid = Xid(1000, 'global-id', 'branch');
+await conn.tpcBegin(xid);
+await conn.execute('insert into t values (2)');
+if (await conn.tpcPrepare()) await conn.tpcCommit();
+```
+
+DRCP is used when the connect string asks for a pooled server (for example
+`host/service:pooled`); pass `cclass` and `purity` to
+`OracleConnection.connect` or `OracleConnectionPool.create`.
+
 ### Data types
 
 | Oracle type | Dart type |
@@ -365,6 +429,8 @@ automatically as well.
 | `BOOLEAN` | `bool` |
 | `JSON` | `Map`, `List`, `String`, `num`, `bool`, ... |
 | `VECTOR` | `Float32List`, `Float64List`, `Int8List`, `Uint8List` (binary), `SparseVector` |
+| Object types, `VARRAY`, nested tables, PL/SQL records and collections | `OracleDbObject` |
+| `XMLType` | `String` |
 
 `DATE` and `TIMESTAMP` values have no time zone: they are returned as UTC
 `DateTime` objects holding the wall-clock value (which avoids any shifting
@@ -411,9 +477,9 @@ pip install oracledb && python benchmark/bench.py
 
 ## Not supported yet
 
-Native Network Encryption, DRCP session release semantics, pipelining,
-object types and collections, scrollable cursors, two phase commit and
-sessionless transactions, Advanced Queuing and SODA.
+Native Network Encryption, sessionless transactions, Advanced Queuing and
+SODA (SODA is only available in the thick mode of the Oracle client
+libraries).
 
 ## Development
 

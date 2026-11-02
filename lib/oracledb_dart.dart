@@ -4,6 +4,8 @@ library;
 export 'src/connect_params.dart'
     show AccessTokenCallback, AuthMode, ConnectParams, Purity;
 export 'src/connection.dart' show OracleConnection;
+export 'src/dbobject.dart'
+    show OracleDbObject, OracleDbObjectAttr, OracleDbObjectType;
 export 'src/cursor.dart' show OracleCursor, OracleResult, OracleVar, ScrollMode;
 export 'src/exceptions.dart'
     show

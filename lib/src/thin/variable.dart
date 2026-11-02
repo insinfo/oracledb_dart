@@ -1,6 +1,7 @@
 import 'dart:convert';
 import 'dart:typed_data';
 
+import '../dbobject.dart';
 import '../exceptions.dart';
 import '../lob.dart';
 import 'codecs.dart';
@@ -105,6 +106,9 @@ ColumnMetadata metadataFromValue(
     type = DbType.intervalYM;
   } else if (value is OracleLob) {
     type = value.type;
+  } else if (value is OracleDbObject) {
+    return ColumnMetadata(
+        name: '', dbType: DbType.object, objectType: value.type);
   } else {
     throw dpyError(ERR_PYTHON_VALUE_NOT_SUPPORTED,
         args: {'type_name': value.runtimeType});
@@ -150,6 +154,14 @@ void mergeMetadata(ColumnMetadata target, ColumnMetadata other, Object? value) {
       return;
     }
     throw dpyError(ERR_MIXED_ELEMENT_TYPES, args: {'element': value});
+  }
+  if (target.dbType == DbType.object && target.objectType != other.objectType) {
+    throw dpyError(ERR_WRONG_OBJECT_TYPE, args: {
+      'actual_schema': other.objectType?.schema,
+      'actual_name': other.objectType?.name,
+      'expected_schema': target.objectType?.schema,
+      'expected_name': target.objectType?.name,
+    });
   }
   if (other.maxSize > target.maxSize) target.maxSize = other.maxSize;
 }

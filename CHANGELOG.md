@@ -21,6 +21,12 @@ is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
   and commits) are sent in a single round trip on Oracle Database 23ai,
   optionally continuing after errors; older databases run the operations
   one after the other.
+- Object types and collections (`OracleConnection.getType()`,
+  `OracleDbObjectType`, `OracleDbObject`): objects, VARRAYs, nested tables,
+  PL/SQL records and associative arrays can be bound (IN, OUT and IN OUT)
+  and fetched, including nested objects and LOB attributes. Types used by
+  queries are discovered from the query metadata. `XMLType` values are
+  fetched as strings.
 
 ### Fixed
 

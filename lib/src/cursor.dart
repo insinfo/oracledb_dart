@@ -9,6 +9,9 @@ import 'thin/messages/base.dart';
 import 'thin/types.dart';
 import 'thin/variable.dart';
 
+/// How [OracleCursor.scroll] positions a scrollable cursor.
+enum ScrollMode { relative, absolute, first, last }
+
 /// A variable used for OUT and IN/OUT binds (and DML returning).
 class OracleVar {
   OracleVar._(this.impl, this._connection);
@@ -105,6 +108,22 @@ class OracleCursor {
   /// Number of rows returned with the execute round trip (default 2).
   int get prefetchRows => _impl.prefetchRows;
   set prefetchRows(int value) => _impl.prefetchRows = value;
+
+  /// Whether the cursor is scrollable; must be set before [execute]. A
+  /// scrollable cursor can be positioned with [scroll].
+  bool get scrollable => _impl.scrollable;
+  set scrollable(bool value) => _impl.scrollable = value;
+
+  /// Moves the position of a scrollable cursor: the next fetch returns the
+  /// row at the new position. With [ScrollMode.relative] (the default),
+  /// [value] is relative to the current row; with [ScrollMode.absolute] it
+  /// is a row number (1 based); [ScrollMode.first] and [ScrollMode.last]
+  /// ignore it.
+  Future<void> scroll([int value = 0, ScrollMode mode = ScrollMode.relative]) {
+    _checkOpen();
+    _checkQuery();
+    return _impl.scroll(value, mode.name);
+  }
 
   /// Return CLOB/NCLOB/BLOB columns directly as String/Uint8List values
   /// (default true).

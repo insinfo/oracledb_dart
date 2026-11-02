@@ -5,6 +5,16 @@ is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
 ## [Unreleased]
 
+### Added
+
+- Scrollable cursors (`OracleCursor.scrollable` and `OracleCursor.scroll()`
+  with relative, absolute, first and last positioning).
+
+### Fixed
+
+- The call timeout and cancellation tests use a query that does not exhaust
+  the memory of the database on fast machines.
+
 ## [1.0.0] - 2026-11-02
 
 First functional release: a complete rewrite of the thin protocol layer,

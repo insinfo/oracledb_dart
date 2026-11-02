@@ -77,6 +77,7 @@ const int ERR_ARROW_C_API_ERROR = 2060;
 const int ERR_PARAMS_HOOK_HANDLER_FAILED = 2061;
 const int ERR_PAYLOAD_CANNOT_BE_ENQUEUED = 2062;
 const int ERR_SCROLL_OUT_OF_RESULT_SET = 2063;
+const int ERR_SCROLL_NOT_SUPPORTED = 2068;
 
 // NotSupportedError Range (3000-3999)
 const int ERR_TIME_NOT_SUPPORTED = 3000;
@@ -640,6 +641,8 @@ final Map<int, String> _errorMessageFormats = {
       ('Python value of type "{type_name}" is not supported'),
   ERR_SCROLL_OUT_OF_RESULT_SET:
       ("scroll operation would go out of the result set"),
+  ERR_SCROLL_NOT_SUPPORTED:
+      "scroll operation is not supported on a non-scrollable cursor",
   ERR_SELF_BIND_NOT_SUPPORTED: "binding to self is not supported",
   ERR_CONNECTION_CLOSED: "the database or network closed the connection",
   ERR_SERVER_VERSION_NOT_SUPPORTED:

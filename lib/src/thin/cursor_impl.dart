@@ -27,6 +27,14 @@ class ThinCursorImpl {
   int rowCount = 0;
   bool moreRowsToFetch = false;
 
+  /// Whether the cursor is scrollable (must be set before executing).
+  bool scrollable = false;
+
+  /// Row numbers (1 based) of the first row in the buffer and of the row
+  /// after the last one, used by scrollable cursors.
+  int _bufferMinRow = 0;
+  int _bufferMaxRow = 0;
+
   /// Return CLOB/BLOB/NCLOB columns as String/Uint8List values.
   bool fetchLobsAsValues = true;
 
@@ -368,13 +376,81 @@ class ThinCursorImpl {
     }
   }
 
+  ExecuteMessage _executeMessage() {
+    final message = ExecuteMessage(this)..numExecs = 1;
+    if (scrollable) {
+      message
+        ..fetchOrientation = TNS_FETCH_ORIENTATION_CURRENT
+        ..fetchPos = rowCount + 1;
+    }
+    return message;
+  }
+
   Future<void> execute() async {
     _checkReparse();
     await _convertLargePlsqlBinds();
-    final message = ExecuteMessage(this)..numExecs = 1;
+    final message = _executeMessage();
     await conn.protocol.processSingleMessage(message);
     warning = message.warning;
+    _bufferMinRow = rowCount + 1;
+    _bufferMaxRow = _bufferMinRow + _rows.length;
     await _readLobsBack();
+  }
+
+  /// Moves the position of a scrollable cursor; the next fetch returns the
+  /// row at the new position. [mode] is `relative` (to the current row),
+  /// `absolute`, `first` or `last`.
+  Future<void> scroll(int value, String mode) async {
+    if (!scrollable) throw dpyError(ERR_SCROLL_NOT_SUPPORTED);
+    var desiredRow = 0;
+    int orientation;
+    switch (mode) {
+      case 'relative':
+        if (rowCount + value < 1) {
+          throw dpyError(ERR_SCROLL_OUT_OF_RESULT_SET);
+        }
+        orientation = TNS_FETCH_ORIENTATION_RELATIVE;
+        desiredRow = rowCount + value;
+      case 'absolute':
+        orientation = TNS_FETCH_ORIENTATION_ABSOLUTE;
+        desiredRow = value;
+      case 'first':
+        orientation = TNS_FETCH_ORIENTATION_FIRST;
+        desiredRow = 1;
+      case 'last':
+        orientation = TNS_FETCH_ORIENTATION_LAST;
+      default:
+        throw dpyError(ERR_WRONG_SCROLL_MODE);
+    }
+    // the server is not needed if the row is already in the buffer (it is
+    // always contacted for "last")
+    if (orientation != TNS_FETCH_ORIENTATION_LAST &&
+        desiredRow >= _bufferMinRow &&
+        desiredRow < _bufferMaxRow) {
+      _rowIndex = desiredRow - _bufferMinRow;
+      rowCount = desiredRow - 1;
+      return;
+    }
+    final message = ExecuteMessage(this)
+      ..scrollOperation = true
+      ..fetchOrientation = orientation
+      ..fetchPos = desiredRow;
+    await conn.protocol.processSingleMessage(message);
+    final buffered = _rows.length;
+    if (buffered == 0) {
+      if (orientation != TNS_FETCH_ORIENTATION_FIRST &&
+          orientation != TNS_FETCH_ORIENTATION_LAST) {
+        throw dpyError(ERR_SCROLL_OUT_OF_RESULT_SET);
+      }
+      rowCount = 0;
+      moreRowsToFetch = false;
+      _bufferMinRow = _bufferMaxRow = 0;
+    } else {
+      rowCount = message.errorInfo.rowcount - buffered;
+      _bufferMinRow = rowCount + 1;
+      _bufferMaxRow = _bufferMinRow + buffered;
+    }
+    _rowIndex = 0;
   }
 
   Future<void> executeMany(int numExecs,
@@ -413,9 +489,12 @@ class ThinCursorImpl {
   }
 
   Future<void> _fetchRows() async {
-    final MessageWithData message =
-        statement!.sql == null ? ExecuteMessage(this) : FetchMessage(this);
+    final MessageWithData message = statement!.sql == null || scrollable
+        ? _executeMessage()
+        : FetchMessage(this);
     await conn.protocol.processSingleMessage(message);
+    _bufferMinRow = rowCount + 1;
+    _bufferMaxRow = _bufferMinRow + _rows.length;
   }
 
   /// Returns the next row, or null when all rows have been fetched.

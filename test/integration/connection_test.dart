@@ -144,7 +144,10 @@ void main() {
     });
 
     // a CPU bound query: the server checks for in-band breaks while it runs
-    const longQuery = 'select count(*) from dual connect by level <= 300000000';
+    // (a cartesian product of two row sources: lots of CPU, little memory)
+    const longQuery = 'select count(*) from '
+        '(select level a from dual connect by level <= 100000), '
+        '(select level b from dual connect by level <= 100000)';
 
     test('call timeout interrupts long calls', () async {
       final conn = await connect();

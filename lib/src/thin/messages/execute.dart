@@ -676,6 +676,9 @@ class ExecuteMessage extends MessageWithData {
       execFlags |= TNS_EXEC_FLAGS_IMPLICIT_RESULTSET;
       if (!scrollOperation) options |= TNS_EXEC_OPTION_EXECUTE;
     }
+    if (cursor.scrollable && !parseOnly) {
+      execFlags |= TNS_EXEC_FLAGS_SCROLLABLE | TNS_EXEC_FLAGS_NO_CANCEL_ON_EOF;
+    }
     if (stmt.cursorId == 0 || stmt.isDdl) options |= TNS_EXEC_OPTION_PARSE;
     if (stmt.isQuery) {
       if (parseOnly) {
@@ -842,7 +845,8 @@ class ExecuteMessage extends MessageWithData {
         parseOnly ||
         stmt.requiresDefine ||
         stmt.isDdl ||
-        batchErrors) {
+        batchErrors ||
+        cursor.scrollable) {
       functionCode = TNS_FUNC_EXECUTE;
       _writeExecuteMessage(buf);
     } else if (stmt.isQuery && cursor.prefetchRows > 0) {

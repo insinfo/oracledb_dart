@@ -9,6 +9,8 @@ import 'hooks.dart';
 import 'lob.dart';
 import 'placeholders.dart';
 import 'thin/connection_impl.dart';
+import 'thin/constants.dart';
+import 'thin/messages/tpc.dart';
 
 /// A connection to an Oracle Database (thin mode, pure Dart).
 ///
@@ -275,6 +277,76 @@ class OracleConnection {
   set dbop(String? value) {
     impl.dbop = value;
     impl.dbopModified = true;
+  }
+
+  /// Flags of [tpcBegin].
+  static const int tpcBeginNew = TPC_TXN_FLAGS_NEW;
+  static const int tpcBeginJoin = TPC_TXN_FLAGS_JOIN;
+  static const int tpcBeginResume = TPC_TXN_FLAGS_RESUME;
+  static const int tpcBeginPromote = TPC_TXN_FLAGS_PROMOTE;
+
+  /// Flags of [tpcEnd].
+  static const int tpcEndNormal = 0;
+  static const int tpcEndSuspend = 0x00100000;
+
+  /// Internal and external names sent with TPC transactions.
+  String? get internalName => impl.internalName;
+  set internalName(String? value) => impl.internalName = value;
+  String? get externalName => impl.externalName;
+  set externalName(String? value) => impl.externalName = value;
+
+  /// Begins (or joins, resumes or promotes, according to [flags]) a
+  /// two-phase commit transaction identified by [xid]. [timeout] is the
+  /// number of seconds the transaction can be inactive before it is rolled
+  /// back.
+  Future<void> tpcBegin(Xid xid, {int flags = tpcBeginNew, int timeout = 0}) {
+    checkConnected();
+    if (flags != tpcBeginNew &&
+        flags != tpcBeginJoin &&
+        flags != tpcBeginResume &&
+        flags != tpcBeginPromote) {
+      throw dpyError(ERR_INVALID_TPC_BEGIN_FLAGS);
+    }
+    return impl.tpcBegin(xid, flags, timeout);
+  }
+
+  /// Ends (or, with [tpcEndSuspend], suspends) the work on the transaction.
+  Future<void> tpcEnd([Xid? xid, int flags = tpcEndNormal]) {
+    checkConnected();
+    if (flags != tpcEndNormal && flags != tpcEndSuspend) {
+      throw dpyError(ERR_INVALID_TPC_END_FLAGS);
+    }
+    return impl.tpcEnd(xid, flags);
+  }
+
+  /// Prepares the transaction for commit; returns false if no commit is
+  /// required (the transaction made no changes).
+  Future<bool> tpcPrepare([Xid? xid]) {
+    checkConnected();
+    return impl.tpcPrepare(xid);
+  }
+
+  /// Commits the transaction, which must have been prepared unless
+  /// [onePhase] is set.
+  Future<void> tpcCommit([Xid? xid, bool onePhase = false]) {
+    checkConnected();
+    return impl.tpcCommit(xid, onePhase);
+  }
+
+  /// Rolls back the transaction.
+  Future<void> tpcRollback([Xid? xid]) {
+    checkConnected();
+    return impl.tpcRollback(xid);
+  }
+
+  /// Returns the pending transactions that require recovery (requires
+  /// access to the DBA_PENDING_TRANSACTIONS view).
+  Future<List<Xid>> tpcRecover() async {
+    final rows = await query(
+        'select formatid, globalid, branchid from dba_pending_transactions');
+    return [
+      for (final r in rows) Xid(r[0] as int, r[1] as Object, r[2] as Object)
+    ];
   }
 
   /// Creates a temporary LOB of the given type (CLOB, NCLOB or BLOB),

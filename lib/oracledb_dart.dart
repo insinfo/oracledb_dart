@@ -33,5 +33,6 @@ export 'src/placeholders.dart' show PlaceholderIdentifier;
 export 'src/pool.dart' show OracleConnectionPool, PoolGetMode, SessionCallback;
 export 'src/thin/codecs.dart' show IntervalYM;
 export 'src/thin/messages/base.dart' show BatchError;
+export 'src/thin/messages/tpc.dart' show Xid;
 export 'src/thin/types.dart' show ColumnMetadata, DbType;
 export 'src/thin/vector.dart' show BinaryVector, SparseVector;

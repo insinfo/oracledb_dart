@@ -7,6 +7,7 @@ import '../utils.dart';
 import 'constants.dart';
 import 'messages/auth.dart';
 import 'messages/base.dart';
+import 'messages/tpc.dart';
 import 'protocol.dart';
 import 'statement.dart';
 import 'tls.dart';
@@ -73,6 +74,12 @@ class ThinConnImpl {
 
   bool get isHealthy => protocol.isHealthy;
 
+  /// Context of the two-phase commit transaction in progress, if any.
+  Uint8List? transactionContext;
+
+  /// Names sent with two-phase commit transactions.
+  String? internalName, externalName;
+
   /// Whether the connection uses Database Resident Connection Pooling.
   bool get drcpEnabled => params.serverType?.toLowerCase() == 'pooled';
 
@@ -87,6 +94,7 @@ class ThinConnImpl {
     }
     return isPooled ? Purity.self : Purity.newPurity;
   }
+
   bool get txnInProgress => protocol.txnInProgress;
 
   Future<void> connect() async {
@@ -209,9 +217,8 @@ class ThinConnImpl {
     protocol.inConnect = false;
   }
 
-  Statement getStatement(String? sql, bool cacheStatement) =>
-      statementCache.getStatement(sql, cacheStatement,
-          forceNew: drcpEstablishSession);
+  Statement getStatement(String? sql, bool cacheStatement) => statementCache
+      .getStatement(sql, cacheStatement, forceNew: drcpEstablishSession);
 
   /// Releases the DRCP session to the database pool (when the connection is
   /// released to the client pool); the next call attaches a session again.
@@ -233,6 +240,60 @@ class ThinConnImpl {
 
   Future<void> commit() => _simple(TNS_FUNC_COMMIT);
 
+  Future<void> tpcBegin(Xid xid, int flags, int timeout) async {
+    final message = TransactionSwitchMessage(this, TNS_TPC_TXN_START,
+        xid: xid, flags: flags, timeout: timeout);
+    await protocol.processSingleMessage(message);
+    transactionContext = message.context;
+  }
+
+  Future<void> tpcEnd(Xid? xid, int flags) async {
+    final message = TransactionSwitchMessage(this, TNS_TPC_TXN_DETACH,
+        xid: xid, flags: flags, context: transactionContext);
+    await protocol.processSingleMessage(message);
+    transactionContext = null;
+  }
+
+  Future<bool> tpcPrepare(Xid? xid) async {
+    final message = TransactionChangeStateMessage(this, TNS_TPC_TXN_PREPARE, 0,
+        xid: xid, context: transactionContext);
+    await protocol.processSingleMessage(message);
+    if (message.state == TNS_TPC_TXN_STATE_REQUIRES_COMMIT) return true;
+    if (message.state == TNS_TPC_TXN_STATE_READ_ONLY) return false;
+    throw dpyError(ERR_UNKNOWN_TRANSACTION_STATE,
+        args: {'state': message.state});
+  }
+
+  Future<void> tpcCommit(Xid? xid, bool onePhase) async {
+    final message = TransactionChangeStateMessage(this, TNS_TPC_TXN_COMMIT,
+        onePhase ? TNS_TPC_TXN_STATE_READ_ONLY : TNS_TPC_TXN_STATE_COMMITTED,
+        xid: xid, context: transactionContext);
+    await protocol.processSingleMessage(message);
+    final state = message.state;
+    if (onePhase &&
+            state != TNS_TPC_TXN_STATE_READ_ONLY &&
+            state != TNS_TPC_TXN_STATE_COMMITTED ||
+        !onePhase && state != TNS_TPC_TXN_STATE_FORGOTTEN) {
+      throw dpyError(ERR_UNKNOWN_TRANSACTION_STATE, args: {'state': state});
+    }
+    transactionContext = null;
+  }
+
+  TransactionChangeStateMessage _tpcRollbackMessage(Xid? xid) =>
+      TransactionChangeStateMessage(
+          this, TNS_TPC_TXN_ABORT, TNS_TPC_TXN_STATE_ABORTED,
+          xid: xid, context: transactionContext);
+
+  Future<void> tpcRollback(Xid? xid) async {
+    final message = _tpcRollbackMessage(xid);
+    await protocol.processSingleMessage(message);
+    if (message.state != TNS_TPC_TXN_STATE_ABORTED) {
+      throw dpyError(ERR_UNKNOWN_TRANSACTION_STATE,
+          args: {'state': message.state});
+    }
+    transactionContext = null;
+  }
+
   Future<void> rollback() => _simple(TNS_FUNC_ROLLBACK);
 
   Future<void> ping() => _simple(TNS_FUNC_PING);
@@ -242,7 +303,10 @@ class ThinConnImpl {
     await p.lock.run(() async {
       try {
         if (p.transport.isConnected) {
-          if (p.txnInProgress) {
+          if (transactionContext != null) {
+            await p.processMessage(_tpcRollbackMessage(null));
+            transactionContext = null;
+          } else if (p.txnInProgress) {
             await p.processMessage(SimpleMessage(this, TNS_FUNC_ROLLBACK));
           }
           if (drcpEnabled) {

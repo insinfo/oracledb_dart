@@ -14,6 +14,8 @@ is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
   purity given, release their sessions to the database pool when returned
   to an `OracleConnectionPool` and are released instead of logged off when
   closed.
+- Two-phase commit (`tpcBegin`, `tpcEnd`, `tpcPrepare`, `tpcCommit`,
+  `tpcRollback`, `tpcRecover`) with `Xid` transaction identifiers.
 
 ### Fixed
 

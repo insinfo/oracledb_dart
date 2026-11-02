@@ -7,6 +7,8 @@ import 'thin/types.dart';
 import 'exceptions.dart';
 import 'hooks.dart';
 import 'lob.dart';
+import 'pipeline.dart';
+import 'pipeline.dart' as pipeline_impl show runPipeline;
 import 'placeholders.dart';
 import 'thin/connection_impl.dart';
 import 'thin/constants.dart';
@@ -348,6 +350,20 @@ class OracleConnection {
       for (final r in rows) Xid(r[0] as int, r[1] as Object, r[2] as Object)
     ];
   }
+
+  /// Runs the operations of [pipeline] in a single round trip (Oracle
+  /// Database 23ai or later; older databases run them one after the other).
+  /// With [continueOnError], the error of an operation is stored in its
+  /// result and the other operations are still executed; otherwise the
+  /// first error is raised.
+  Future<List<PipelineOpResult>> runPipeline(OraclePipeline pipeline,
+      {bool continueOnError = false}) {
+    checkConnected();
+    return pipeline_impl.runPipeline(this, pipeline, continueOnError);
+  }
+
+  /// Whether the database supports pipelining (Oracle Database 23ai).
+  bool get supportsPipelining => impl.protocol.caps.supportsPipelining;
 
   /// Creates a temporary LOB of the given type (CLOB, NCLOB or BLOB),
   /// optionally writing [data] to it. Temporary LOBs can be bound to

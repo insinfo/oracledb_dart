@@ -60,6 +60,9 @@ class Protocol {
   int lastPacketFlags = 0;
 
   bool _markerPending = false;
+
+  /// While processing the responses of a pipeline, markers are discarded.
+  bool _inPipeline = false;
   int _pendingMarkerType = 0;
 
   bool get isHealthy => transport.isConnected && pendingErrorNum == 0;
@@ -106,7 +109,9 @@ class Protocol {
     while (true) {
       var packet = transport.tryReadPacket();
       if (packet == null) {
-        if (gotData) return;
+        // when waiting for the full response, keep waiting until the end of
+        // the response has been received (markers may have been discarded)
+        if (gotData && !waitForFull) return;
         packet = await transport.readPacket();
       }
       switch (packet.type) {
@@ -118,6 +123,7 @@ class Protocol {
           gotData = true;
           if (waitForFull && packet.hasEndOfResponse) return;
         case TNS_PACKET_TYPE_MARKER:
+          if (_inPipeline) continue;
           _markerPending = true;
           _pendingMarkerType = packet.size > 10 ? packet.buf[10] : 0;
           return;
@@ -316,6 +322,63 @@ class Protocol {
     });
     message.postprocess();
   }
+
+  /// Sends the messages of a pipeline followed by [end] and processes their
+  /// responses, which the server sends in order once each one is complete.
+  /// With [continueOnError], errors are passed to [onError] and the other
+  /// operations are processed; otherwise the first error is raised (after
+  /// the remaining responses are discarded).
+  Future<void> runPipeline(List<Message> messages, Message end,
+      bool continueOnError, void Function(Message, Object) onError) async {
+    await lock.run(() async {
+      checkConnected();
+      conn.pipelineMode = continueOnError
+          ? TNS_PIPELINE_MODE_CONTINUE_ON_ERROR
+          : TNS_PIPELINE_MODE_ABORT_ON_ERROR;
+      for (final message in messages) {
+        message.send(writeBuf);
+      }
+      end.send(writeBuf);
+      _inPipeline = true;
+      var pending = messages.length + 1;
+      try {
+        for (final message in messages) {
+          readBuf.reset();
+          await _fill(waitForFull: true);
+          pending--;
+          try {
+            message.preprocess();
+            message.process(readBuf);
+            _processCallStatus(message.callStatus);
+            message.checkAndThrow();
+          } catch (e) {
+            if (!continueOnError) rethrow;
+            onError(message, e);
+          }
+        }
+        readBuf.reset();
+        await _fill(waitForFull: true);
+        pending--;
+        end.process(readBuf);
+        end.checkAndThrow();
+      } catch (_) {
+        // discard the responses of the operations not yet processed
+        while (pending-- > 0) {
+          readBuf.reset();
+          await _fill(waitForFull: true);
+        }
+        rethrow;
+      } finally {
+        _inPipeline = false;
+        readBuf.reset();
+      }
+    });
+  }
+
+  /// Sends the message again (for example after a define), without any
+  /// preprocessing.
+  Future<void> resendMessage(Message message) =>
+      lock.run(() => processMessage(message));
 
   /// Sends a message for which the server sends no response.
   void sendOneWay(Message message) {

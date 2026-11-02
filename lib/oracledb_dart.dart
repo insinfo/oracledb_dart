@@ -29,6 +29,8 @@ export 'src/hooks.dart'
         resolvePassword,
         unregisterParamsHook;
 export 'src/lob.dart' show OracleLob;
+export 'src/pipeline.dart'
+    show OraclePipeline, PipelineOp, PipelineOpResult, PipelineOpType;
 export 'src/placeholders.dart' show PlaceholderIdentifier;
 export 'src/pool.dart' show OracleConnectionPool, PoolGetMode, SessionCallback;
 export 'src/thin/codecs.dart' show IntervalYM;

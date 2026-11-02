@@ -74,6 +74,10 @@ class ThinConnImpl {
 
   bool get isHealthy => protocol.isHealthy;
 
+  /// Pipeline mode written with the next request (0 when not beginning a
+  /// pipeline).
+  int pipelineMode = 0;
+
   /// Context of the two-phase commit transaction in progress, if any.
   Uint8List? transactionContext;
 

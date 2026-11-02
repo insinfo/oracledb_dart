@@ -16,6 +16,11 @@ is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
   closed.
 - Two-phase commit (`tpcBegin`, `tpcEnd`, `tpcPrepare`, `tpcCommit`,
   `tpcRollback`, `tpcRecover`) with `Xid` transaction identifiers.
+- Pipelining (`OraclePipeline` and `OracleConnection.runPipeline()`): many
+  operations (execute, executeMany, fetches, function and procedure calls
+  and commits) are sent in a single round trip on Oracle Database 23ai,
+  optionally continuing after errors; older databases run the operations
+  one after the other.
 
 ### Fixed
 

@@ -55,6 +55,9 @@ abstract class Message {
   OracleErrorInfo errorInfo = OracleErrorInfo();
   OracleException? warning;
 
+  /// Set when the message is sent as part of a pipeline.
+  bool inPipeline = false;
+
   /// Throws the error returned by the server, if one was returned.
   void checkAndThrow() {
     if (!errorOccurred) return;
@@ -392,6 +395,15 @@ abstract class Message {
   }
 
   void writePiggybacks(WriteBuffer buf) {
+    if (conn.pipelineMode != 0) {
+      // informs the server that a pipeline is beginning
+      buf.dataFlags |= TNS_DATA_FLAGS_BEGIN_PIPELINE;
+      writePiggybackCode(buf, TNS_FUNC_PIPELINE_BEGIN);
+      buf.writeUB2(0); // error set ID
+      buf.writeUint8(0); // error set mode
+      buf.writeUint8(conn.pipelineMode);
+      conn.pipelineMode = 0;
+    }
     if (conn.currentSchemaModified) _writeCurrentSchemaPiggyback(buf);
     if (conn.statementCache.numCursorsToClose > 0 &&
         !conn.drcpEstablishSession) {
@@ -490,6 +502,7 @@ abstract class Message {
   void send(WriteBuffer buf) {
     buf.startRequest(TNS_PACKET_TYPE_DATA);
     writeMessage(buf);
+    if (inPipeline) buf.dataFlags |= TNS_DATA_FLAGS_END_OF_REQUEST;
     buf.endRequest();
   }
 }
@@ -510,6 +523,20 @@ class SessionReleaseMessage extends Message {
     buf.writeUint8(0); // pointer (tag name)
     buf.writeUint8(0); // tag name length
     buf.writeUB4(releaseMode); // mode
+  }
+}
+
+/// Ends a pipeline: the server responds once all of the operations sent
+/// before it have been processed.
+class EndPipelineMessage extends Message {
+  EndPipelineMessage(super.conn) {
+    functionCode = TNS_FUNC_PIPELINE_END;
+  }
+
+  @override
+  void writeMessage(WriteBuffer buf) {
+    writeFunctionCode(buf);
+    buf.writeUB4(0); // ID (unused)
   }
 }
 

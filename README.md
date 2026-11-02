@@ -47,8 +47,7 @@ package.
 
 ```yaml
 dependencies:
-  oracledb_dart:
-    git: https://github.com/insinfo/oracledb_dart.git
+  oracledb_dart: ^1.0.0
 ```
 
 ## Usage
@@ -96,6 +95,18 @@ await OracleConnection.connect(user: u, password: p,
 
 await OracleConnection.connect(user: 'sys', password: p, dsn: dsn,
     mode: AuthMode.sysdba);
+```
+
+Other connection options: `newPassword` (changes the password while
+connecting, e.g. when it has expired), `edition`, `appContext`
+(`[['NAMESPACE', 'NAME', 'VALUE'], ...]`), `connectTimeout`, `callTimeout`,
+`sdu` and `stmtCacheSize`. The same options can be gathered in a
+`ConnectParams` object:
+
+```dart
+final params = ConnectParams.fromDsn('dbhost/orclpdb',
+    user: u, password: p, edition: 'RELEASE_2', sdu: 65535);
+final conn = await OracleConnection.connectWithParams(params);
 ```
 
 Requests on a connection are serialized, so concurrent calls on the same
@@ -150,6 +161,21 @@ registerParamsHook((params) => params.copyWith(accessToken: currentToken));
 registerPasswordType('vault', (args) => readSecret(args['id'] as String));
 ```
 
+### Session attributes and information
+
+```dart
+conn.module = 'billing';           // end-to-end tracing attributes, sent
+conn.action = 'monthly close';     // with the next round trip
+conn.clientIdentifier = 'user@app';
+conn.clientInfo = 'batch';
+conn.currentSchema = 'HR';
+
+print(conn.version);               // e.g. 23.26.3.0.0
+print('${conn.sessionId},${conn.serialNumber} ${conn.serviceName}');
+await conn.ping();                 // round trip to check the connection
+print(conn.isHealthy);
+```
+
 ### Connection pools
 
 ```dart
@@ -174,7 +200,9 @@ try {
 await pool.close();
 ```
 
-When all connections are busy, `acquire()` waits (`PoolGetMode.wait`),
+Pools also accept `maxLifetimeSession`, `pingInterval`, `pingTimeout`,
+`getMode` and `waitTimeout`. When all connections are busy, `acquire()`
+waits (`PoolGetMode.wait`),
 fails (`noWait`), waits up to `waitTimeout` (`timedWait`) or creates an
 extra connection (`forceGet`). Connections idle for longer than
 `pingInterval` are checked before being returned, broken connections are
@@ -395,24 +423,42 @@ await cursor.scroll(0, ScrollMode.last);
 await cursor.scroll(-10); // relative to the current row
 final row = await cursor.fetchOne();
 
-// several operations in one round trip (Oracle Database 23ai)
+// several operations in one round trip (Oracle Database 23ai; older
+// databases run them one after the other, see conn.supportsPipelining)
 final pipeline = OraclePipeline()
   ..addExecute('insert into t values (:1)', [1])
   ..addFetchAll('select * from t')
+  ..addCallFunc('my_add', DbType.number, [1, 2])
   ..addCommit();
-final results = await conn.runPipeline(pipeline);
+final results = await conn.runPipeline(pipeline, continueOnError: true);
 print(results[1].rows);
+print(results[2].returnValue);
+print(results.map((r) => r.error)); // errors, with continueOnError
 
 // two-phase commit
 final xid = Xid(1000, 'global-id', 'branch');
 await conn.tpcBegin(xid);
 await conn.execute('insert into t values (2)');
 if (await conn.tpcPrepare()) await conn.tpcCommit();
+// transactions prepared but not committed or rolled back
+for (final pending in await conn.tpcRecover()) {
+  await conn.tpcRollback(pending);
+}
 ```
 
-DRCP is used when the connect string asks for a pooled server (for example
-`host/service:pooled`); pass `cclass` and `purity` to
-`OracleConnection.connect` or `OracleConnectionPool.create`.
+### Database Resident Connection Pooling (DRCP)
+
+DRCP is used when the connect string asks for a pooled server:
+
+```dart
+final conn = await OracleConnection.connect(user: u, password: p,
+    dsn: 'dbhost/orclpdb:pooled', cclass: 'BILLING', purity: Purity.self);
+
+// with a client pool, sessions are released to the database pool when
+// the connections are returned
+final pool = await OracleConnectionPool.create(user: u, password: p,
+    dsn: 'dbhost/orclpdb:pooled', cclass: 'BILLING', min: 1, max: 10);
+```
 
 ### Advanced Queuing
 

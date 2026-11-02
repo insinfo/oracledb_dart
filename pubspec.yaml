@@ -5,6 +5,10 @@ description: >-
 version: 1.0.0
 repository: https://github.com/insinfo/oracledb_dart
 issue_tracker: https://github.com/insinfo/oracledb_dart/issues
+# throwaway keys generated for the RSA signature unit tests
+false_secrets:
+  - /test/fixtures/rsa_pkcs1.pem
+  - /test/fixtures/rsa_pkcs8.pem
 topics:
   - oracle
   - database

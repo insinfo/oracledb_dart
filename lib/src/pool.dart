@@ -80,6 +80,8 @@ class OracleConnectionPool {
     String? configDir,
     String? walletLocation,
     String? walletPassword,
+    String? cclass,
+    Purity purity = Purity.defaultPurity,
     ConnectParams? params,
     int min = 1,
     int max = 2,
@@ -105,7 +107,9 @@ class OracleConnectionPool {
             stmtCacheSize: stmtCacheSize,
             configDir: configDir,
             walletLocation: walletLocation,
-            walletPassword: walletPassword)
+            walletPassword: walletPassword,
+            cclass: cclass,
+            purity: purity)
         : ConnectParams(
             host: host ?? 'localhost',
             port: port ?? 1521,
@@ -117,6 +121,8 @@ class OracleConnectionPool {
             stmtCacheSize: stmtCacheSize,
             walletLocation: walletLocation,
             walletPassword: walletPassword,
+            cclass: cclass,
+            purity: purity,
             connectString:
                 '${host ?? 'localhost'}:${port ?? 1521}/${serviceName ?? ''}');
     final pool = OracleConnectionPool._(

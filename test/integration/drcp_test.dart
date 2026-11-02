@@ -31,10 +31,11 @@ void main() {
 
     test('client pools release sessions to the database pool', () async {
       final pool = await OracleConnectionPool.create(
-        params: ConnectParams.fromDsn(pooledDsn,
-            user: OracleTestConfig.user,
-            password: OracleTestConfig.password,
-            cclass: 'DART_POOL'),
+        user: OracleTestConfig.user,
+        password: OracleTestConfig.password,
+        dsn: pooledDsn,
+        cclass: 'DART_POOL',
+        purity: Purity.self,
         min: 1,
         max: 2,
       );

@@ -47,7 +47,7 @@ package.
 
 ```yaml
 dependencies:
-  oracledb_dart: ^1.0.0
+  oracledb_dart: ^1.1.0
 ```
 
 ## Usage
@@ -206,7 +206,46 @@ waits (`PoolGetMode.wait`),
 fails (`noWait`), waits up to `waitTimeout` (`timedWait`) or creates an
 extra connection (`forceGet`). Connections idle for longer than
 `pingInterval` are checked before being returned, broken connections are
-replaced and open transactions are rolled back on release.
+replaced and open transactions are rolled back on release. `autocommit`
+and `callTimeout` changed on an acquired connection are reset on release.
+
+### Using connections in an HTTP server
+
+Give each request its own connection from a pool. A connection runs one
+call at a time, and its transaction and savepoints belong to the session,
+so requests sharing a connection share one transaction.
+
+```dart
+final pool = await OracleConnectionPool.create(
+  user: 'scott', password: 'tiger', dsn: 'dbhost/orclpdb',
+  min: 2, max: 10,
+  getMode: PoolGetMode.timedWait, waitTimeout: const Duration(seconds: 2),
+  callTimeout: const Duration(seconds: 10),
+);
+
+final server = await HttpServer.bind(InternetAddress.anyIPv4, 8080);
+await for (final request in server) {
+  unawaited(() async {
+    try {
+      final rows = await pool.withConnection((conn) => conn.transaction(
+          (c) => c.query('select id, name from customers where id = :1',
+              [int.parse(request.uri.queryParameters['id']!)])));
+      request.response.write(jsonEncode(rows));
+    } on OracleException catch (e) {
+      request.response.statusCode = switch (e.fullCode) {
+        'DPY-4005' => HttpStatus.serviceUnavailable, // pool exhausted
+        'DPY-4024' => HttpStatus.gatewayTimeout, // call timeout
+        _ => HttpStatus.internalServerError,
+      };
+    }
+    await request.response.close();
+  }());
+}
+```
+
+Large results can be streamed with `conn.stream()` and
+`response.addStream()`; if the client disconnects, the cursor is closed and
+the connection returns to the pool.
 
 ### Queries and binds
 
@@ -284,6 +323,26 @@ await conn.transaction((c) async {
   await c.execute('update accounts set balance = balance + 10 where id = 2');
 });
 
+// nested transaction() calls run in savepoints: a failure rolls back only
+// the nested work (the error is still rethrown)
+await conn.transaction((c) async {
+  await c.execute("insert into orders (id) values (1)");
+  try {
+    await c.transaction((c) => c.execute("insert into audit values ('x')"));
+  } on OracleException {
+    // the order is kept; the audit row is rolled back
+  }
+});
+
+// explicit savepoints
+await conn.savepoint('before_items');
+await conn.execute('delete from order_items where order_id = 1');
+await conn.rollbackToSavepoint('before_items');
+
+// Savepoints and transactions belong to the session: in a server handling
+// concurrent requests, give each request its own connection from a pool
+// (pool.withConnection) instead of sharing one connection.
+
 // batch errors and DML row counts
 final cursor = conn.cursor();
 await cursor.executeMany('insert into t (id) values (:1)', rows,
@@ -308,10 +367,14 @@ final call = conn.execute('select ... from huge_table');
 conn.cancel();
 ```
 
-The connection remains usable after a timeout or a cancellation. Breaks
-are sent in-band, so the database interrupts the call when it next checks
-for them (immediately for most SQL; some PL/SQL calls such as
-`dbms_session.sleep` are only interrupted when they complete).
+Breaks are sent in-band, so the database interrupts the call when it next
+checks for them: immediately for most SQL, after which the connection
+remains usable. While the database waits (for a row lock, or in calls such
+as `dbms_session.sleep`) it only checks when the wait ends. If it does not
+respond to the interruption of a timed out call within a short time (at
+most 2 seconds), the connection is closed and DPY-4024 is raised with
+`isSessionDead` set; a pool replaces such connections. A cancellation
+waits for the database to respond. See [Out-of-band breaks](#out-of-band-breaks).
 
 ### PL/SQL
 
@@ -552,6 +615,26 @@ Native Network Encryption, sessionless transactions, AQ message
 properties for user-defined properties and recipient lists of dequeued
 messages, and SODA (SODA is only available in the thick mode of the Oracle
 client libraries).
+
+### Out-of-band breaks
+
+python-oracledb and the Oracle client libraries interrupt calls (call
+timeouts and `cancel()`) with out-of-band breaks, sent as TCP urgent data,
+which the database notices even while it waits. `dart:io` cannot send
+urgent data, so this driver sends breaks in-band, and the database only
+notices them while it executes. As a consequence:
+
+- A call timed out while the database waits (for a row lock, an enqueue,
+  `dbms_session.sleep`, `dbms_lock.sleep` and similar) cannot be
+  interrupted: the driver closes the connection after at most 2 seconds
+  and raises DPY-4024 with `isSessionDead` set. A pool replaces the
+  connection, but the database session only ends when its wait does, and
+  until then it keeps the locks it holds (its transaction is then rolled
+  back).
+- `cancel()` during such a wait only takes effect when the wait ends.
+
+Prefer limiting waits in SQL, which the database enforces itself, e.g.
+`select ... for update wait 5` or `nowait`, and `dbms_aq` wait times.
 
 ## Development
 

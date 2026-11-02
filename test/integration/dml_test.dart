@@ -76,6 +76,63 @@ void main() {
       ]);
     });
 
+    test('savepoints', () async {
+      await conn().execute('insert into dart_dml_t (id) values (1)');
+      await conn().savepoint('sp_a');
+      await conn().execute('insert into dart_dml_t (id) values (2)');
+      await conn().savepoint('sp_b');
+      await conn().execute('insert into dart_dml_t (id) values (3)');
+      await conn().rollbackToSavepoint('sp_b');
+      expect(await conn().query('select id from dart_dml_t order by id'), [
+        [1],
+        [2]
+      ]);
+      await conn().rollbackToSavepoint('sp_a');
+      expect(conn().transactionInProgress, isTrue);
+      await conn().commit();
+      expect(await conn().query('select id from dart_dml_t'), [
+        [1]
+      ]);
+      // commit erases the savepoints
+      await expectLater(
+          conn().rollbackToSavepoint('sp_a'), throwsA(isA<OracleException>()));
+      expect(() => conn().savepoint('bad name'), throwsArgumentError);
+      expect(() => conn().rollbackToSavepoint('1sp'), throwsArgumentError);
+    });
+
+    test('nested transaction helper uses savepoints', () async {
+      await conn().transaction((c) async {
+        await c.execute('insert into dart_dml_t (id) values (1)');
+        await expectLater(c.transaction((c) async {
+          await c.execute('insert into dart_dml_t (id) values (2)');
+          throw StateError('fail');
+        }), throwsStateError);
+        await c.transaction((c) async {
+          await c.execute('insert into dart_dml_t (id) values (3)');
+          await expectLater(c.transaction((c) async {
+            await c.execute('insert into dart_dml_t (id) values (4)');
+            throw StateError('fail');
+          }), throwsStateError);
+        });
+      });
+      expect(await conn().query('select id from dart_dml_t order by id'), [
+        [1],
+        [3]
+      ]);
+      await expectLater(
+          conn().transaction((c) async {
+            await c.execute('insert into dart_dml_t (id) values (5)');
+            await c.transaction(
+                (c) => c.execute('insert into dart_dml_t (id) values (6)'));
+            throw StateError('fail');
+          }),
+          throwsStateError);
+      expect(await conn().query('select id from dart_dml_t order by id'), [
+        [1],
+        [3]
+      ]);
+    });
+
     test('executeMany with positional and named binds', () async {
       final rows = [
         for (var i = 0; i < 1000; i++)

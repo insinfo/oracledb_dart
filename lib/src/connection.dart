@@ -202,8 +202,15 @@ class OracleConnection {
   PlaceholderIdentifier placeholderIdentifier;
 
   /// Maximum time each round trip to the database may take. When it is
-  /// exceeded, the call is interrupted and DPY-4024 is raised (the
-  /// connection remains usable). Null (the default) means no limit.
+  /// exceeded, the call is interrupted and DPY-4024 is raised. Null (the
+  /// default) means no limit.
+  ///
+  /// The interruption is sent in-band, so the database only processes it
+  /// while it executes (not while it waits, e.g. in DBMS_SESSION.SLEEP or
+  /// for a row lock). If it does not respond within a short time, the
+  /// connection is closed and the error has [OracleException.isSessionDead]
+  /// set; a pool then replaces the connection. A connection acquired from
+  /// a pool gets back the call timeout of the pool when it is released.
   Duration? get callTimeout => impl.callTimeout;
   set callTimeout(Duration? value) => impl.callTimeout = value;
 
@@ -215,6 +222,7 @@ class OracleConnection {
   }
 
   /// Whether each statement is committed automatically (default false).
+  /// A connection acquired from a pool is reset to false when released.
   bool get autocommit => impl.autocommit;
   set autocommit(bool value) => impl.autocommit = value;
 
@@ -467,16 +475,55 @@ class OracleConnection {
 
   /// Runs [action] in a transaction: commits if it completes and rolls back
   /// if it throws.
+  ///
+  /// Calls nested inside [action] (in its asynchronous zone) run in a
+  /// savepoint instead: if the nested action throws, only its changes are
+  /// rolled back (the error is still rethrown), and if it completes its
+  /// changes are committed or rolled back with the outermost transaction.
+  ///
+  /// Transactions started concurrently at the same level (outermost on the
+  /// same connection, or nested in the same action) run one after another.
+  /// Other statements executed concurrently on the
+  /// connection outside of them still become part of the open transaction,
+  /// so concurrent units of work (e.g. HTTP requests) should each use their
+  /// own connection, acquired from an [OracleConnectionPool].
   Future<T> transaction<T>(
       Future<T> Function(OracleConnection conn) action) async {
-    try {
-      final result = await action(this);
-      await commit();
-      return result;
-    } catch (_) {
-      await rollback();
-      rethrow;
+    final parent = Zone.current[_Transaction] as _Transaction?;
+    if (parent != null && parent.active && identical(parent.conn, this)) {
+      return parent.run(action);
     }
+    return _root.run(action);
+  }
+
+  /// Serializes the outermost transactions of this connection.
+  late final _Transaction _root = _Transaction(this, 0);
+
+  static final RegExp _savepointName = RegExp(r'^[A-Za-z][A-Za-z0-9_$#]*$');
+
+  static void _checkSavepointName(String name) {
+    if (name.length > 128 || !_savepointName.hasMatch(name)) {
+      throw ArgumentError.value(
+          name, 'name', 'must be an unquoted Oracle identifier');
+    }
+  }
+
+  /// Marks a savepoint named [name] in the current transaction. An
+  /// existing savepoint with the same name is replaced.
+  ///
+  /// [name] must be an unquoted Oracle identifier (a letter followed by
+  /// letters, digits, `_`, `$` or `#`).
+  Future<void> savepoint(String name) async {
+    _checkSavepointName(name);
+    await execute('savepoint $name');
+  }
+
+  /// Rolls back the changes made after the savepoint [name] was marked.
+  /// The savepoint and the ones marked before it remain; the ones marked
+  /// after it are erased. A commit or rollback erases all savepoints.
+  Future<void> rollbackToSavepoint(String name) async {
+    _checkSavepointName(name);
+    await execute('rollback to savepoint $name');
   }
 
   Future<void> commit() {
@@ -503,5 +550,50 @@ class OracleConnection {
     final release = _release;
     if (release != null) return release();
     await impl.close();
+  }
+}
+
+/// A level of [OracleConnection.transaction] calls: level 0 runs the
+/// outermost transactions, level n the calls nested in a level n - 1 action,
+/// each in a savepoint. The calls of a level run one after another.
+class _Transaction {
+  _Transaction(this.conn, this.depth);
+
+  final OracleConnection conn;
+  final int depth;
+  bool active = true;
+  Future<void> _lock = Future.value();
+
+  Future<T> run<T>(Future<T> Function(OracleConnection conn) action) async {
+    final previous = _lock;
+    final done = Completer<void>();
+    _lock = done.future;
+    await previous;
+    final child = _Transaction(conn, depth + 1);
+    final savepoint = 'odb_tx_sp_${child.depth}';
+    try {
+      if (depth > 0) await conn.savepoint(savepoint);
+      return await runZoned(() async {
+        try {
+          final result = await action(conn);
+          if (depth == 0) await conn.commit();
+          return result;
+        } catch (_) {
+          // on a lost connection there is nothing to roll back (the database
+          // discards the transaction) and the original error is kept
+          if (conn.isHealthy) {
+            if (depth == 0) {
+              await conn.rollback();
+            } else {
+              await conn.rollbackToSavepoint(savepoint);
+            }
+          }
+          rethrow;
+        }
+      }, zoneValues: {_Transaction: child});
+    } finally {
+      child.active = false;
+      done.complete();
+    }
   }
 }

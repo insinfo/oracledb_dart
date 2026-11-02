@@ -197,6 +197,8 @@ class Protocol {
     }
   }
 
+  static const Duration _maxTimeoutRecovery = Duration(seconds: 2);
+
   /// Sends the message to the server and processes the response, applying
   /// the call timeout of the connection.
   Future<void> processMessage(Message message) async {
@@ -214,9 +216,12 @@ class Protocol {
 
   /// Interrupts the call that exceeded the call timeout and discards the
   /// response of the server to the interruption (so that the connection
-  /// remains usable), then raises DPY-4024.
+  /// remains usable), then raises DPY-4024. The server is given at most
+  /// [_maxTimeoutRecovery] (or the call timeout, if shorter) to respond;
+  /// otherwise the connection is closed.
   Future<void> _recoverFromTimeout(Message message, Duration timeout) async {
-    transport.deadline = DateTime.now().add(timeout);
+    transport.deadline = DateTime.now()
+        .add(timeout < _maxTimeoutRecovery ? timeout : _maxTimeoutRecovery);
     try {
       breakInProgress = true;
       _sendMarker(TNS_MARKER_TYPE_INTERRUPT);
@@ -238,10 +243,15 @@ class Protocol {
       }
       breakInProgress = false;
     } on CallTimeout {
+      // the database did not process the interruption in time, which
+      // happens while it waits (sleeps, row locks) since breaks are sent
+      // in-band; the connection cannot be used any more
       transport.disconnect();
-      throw dpyError(ERR_CONNECTION_CLOSED,
-          message: 'socket timed out while recovering from previous socket '
-              'timeout');
+      throw dpyError(ERR_CALL_TIMEOUT_EXCEEDED,
+          args: {'timeout': timeout.inMilliseconds},
+          message: 'the connection was closed because the database did not '
+              'acknowledge the interruption of the call',
+          sessionDead: true);
     }
     throw dpyError(ERR_CALL_TIMEOUT_EXCEEDED,
         args: {'timeout': timeout.inMilliseconds});

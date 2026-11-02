@@ -816,17 +816,18 @@ OracleException createOracleException(
     int? dpyCode,
     int? offset,
     bool isRecoverable = false,
+    bool sessionDead = false,
     Map<String, Object?>? args,
     String? context,
     Object? cause}) {
   String? fullCode;
   Type exceptionType = OracleDatabaseError; // Default
-  bool isSessionDead = false;
+  bool isSessionDead = sessionDead;
 
   if (dpyCode != null) {
     fullCode = '$_errPrefix-${dpyCode.toString().padLeft(4, '0')}';
     exceptionType = _exceptionTypeMap[dpyCode ~/ 1000] ?? OracleDatabaseError;
-    isSessionDead = _sessionDeadDpyCodes.contains(dpyCode);
+    isSessionDead |= _sessionDeadDpyCodes.contains(dpyCode);
     var format = _errorMessageFormats[dpyCode] ??
         (_errorMessageFormats[ERR_MISSING_ERROR] ??
             'missing error {error_num}');
@@ -839,7 +840,7 @@ OracleException createOracleException(
     message = message.isEmpty ? format : '$format\n$message';
   } else if (oraCode != null) {
     exceptionType = _oraCodeExceptionTypeMap[oraCode] ?? OracleDatabaseError;
-    isSessionDead = _sessionDeadOraCodes.contains(oraCode);
+    isSessionDead |= _sessionDeadOraCodes.contains(oraCode);
   }
 
   // Determine the final class to instantiate
@@ -917,11 +918,19 @@ OracleException createOracleException(
   return instance;
 }
 
-/// Creates the exception for the driver error [dpyCode] (DPY-xxxx).
+/// Creates the exception for the driver error [dpyCode] (DPY-xxxx);
+/// [sessionDead] marks the connection as unusable after the error.
 OracleException dpyError(int dpyCode,
-        {Map<String, Object?>? args, String message = '', Object? cause}) =>
+        {Map<String, Object?>? args,
+        String message = '',
+        Object? cause,
+        bool sessionDead = false}) =>
     createOracleException(
-        dpyCode: dpyCode, args: args, message: message, cause: cause);
+        dpyCode: dpyCode,
+        args: args,
+        message: message,
+        cause: cause,
+        sessionDead: sessionDead);
 
 /// Error codes for which the error is an integrity error (the cursor is not
 /// invalidated when these occur).

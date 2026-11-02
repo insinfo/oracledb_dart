@@ -13,7 +13,7 @@ import '../data_types_table.dart';
 import 'base.dart';
 
 const String driverName = 'oracledb_dart';
-const String driverVersion = '1.0.0';
+const String driverVersion = '1.1.0';
 
 /// Sends the connect packet to the listener and processes the response
 /// (accept, refuse, redirect or resend).

@@ -4,6 +4,42 @@ All notable changes to this project are documented in this file. The format
 is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/) and the
 project follows [Semantic Versioning](https://semver.org/).
 
+## [1.1.0] - 2026-11-02
+
+### Added
+
+- Savepoints: `OracleConnection.savepoint()` and `rollbackToSavepoint()`.
+- Nested `transaction()` calls run in savepoints, so a failing nested action
+  rolls back only its own changes. Concurrent `transaction()` calls on the
+  same connection (and concurrent nested calls in the same action) now run
+  one after another instead of interleaving in one transaction.
+
+### Fixed
+
+- A call timeout during a database wait (row lock, `dbms_session.sleep`)
+  raised DPY-4011 after twice the timeout; it now raises DPY-4024 (with
+  `isSessionDead` set, since the connection is closed) and waits at most 2
+  seconds for the database to acknowledge the interruption.
+- `transaction()` raised the error of its rollback (DPY-1001) instead of
+  the original error when the connection had been lost.
+- `autocommit` and `callTimeout` changed on a pooled connection carried
+  over to the next caller acquiring the same session; they are now reset
+  when the connection is released.
+
+### Documentation
+
+- README: using connections in an HTTP server, and the limitations of
+  in-band breaks (out-of-band breaks are not supported).
+
+### Tests
+
+- Integration tests of a REST API on `HttpServer` over a pool: concurrent
+  transfers, pool exhaustion, call timeouts, row lock waits, transactions
+  left open, settings left changed, clients disconnecting during streamed
+  responses and sessions killed by the database.
+- Concurrent requests mixing nested transactions and savepoints, on pooled
+  and shared connections.
+
 ## [1.0.0] - 2026-11-02
 
 First release: a pure Dart implementation of the Oracle Database network
@@ -82,4 +118,5 @@ libraries and no third-party runtime dependencies.
   and the integration tests (TCP and TCPS) against Oracle Database 23ai
   Free.
 
+[1.1.0]: https://github.com/insinfo/oracledb_dart/compare/v1.0.0...v1.1.0
 [1.0.0]: https://github.com/insinfo/oracledb_dart/releases/tag/v1.0.0

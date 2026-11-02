@@ -2,7 +2,7 @@ name: oracledb_dart
 description: >-
   A pure Dart driver for Oracle Database (thin mode). No Oracle Client
   libraries or third-party dependencies are required.
-version: 1.0.0
+version: 1.1.0
 repository: https://github.com/insinfo/oracledb_dart
 issue_tracker: https://github.com/insinfo/oracledb_dart/issues
 # throwaway keys generated for the RSA signature unit tests

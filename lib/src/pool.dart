@@ -357,6 +357,11 @@ class OracleConnectionPool {
   Future<void> _release(_PooledSession session, {bool drop = false}) async {
     if (_busy.remove(session.impl) == null) return;
     session.lastUsed = DateTime.now();
+    // settings changed while the connection was acquired do not carry over
+    // to the next caller
+    session.impl
+      ..autocommit = false
+      ..callTimeout = params.callTimeout;
     var keep = !drop && session.impl.isHealthy && !_closed;
     if (keep && session.impl.drcpEnabled) {
       try {

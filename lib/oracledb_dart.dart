@@ -1,6 +1,17 @@
 /// Pure Dart driver for Oracle Database (thin mode).
 library;
 
+export 'src/aq.dart'
+    show
+        AqDeliveryMode,
+        AqDeqMode,
+        AqDeqNavigation,
+        AqDeqOptions,
+        AqEnqOptions,
+        AqMessageState,
+        AqVisibility,
+        OracleMessage,
+        OracleQueue;
 export 'src/connect_params.dart'
     show AccessTokenCallback, AuthMode, ConnectParams, Purity;
 export 'src/connection.dart' show OracleConnection;

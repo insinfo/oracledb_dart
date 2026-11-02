@@ -542,6 +542,40 @@ class OracleDbObject {
   }
 }
 
+/// Reads an object from the network buffer (or an XMLType value when [type]
+/// is null).
+Object? readDbObject(ReadBuffer buf, OracleDbObjectType? type) {
+  final toid = buf.readUB4() > 0 ? buf.readBytes() : null;
+  final oid = buf.readUB4() > 0 ? buf.readBytes() : null;
+  if (buf.readUB4() > 0) buf.readBytes(); // snapshot
+  buf.skipUB2(); // version
+  final numBytes = buf.readUB4(); // length of data
+  buf.skipUB2(); // flags
+  if (numBytes == 0) return null;
+  final packed = buf.readBytes()!;
+  if (type == null) return readXmlType(packed);
+  return OracleDbObject.fromPacked(type, toid, oid, packed);
+}
+
+/// Writes an object to the network buffer.
+void writeDbObject(WriteBuffer buf, OracleDbObject obj) {
+  final toid = obj.toid!, oid = obj.oid;
+  buf.writeUB4(toid.length);
+  buf.writeBytesWithLength(toid);
+  if (oid == null) {
+    buf.writeUB4(0);
+  } else {
+    buf.writeUB4(oid.length);
+    buf.writeBytesWithLength(oid);
+  }
+  buf.writeUB4(0); // snapshot
+  buf.writeUB4(0); // version
+  final packed = obj.packedData();
+  buf.writeUB4(packed.length);
+  buf.writeUB4(obj.flags);
+  buf.writeBytesWithLength(packed);
+}
+
 /// Reads the value of an XMLType (pickled image) as a string.
 Object readXmlType(Uint8List image) {
   final buf = _PickleReader(image);

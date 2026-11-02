@@ -460,6 +460,28 @@ class WriteBuffer {
     }
   }
 
+  /// Writes a 32-bit signed integer in universal format.
+  void writeSB4(int value) {
+    value = value.toSigned(32);
+    var sign = 0;
+    if (value < 0) {
+      value = -value;
+      sign = 0x80;
+    }
+    if (value == 0) {
+      writeUint8(0);
+    } else if (value <= 0xff) {
+      writeUint8(1 | sign);
+      writeUint8(value);
+    } else if (value <= 0xffff) {
+      writeUint8(2 | sign);
+      writeUint16BE(value);
+    } else {
+      writeUint8(4 | sign);
+      writeUint32BE(value);
+    }
+  }
+
   void writeUB8(int value) {
     if (value == 0) {
       writeUint8(0);

@@ -27,6 +27,11 @@ is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
   and fetched, including nested objects and LOB attributes. Types used by
   queries are discovered from the query metadata. `XMLType` values are
   fetched as strings.
+- Advanced Queuing (`OracleConnection.queue()`, `OracleQueue`,
+  `OracleMessage`): enqueue and dequeue of RAW, JSON and object payloads,
+  one at a time or many in a single round trip, with enqueue and dequeue
+  options (visibility, delivery mode, browse/locked/remove modes,
+  navigation, conditions, correlations, consumers and recipients).
 
 ### Fixed
 

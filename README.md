@@ -33,6 +33,8 @@ package.
   associative arrays) and `XMLType`
 - Pipelining (many operations in a single round trip on Oracle Database
   23ai) and two-phase commit
+- Advanced Queuing (AQ) with RAW, JSON and object payloads, including array
+  enqueue and dequeue
 - LOBs as values or as locators with streaming reads, writes and temporary
   LOBs
 - Native `JSON` (OSON) and `VECTOR` types (dense, binary and sparse vectors)
@@ -412,6 +414,29 @@ DRCP is used when the connect string asks for a pooled server (for example
 `host/service:pooled`); pass `cclass` and `purity` to
 `OracleConnection.connect` or `OracleConnectionPool.create`.
 
+### Advanced Queuing
+
+```dart
+final queue = conn.queue('DEMO_Q'); // RAW payloads (String or Uint8List)
+await queue.enqOne(OracleMessage(payload: 'hello', correlation: 'greeting'));
+await queue.enqMany([OracleMessage(payload: 'a'), OracleMessage(payload: 'b')]);
+await conn.commit();
+
+queue.deqOptions.wait = AqDeqOptions.noWait;
+final message = await queue.deqOne(); // null when the queue is empty
+final batch = await queue.deqMany(10);
+await conn.commit();
+
+// JSON and object payloads
+final jsonQueue = conn.queue('JSON_Q', json: true);
+final orderQueue =
+    conn.queue('ORDER_Q', payloadType: await conn.getType('ORDER_T'));
+```
+
+`deqOptions` also has `mode` (browse, locked, remove), `navigation`,
+`visibility`, `condition`, `consumerName`, `correlation` and `msgId`;
+`enqOptions` has `visibility` and `deliveryMode`.
+
 ### Data types
 
 | Oracle type | Dart type |
@@ -477,9 +502,10 @@ pip install oracledb && python benchmark/bench.py
 
 ## Not supported yet
 
-Native Network Encryption, sessionless transactions, Advanced Queuing and
-SODA (SODA is only available in the thick mode of the Oracle client
-libraries).
+Native Network Encryption, sessionless transactions, AQ message
+properties for user-defined properties and recipient lists of dequeued
+messages, and SODA (SODA is only available in the thick mode of the Oracle
+client libraries).
 
 ## Development
 

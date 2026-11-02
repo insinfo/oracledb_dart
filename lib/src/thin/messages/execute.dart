@@ -215,7 +215,7 @@ abstract class MessageWithData extends Message {
             }
           }
         case ORA_TYPE_NUM_OBJECT:
-          value = _readDbObject(buf, metadata.objectType);
+          value = readDbObject(buf, metadata.objectType);
         case ORA_TYPE_NUM_CURSOR:
           buf.skipUB1(); // length (fixed value)
           final child = ThinCursorImpl(conn);
@@ -252,20 +252,6 @@ abstract class MessageWithData extends Message {
       buf.skipUB4(); // return code
     }
     return value;
-  }
-
-  /// Reads an object (or an XMLType value when [type] is null).
-  Object? _readDbObject(ReadBuffer buf, OracleDbObjectType? type) {
-    final toid = buf.readUB4() > 0 ? buf.readBytes() : null;
-    final oid = buf.readUB4() > 0 ? buf.readBytes() : null;
-    if (buf.readUB4() > 0) buf.readBytes(); // snapshot
-    buf.skipUB2(); // version
-    final numBytes = buf.readUB4(); // length of data
-    buf.skipUB2(); // flags
-    if (numBytes == 0) return null;
-    final packed = buf.readBytes()!;
-    if (type == null) return readXmlType(packed);
-    return OracleDbObject.fromPacked(type, toid, oid, packed);
   }
 
   void _processDescribeInfo(ReadBuffer buf, ThinCursorImpl cursor) {
@@ -628,22 +614,7 @@ abstract class MessageWithData extends Message {
         buf.writeQLocator(data.length);
         buf.writeBytesWithLength(data);
       case ORA_TYPE_NUM_OBJECT:
-        final obj = value as OracleDbObject;
-        final toid = obj.toid!, oid = obj.oid;
-        buf.writeUB4(toid.length);
-        buf.writeBytesWithLength(toid);
-        if (oid == null) {
-          buf.writeUB4(0);
-        } else {
-          buf.writeUB4(oid.length);
-          buf.writeBytesWithLength(oid);
-        }
-        buf.writeUB4(0); // snapshot
-        buf.writeUB4(0); // version
-        final packed = obj.packedData();
-        buf.writeUB4(packed.length);
-        buf.writeUB4(obj.flags);
-        buf.writeBytesWithLength(packed);
+        writeDbObject(buf, value as OracleDbObject);
       case ORA_TYPE_NUM_CURSOR:
         final child = value as ThinCursorImpl;
         child.statement ??= conn.statementCache.getStatement(null, false);

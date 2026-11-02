@@ -1,6 +1,7 @@
 import 'dart:async';
 import 'dart:io';
 
+import 'aq.dart';
 import 'connect_params.dart';
 import 'dbobject.dart';
 import 'cursor.dart';
@@ -365,6 +366,14 @@ class OracleConnection {
 
   /// Whether the database supports pipelining (Oracle Database 23ai).
   bool get supportsPipelining => impl.protocol.caps.supportsPipelining;
+
+  /// Returns a queue of Advanced Queuing (AQ). Without a [payloadType] the
+  /// queue holds RAW payloads, unless [json] is true.
+  OracleQueue queue(String name,
+      {OracleDbObjectType? payloadType, bool json = false}) {
+    checkConnected();
+    return OracleQueue(this, name, payloadType: payloadType, isJson: json);
+  }
 
   /// Returns the object or collection type with the given name (for
   /// example `SCHEMA.TYPE_NAME` or `SCHEMA.PACKAGE.TYPE_NAME` for PL/SQL

@@ -72,6 +72,21 @@ class ThinConnImpl {
   }
 
   bool get isHealthy => protocol.isHealthy;
+
+  /// Whether the connection uses Database Resident Connection Pooling.
+  bool get drcpEnabled => params.serverType?.toLowerCase() == 'pooled';
+
+  /// Whether the connection belongs to an [OracleConnectionPool].
+  bool isPooled = false;
+
+  /// The purity requested; with DRCP the default is NEW for standalone
+  /// connections and SELF for pooled ones.
+  Purity get effectivePurity {
+    if (params.purity != Purity.defaultPurity || !drcpEnabled) {
+      return params.purity;
+    }
+    return isPooled ? Purity.self : Purity.newPurity;
+  }
   bool get txnInProgress => protocol.txnInProgress;
 
   Future<void> connect() async {
@@ -195,7 +210,21 @@ class ThinConnImpl {
   }
 
   Statement getStatement(String? sql, bool cacheStatement) =>
-      statementCache.getStatement(sql, cacheStatement);
+      statementCache.getStatement(sql, cacheStatement,
+          forceNew: drcpEstablishSession);
+
+  /// Releases the DRCP session to the database pool (when the connection is
+  /// released to the client pool); the next call attaches a session again.
+  Future<void> releaseDrcpSession() async {
+    final p = protocol;
+    await p.lock.run(() async {
+      if (p.txnInProgress) {
+        await p.processMessage(SimpleMessage(this, TNS_FUNC_ROLLBACK));
+      }
+      p.sendOneWay(SessionReleaseMessage(this, 0));
+      drcpEstablishSession = true;
+    });
+  }
 
   void returnStatement(Statement stmt) => statementCache.returnStatement(stmt);
 
@@ -216,7 +245,13 @@ class ThinConnImpl {
           if (p.txnInProgress) {
             await p.processMessage(SimpleMessage(this, TNS_FUNC_ROLLBACK));
           }
-          await p.processMessage(SimpleMessage(this, TNS_FUNC_LOGOFF));
+          if (drcpEnabled) {
+            // DRCP sessions are released instead of logged off
+            p.sendOneWay(SessionReleaseMessage(
+                this, isPooled ? 0 : DRCP_DEAUTHENTICATE));
+          } else {
+            await p.processMessage(SimpleMessage(this, TNS_FUNC_LOGOFF));
+          }
         }
       } finally {
         await p.finalClose();

@@ -317,6 +317,12 @@ class Protocol {
     message.postprocess();
   }
 
+  /// Sends a message for which the server sends no response.
+  void sendOneWay(Message message) {
+    checkConnected();
+    message.send(writeBuf);
+  }
+
   /// Sends the final close packet and disconnects.
   Future<void> finalClose() async {
     if (transport.isConnected) {

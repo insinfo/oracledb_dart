@@ -429,7 +429,7 @@ class AuthMessage extends Message {
         _generateVerifier();
       }
       if (params.cclass != null) numPairs += 1;
-      if (params.purity.value != 0) numPairs += 1;
+      if (conn.effectivePurity.value != 0) numPairs += 1;
       if (newPassword != null) {
         numPairs += 1;
         authMode |= TNS_AUTH_MODE_CHANGE_PASSWORD;
@@ -485,8 +485,9 @@ class AuthMessage extends Message {
     if (params.cclass != null) {
       _writeKeyValue(buf, 'AUTH_KPPL_CONN_CLASS', params.cclass!);
     }
-    if (params.purity.value != 0) {
-      _writeKeyValue(buf, 'AUTH_KPPL_PURITY', '${params.purity.value}', 1);
+    if (conn.effectivePurity.value != 0) {
+      _writeKeyValue(
+          buf, 'AUTH_KPPL_PURITY', '${conn.effectivePurity.value}', 1);
     }
     final privateKey = params.privateKey;
     if (token != null && privateKey != null) {

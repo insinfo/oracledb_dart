@@ -186,7 +186,7 @@ class OracleConnectionPool {
   Future<_PooledSession> _createSession() async {
     _creating++;
     try {
-      final impl = ThinConnImpl(params);
+      final impl = ThinConnImpl(params)..isPooled = true;
       try {
         await impl.connect();
       } catch (_) {
@@ -352,7 +352,15 @@ class OracleConnectionPool {
     if (_busy.remove(session.impl) == null) return;
     session.lastUsed = DateTime.now();
     var keep = !drop && session.impl.isHealthy && !_closed;
-    if (keep && session.impl.txnInProgress) {
+    if (keep && session.impl.drcpEnabled) {
+      try {
+        // rolls back any open transaction and returns the session to the
+        // database resident connection pool
+        await session.impl.releaseDrcpSession();
+      } catch (_) {
+        keep = false;
+      }
+    } else if (keep && session.impl.txnInProgress) {
       try {
         // roll back any transaction left open by the application
         await session.impl.rollback();

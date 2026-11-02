@@ -9,6 +9,11 @@ is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
 - Scrollable cursors (`OracleCursor.scrollable` and `OracleCursor.scroll()`
   with relative, absolute, first and last positioning).
+- Database Resident Connection Pooling (DRCP): connections with
+  `SERVER=POOLED` (e.g. `host/service:pooled`) use the connection class and
+  purity given, release their sessions to the database pool when returned
+  to an `OracleConnectionPool` and are released instead of logged off when
+  closed.
 
 ### Fixed
 

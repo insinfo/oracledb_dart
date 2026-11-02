@@ -494,6 +494,25 @@ abstract class Message {
   }
 }
 
+/// Releases a DRCP session back to the pool of the database (one-way: the
+/// server sends no response).
+class SessionReleaseMessage extends Message {
+  SessionReleaseMessage(super.conn, this.releaseMode) {
+    messageType = TNS_MSG_TYPE_ONEWAY_FN;
+    functionCode = TNS_FUNC_SESSION_RELEASE;
+  }
+
+  final int releaseMode;
+
+  @override
+  void writeMessage(WriteBuffer buf) {
+    writeFunctionCode(buf);
+    buf.writeUint8(0); // pointer (tag name)
+    buf.writeUint8(0); // tag name length
+    buf.writeUB4(releaseMode); // mode
+  }
+}
+
 /// Simple messages consisting only of a function code.
 class SimpleMessage extends Message {
   SimpleMessage(super.conn, int functionCode) {

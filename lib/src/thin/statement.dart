@@ -464,7 +464,11 @@ class StatementCache {
     numCursorsToClose = 0;
   }
 
-  Statement getStatement(String? sql, bool cacheStatement) {
+  /// Returns a statement for [sql]; with [forceNew], a cached statement is
+  /// copied (and parsed again) instead of being reused, which is required
+  /// after a DRCP session has been released.
+  Statement getStatement(String? sql, bool cacheStatement,
+      {bool forceNew = false}) {
     Statement? stmt;
     if (sql != null) stmt = _cached[sql];
     if (stmt == null) {
@@ -475,7 +479,7 @@ class StatementCache {
         _adjustCache();
       }
       _openCursors.add(stmt);
-    } else if (stmt.inUse) {
+    } else if (forceNew || stmt.inUse) {
       if (!cacheStatement) {
         _addCursorToClose(stmt);
         _cached.remove(sql);

@@ -1,0 +1,82 @@
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+  workflow_dispatch:
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  analyze:
+    name: Analyze and unit tests (Dart ${{ matrix.sdk }})
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    strategy:
+      fail-fast: false
+      matrix:
+        sdk: ['3.6.0', stable]
+    steps:
+      - uses: actions/checkout@v4
+      - uses: dart-lang/setup-dart@v1
+        with:
+          sdk: ${{ matrix.sdk }}
+      - name: Install dependencies
+        run: dart pub get
+      - name: Check formatting
+        if: matrix.sdk == '3.6.0'
+        run: dart format --output=none --set-exit-if-changed lib test example benchmark
+      - name: Analyze
+        run: dart analyze --fatal-infos
+      - name: Unit tests
+        run: dart test test/unit --reporter=expanded
+
+  integration:
+    name: Integration tests (Oracle Database 23ai Free, TCP and TCPS)
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    env:
+      ORACLE_HOST: localhost
+      ORACLE_PORT: '1521'
+      ORACLE_SERVICE: FREEPDB1
+      ORACLE_USER: dart_user
+      ORACLE_PASSWORD: dart
+      ORACLE_DSN: localhost:1521/FREEPDB1
+      ORACLE_TCPS_PORT: '2484'
+      ORACLE_TCPS_WALLET: ${{ github.workspace }}/.ci/client
+    steps:
+      - uses: actions/checkout@v4
+      - uses: dart-lang/setup-dart@v1
+        with:
+          sdk: stable
+      - name: Install dependencies
+        run: dart pub get
+      - name: Create the TCPS wallet
+        run: tool/ci/create_tcps_wallet.sh .ci
+      - name: Start Oracle Database
+        run: |
+          docker run -d --name oracle -p 1521:1521 -p 2484:2484 \
+            -e ORACLE_PASSWORD=oracle \
+            -e APP_USER=dart_user -e APP_USER_PASSWORD=dart \
+            -v "$PWD/.ci/share:/share:ro" \
+            -v "$PWD/tool/ci/startdb:/container-entrypoint-startdb.d:ro" \
+            gvenzl/oracle-free:23-slim
+          for i in $(seq 1 120); do
+            if docker exec oracle healthcheck.sh > /dev/null 2>&1; then
+              echo "database is ready"
+              exit 0
+            fi
+            sleep 5
+          done
+          docker logs oracle
+          exit 1
+      - name: Integration tests
+        run: dart test test/integration --concurrency=1 --reporter=expanded
+      - name: Run the example
+        run: dart run example/example.dart
+      - name: Database logs
+        if: failure()
+        run: docker logs oracle

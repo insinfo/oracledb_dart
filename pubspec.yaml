@@ -1,14 +1,19 @@
 name: oracledb_dart
-description: A pure dart Oracle Database driver
+description: >-
+  A pure Dart driver for Oracle Database (thin mode). No Oracle Client
+  libraries or third-party dependencies are required.
 version: 1.0.0
+repository: https://github.com/insinfo/oracledb_dart
+issue_tracker: https://github.com/insinfo/oracledb_dart/issues
+topics:
+  - oracle
+  - database
+  - sql
 
 environment:
   sdk: '^3.6.0'
 
-dependencies:
-  pointycastle: ^4.0.0
-  #crypto: any
-
 dev_dependencies:
-  test: any
-
+  benchmark_harness: ^2.3.1
+  lints: ^5.0.0
+  test: ^1.25.0

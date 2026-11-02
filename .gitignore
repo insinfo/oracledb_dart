@@ -1,2 +1,7 @@
 .dart_tool/
 pubspec.lock
+
+# reference implementation (cloned locally, not versioned)
+python-oracledb/
+bench
+.ci/

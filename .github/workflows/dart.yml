@@ -20,7 +20,7 @@ jobs:
       matrix:
         sdk: ['3.6.0', stable]
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v5
       - uses: dart-lang/setup-dart@v1
         with:
           sdk: ${{ matrix.sdk }}
@@ -48,14 +48,14 @@ jobs:
       ORACLE_TCPS_PORT: '2484'
       ORACLE_TCPS_WALLET: ${{ github.workspace }}/.ci/client
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v5
       - uses: dart-lang/setup-dart@v1
         with:
           sdk: stable
       - name: Install dependencies
         run: dart pub get
       - name: Create the TCPS wallet
-        run: tool/ci/create_tcps_wallet.sh .ci
+        run: bash tool/ci/create_tcps_wallet.sh .ci
       - name: Start Oracle Database
         run: |
           docker run -d --name oracle -p 1521:1521 -p 2484:2484 \
